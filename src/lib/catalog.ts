@@ -1,4 +1,5 @@
 import { DEFAULT_MOQ } from './constants';
+import { clothUnitPrice } from './cloth-price';
 import type { CatalogProduct, Cloth } from './types';
 
 const SAMPLE: CatalogProduct[] = [
@@ -66,15 +67,16 @@ export function sampleCatalog() {
 
 export function clothToProduct(cloth: Cloth): CatalogProduct {
   const typeName = typeof cloth._type === 'object' ? cloth._type?.name : undefined;
+  const styleName = typeof cloth._style === 'object' ? cloth._style?.name : undefined;
   const color = typeof cloth._color === 'object' ? cloth._color?.name : undefined;
   const size = typeof cloth._size === 'object' ? cloth._size?.name : undefined;
   return {
     id: cloth._id,
     code: String(cloth.code ?? cloth._id),
-    name: typeName || `لباس ${cloth.code ?? ''}`.trim(),
+    name: [typeName, styleName].filter(Boolean).join(' ') || `لباس ${cloth.code ?? ''}`.trim(),
     description: cloth.description || 'موجودی انبار بازار — فروش فقط به‌صورت عمده.',
     category: typeName || 'پوشاک',
-    wholesalePrice: Number(cloth.wholesalePrice || cloth.boughtFee || cloth.tailorFee || 0),
+    wholesalePrice: clothUnitPrice(cloth),
     minOrderQty: Number(cloth.minOrderQty || DEFAULT_MOQ),
     count: Number(cloth.count || 0),
     image: cloth.images?.[0] || SAMPLE[0].image,

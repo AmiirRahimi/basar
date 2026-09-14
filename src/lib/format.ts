@@ -3,7 +3,11 @@ export function displayName(value: unknown): string {
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>;
-    return String(obj.fullName || obj.name || obj.code || obj._id || '—');
+    if (obj.fullName || obj.name || obj.code) {
+      return String(obj.fullName || obj.name || obj.code);
+    }
+    if (obj._mercer) return displayName(obj._mercer);
+    return String(obj._id || '—');
   }
   return '—';
 }

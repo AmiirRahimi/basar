@@ -40,6 +40,7 @@ export type Cloth = {
   _id: string;
   code?: string | number;
   count?: number;
+  amountUsed?: number;
   boughtFee?: number;
   tailorFee?: number;
   washFee?: number;
@@ -49,8 +50,16 @@ export type Cloth = {
   description?: string;
   images?: string[];
   _type?: { name?: string; _id?: string } | string;
+  _style?: { name?: string; _id?: string } | string;
   _size?: { name?: string; _id?: string } | string;
   _color?: { name?: string; _id?: string } | string;
+  _producedFrom?: {
+    _id?: string;
+    amount?: number;
+    priceForUnit?: number;
+    priceForShipingForUnit?: number;
+    _mercer?: Person | string;
+  } | string;
   _tailor?: Person | string;
   _boughtFrom?: Person | string;
 };
@@ -109,4 +118,5 @@ export type FieldOption = {
   value: string;
   parent?: string;
   address?: string;
+  price?: number;
 };

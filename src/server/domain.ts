@@ -4,6 +4,7 @@ import * as mongo from './models';
 import { fileModels } from './file-db';
 import { fail, ok, type ActionResult } from './result';
 import { requireSession, type Session } from './session';
+import { fabricUnitCost } from '@/lib/cloth-price';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -51,6 +52,7 @@ function lookups() {
     color: { model: m.Color, global: true, sort: 'name' },
     size: { model: m.Size, populate: { path: '_clothKind' }, global: true, sort: 'name' },
     'cloth-kind': { model: m.ClothKind, global: true, sort: 'name' },
+    'cloth-style': { model: m.ClothStyle, populate: { path: '_clothKind' }, global: true, sort: 'name' },
     change: { model: m.Change, sort: '-timeStamp' },
     permision: { model: m.Permision, global: true },
   } as Record<string, { model: any; populate?: any; sort?: string; global?: boolean }>;
@@ -126,6 +128,16 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
   return next;
 }
 
+async function applyClothCost(body: Record<string, unknown>) {
+  const fabricId = body._producedFrom;
+  const amountUsed = Number(body.amountUsed || 0);
+  if (!fabricId || !amountUsed) return body;
+  const fabric = await M().Fabric.findOne({ _id: fabricId, isDeleted: false }).lean();
+  if (!fabric) return body;
+  body.boughtFee = amountUsed * fabricUnitCost(fabric);
+  return body;
+}
+
 export async function createResource(resource: string, payload: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
@@ -160,7 +172,9 @@ export async function createResource(resource: string, payload: unknown): Promis
 
   const cfg = lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
-  const created = await cfg.model.create(preparePayload(auth.session, resource, body));
+  let next = preparePayload(auth.session, resource, body);
+  if (resource === 'cloth') next = await applyClothCost(next);
+  const created = await cfg.model.create(next);
   if (cfg.populate) await created.populate(cfg.populate);
   if (resource === 'check') {
     await M().Change.create({
@@ -206,8 +220,9 @@ export async function updateResource(resource: string, id: string, payload: unkn
     return ok(serialize(updated.toObject()), 'ویرایش شد');
   }
 
-  const body = preparePayload(auth.session, resource, raw);
+  let body = preparePayload(auth.session, resource, raw);
   delete body._storeId;
+  if (resource === 'cloth') body = await applyClothCost(body);
   const cfg = resource === 'customer-cart' ? { model: M().CustomerCart, populate: { path: '_cloth' } } : lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
   const filter = 'global' in cfg && cfg.global ? { _id: id } : { _id: id, _storeId: oid(auth.session._storeId) };
@@ -220,7 +235,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
 export async function deleteResource(resource: string, id: string): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
-  if (resource === 'color' || resource === 'size' || resource === 'cloth-kind' || resource === 'permision') {
+  if (resource === 'color' || resource === 'size' || resource === 'cloth-kind' || resource === 'cloth-style' || resource === 'permision') {
     const cfg = lookups()[resource];
     await cfg.model.findByIdAndDelete(id);
     return ok(null, 'حذف شد');
@@ -240,8 +255,8 @@ export async function deleteResource(resource: string, id: string): Promise<Acti
 export async function listPublicClothes(): Promise<ActionResult> {
   await db();
   const rows = await M().Cloth.find({ isDeleted: false, published: true })
-    .select('_id code count description wholesalePrice minOrderQty images _type _size _color boughtFee tailorFee')
-    .populate([{ path: '_type' }, { path: '_color' }, { path: '_size', select: '_id name' }])
+    .select('_id code count description wholesalePrice minOrderQty images _type _style _size _color _producedFrom amountUsed boughtFee tailorFee')
+    .populate([{ path: '_type' }, { path: '_style' }, { path: '_color' }, { path: '_size', select: '_id name' }, { path: '_producedFrom' }])
     .sort('code')
     .limit(80)
     .lean();

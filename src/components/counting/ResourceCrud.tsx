@@ -24,6 +24,8 @@ export type Field = {
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
   required?: boolean;
+  /** When set, this numeric field is multiplied by `option.price` of the named relation field. */
+  priceFrom?: string;
 };
 
 export type ColumnSpec = {
@@ -146,6 +148,16 @@ export function ResourceCrud({
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
 
+  function computedPrice() {
+    const amountField = fields.find((f) => f.priceFrom);
+    if (!amountField?.priceFrom) return null;
+    const fabricField = fields.find((f) => f.name === amountField.priceFrom);
+    const selected = (fabricField?.options || []).find((option) => option.value === form[amountField.priceFrom!]);
+    const amount = Number(form[amountField.name] || 0);
+    if (!selected || !amount) return 0;
+    return amount * Number(selected.price || 0);
+  }
+
   function submit() {
     const missing = fields.filter(missingFor);
     if (missing.length) {
@@ -191,7 +203,7 @@ export function ResourceCrud({
       ) : (
         <EmptyState message={`هنوز ${title} ثبت نشده`} />
       )}
-      <Modal isOpen={open} onClose={() => setOpen(false)}>
+      <Modal isOpen={open} onClose={() => setOpen(false)} size="lg">
         <FormCard>
           <h3 className="mb-4 text-lg font-medium">{editing ? `ویرایش ${title}` : `ثبت ${title}`}</h3>
           <div className="grid gap-3">
@@ -243,6 +255,11 @@ export function ResourceCrud({
                 />
               );
             })}
+            {fields.find((f) => f.priceFrom) ? (
+              <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-medium">
+                قیمت هر لباس: {toman(computedPrice() || 0)}
+              </p>
+            ) : null}
             <Button onClick={submit} disabled={pending}>
               ذخیره
             </Button>

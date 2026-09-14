@@ -79,6 +79,13 @@ const PersonSchema = new Schema(
 );
 
 const ClothKindSchema = new Schema({ name: { type: String, required: true } }, { collection: 'clothkinds' });
+const ClothStyleSchema = new Schema(
+  {
+    name: { type: String, required: true },
+    _clothKind: { type: Schema.Types.ObjectId, ref: 'ClothKind', required: true },
+  },
+  { collection: 'clothstyles' },
+);
 const ColorSchema = new Schema({ name: { type: String, required: true } }, { collection: 'colors' });
 const SizeSchema = new Schema(
   {
@@ -106,6 +113,7 @@ const ClothSchema = new Schema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     _type: { type: Schema.Types.ObjectId, ref: 'ClothKind' },
+    _style: { type: Schema.Types.ObjectId, ref: 'ClothStyle' },
     _size: { type: Schema.Types.ObjectId, ref: 'Size' },
     _color: { type: Schema.Types.ObjectId, ref: 'Color' },
     _tailor: { type: Schema.Types.ObjectId, ref: 'Person' },
@@ -261,6 +269,7 @@ export const Store = modelOf<any>('Store', StoreSchema);
 export const StoreBranch = modelOf<any>('StoreBranch', StoreBranchSchema);
 export const Person = modelOf<any>('Person', PersonSchema);
 export const ClothKind = modelOf<any>('ClothKind', ClothKindSchema);
+export const ClothStyle = modelOf<any>('ClothStyle', ClothStyleSchema);
 export const Color = modelOf<any>('Color', ColorSchema);
 export const Size = modelOf<any>('Size', SizeSchema);
 export const Fabric = modelOf<any>('Fabric', FabricSchema);
@@ -283,6 +292,7 @@ export const CLOTH_POPULATE = [
   { path: '_tailor', select: personSelect },
   { path: '_wash', select: personSelect },
   { path: '_type' },
+  { path: '_style' },
   { path: '_color' },
   { path: '_size', select: '_id name' },
   { path: '_producedFrom', populate: [{ path: '_mercer', select: personSelect }, { path: '_tailor', select: personSelect }] },

@@ -1,18 +1,47 @@
 import { CountingShell } from '@/components/counting/CountingShell';
-import { listClothKinds, listColors, listSizes } from '@/actions/crud';
+import { listClothKinds, listClothStyles, listColors, listSizes } from '@/actions/crud';
 import { clothKindOptions } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
 
 export default async function DropdownsPage() {
-  const [colors, sizes, kinds, kindOptions] = await Promise.all([
+  const [colors, sizes, kinds, styles, kindOptions] = await Promise.all([
     listColors(),
     listSizes(),
     listClothKinds(),
+    listClothStyles(),
     clothKindOptions(),
   ]);
   return (
     <CountingShell title="لیست‌های کمکی">
       <div className="grid gap-8">
+        <section>
+          <h3 className="mb-3 font-medium">نوع لباس</h3>
+          <p className="mb-3 text-sm text-muted-foreground">فقط از این صفحه قابل ویرایش است؛ مثلاً شلوار جین و شلوار کتان.</p>
+          <CrudPage
+            resource="cloth-kind"
+            title="نوع"
+            rows={Array.isArray(kinds.data) ? kinds.data : []}
+            columns={[{ header: 'نام', accessor: 'name' }]}
+            fields={[{ name: 'name', label: 'نام', required: true }]}
+          />
+        </section>
+        <section>
+          <h3 className="mb-3 font-medium">مدل لباس</h3>
+          <p className="mb-3 text-sm text-muted-foreground">مدل‌های هر نوع؛ مثلاً برای شلوار جین: شلوار راسته و شلوار مام.</p>
+          <CrudPage
+            resource="cloth-style"
+            title="مدل"
+            rows={Array.isArray(styles.data) ? styles.data : []}
+            columns={[
+              { header: 'نام', accessor: 'name' },
+              { header: 'نوع لباس', accessor: '_clothKind', format: 'name' },
+            ]}
+            fields={[
+              { name: 'name', label: 'نام', required: true },
+              { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
+            ]}
+          />
+        </section>
         <section>
           <h3 className="mb-3 font-medium">رنگ</h3>
           <CrudPage
@@ -37,16 +66,6 @@ export default async function DropdownsPage() {
               { name: 'name', label: 'نام', required: true },
               { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
             ]}
-          />
-        </section>
-        <section>
-          <h3 className="mb-3 font-medium">نوع لباس</h3>
-          <CrudPage
-            resource="cloth-kind"
-            title="نوع"
-            rows={Array.isArray(kinds.data) ? kinds.data : []}
-            columns={[{ header: 'نام', accessor: 'name' }]}
-            fields={[{ name: 'name', label: 'نام', required: true }]}
           />
         </section>
       </div>

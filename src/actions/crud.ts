@@ -79,6 +79,10 @@ export async function listClothKinds() {
   return listByName('cloth-kind', 1, 200);
 }
 
+export async function listClothStyles() {
+  return listByName('cloth-style', 1, 200);
+}
+
 export async function listUsers(page = 1, skip = 50) {
   return usersDb(page, skip);
 }

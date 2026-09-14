@@ -54,3 +54,35 @@ export async function sizeOptions(): Promise<FieldOption[]> {
   const res = await listByName('size', 1, 200);
   return toOptions(res.data, 'name', '_clothKind');
 }
+
+export async function clothStyleOptions(): Promise<FieldOption[]> {
+  const res = await listByName('cloth-style', 1, 200);
+  return toOptions(res.data, 'name', '_clothKind');
+}
+
+export async function fabricOptions(): Promise<FieldOption[]> {
+  const res = await listByName('fabric', 1, 500);
+  if (!Array.isArray(res.data)) return [];
+  return res.data.map(
+    (row: {
+      _id?: unknown;
+      amount?: unknown;
+      priceForUnit?: unknown;
+      priceForShipingForUnit?: unknown;
+      _mercer?: { fullName?: unknown } | string;
+    }) => {
+      const mercer =
+        row._mercer && typeof row._mercer === 'object'
+          ? String(row._mercer.fullName || '').trim()
+          : '';
+      const unit = Number(row.priceForUnit || 0) + Number(row.priceForShipingForUnit || 0);
+      const amount = row.amount != null ? `${row.amount} متر` : '';
+      const label = [mercer, amount].filter(Boolean).join(' — ') || String(row._id);
+      return {
+        value: String(row._id),
+        label,
+        price: unit,
+      };
+    },
+  );
+}
