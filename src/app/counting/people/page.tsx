@@ -16,6 +16,7 @@ export default async function PeoplePage() {
           { header: 'نام', accessor: 'fullName' },
           { header: 'موبایل', accessor: 'phoneNumber' },
           { header: 'نقش', accessor: 'role', format: 'role' },
+          { header: 'اجرت دوخت', accessor: 'sewingFee', format: 'toman' },
           { header: 'آدرس', accessor: 'address' },
         ]}
         fields={[
@@ -28,6 +29,13 @@ export default async function PeoplePage() {
             label: 'نقش',
             type: 'select',
             options: Object.entries(PERSON_ROLES).map(([value, label]) => ({ value, label })),
+          },
+          {
+            name: 'sewingFee',
+            label: 'اجرت دوخت پارچه',
+            type: 'number',
+            required: true,
+            visibleWhen: { field: 'role', values: ['2', '3'] },
           },
         ]}
       />

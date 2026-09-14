@@ -34,6 +34,7 @@ export type Person = {
   city?: string | number;
   address?: string;
   role?: string | number;
+  sewingFee?: number;
 };
 
 export type Cloth = {

@@ -26,6 +26,8 @@ export type Field = {
   required?: boolean;
   /** When set, this numeric field is multiplied by `option.price` of the named relation field. */
   priceFrom?: string;
+  /** Show this field only when another field's value is one of `values`. */
+  visibleWhen?: { field: string; values: string[] };
 };
 
 export type ColumnSpec = {
@@ -65,7 +67,7 @@ export function ResourceCrud({
           const row = info.row.original;
           const value = info.getValue();
           if (col.format === 'name') return displayName(value);
-          if (col.format === 'toman') return toman(value);
+          if (col.format === 'toman') return value == null || value === '' ? '—' : toman(value);
           if (col.format === 'date') return faDate(value);
           if (col.format === 'role') return PERSON_ROLES[String(row.role)] || String(row.role ?? '—');
           return String(value ?? '—');
@@ -139,12 +141,21 @@ export function ResourceCrud({
       const next = { ...s, [field.name]: value };
       fields.forEach((f) => {
         if (f.dependsOn === field.name) next[f.name] = '';
+        if (f.visibleWhen?.field === field.name && !f.visibleWhen.values.includes(value)) {
+          next[f.name] = '';
+        }
       });
       return next;
     });
   }
 
+  function isVisible(field: Field) {
+    if (!field.visibleWhen) return true;
+    return field.visibleWhen.values.includes(String(form[field.visibleWhen.field] ?? ''));
+  }
+
   function missingFor(field: Field) {
+    if (!isVisible(field)) return false;
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
 
@@ -169,6 +180,7 @@ export function ResourceCrud({
     start(async () => {
       const payload: Record<string, unknown> = {};
       fields.forEach((f) => {
+        if (!isVisible(f)) return;
         payload[f.name] = f.type === 'number' ? Number(form[f.name]) : form[f.name];
       });
       const res = editing
@@ -208,6 +220,7 @@ export function ResourceCrud({
           <h3 className="mb-4 text-lg font-medium">{editing ? `ویرایش ${title}` : `ثبت ${title}`}</h3>
           <div className="grid gap-3">
             {fields.map((field) => {
+              if (!isVisible(field)) return null;
               const label = field.required ? `${field.label} *` : field.label;
               const error = showErrors && missingFor(field) ? 'الزامی است' : undefined;
 
