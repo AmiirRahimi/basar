@@ -108,4 +108,5 @@ export type FieldOption = {
   label: string;
   value: string;
   parent?: string;
+  address?: string;
 };

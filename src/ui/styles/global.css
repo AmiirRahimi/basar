@@ -1435,6 +1435,10 @@ div[style='z-index: 1000001;'],
   .print-container table tfoot {
     display: table-footer-group;
   }
+
+  .no-print {
+    display: none !important;
+  }
 }
 
 [dir='rtl'] :is(.rizzui-checkbox-icon, .rizzui-switch-on-icon) {

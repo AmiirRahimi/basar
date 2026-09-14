@@ -177,7 +177,36 @@ export async function createResource(resource: string, payload: unknown): Promis
 export async function updateResource(resource: string, id: string, payload: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
-  const body = preparePayload(auth.session, resource, (payload || {}) as Record<string, unknown>);
+  const raw = (payload || {}) as Record<string, unknown>;
+
+  if (resource === 'invoice') {
+    const items = Array.isArray(raw.items) ? raw.items : null;
+    const body = preparePayload(auth.session, resource, { ...raw, items: undefined });
+    delete body._storeId;
+    delete body.items;
+    const filter = { _id: id, _storeId: oid(auth.session._storeId) };
+    const updated = await M().Invoice.findOneAndUpdate(filter, body, { new: true });
+    if (!updated) return fail('پیدا نشد', 404);
+    if (items) {
+      await M().CustomerCart.updateMany(
+        { _invoice: oid(id), _storeId: oid(auth.session._storeId) },
+        { isDeleted: true },
+      );
+      const validItems = items.filter((item: any) => item && item._cloth);
+      if (validItems.length) {
+        await M().CustomerCart.insertMany(
+          validItems.map((item: any) => ({
+            ...preparePayload(auth.session, 'customer-cart', item),
+            _invoice: oid(id),
+          })),
+        );
+      }
+    }
+    await updated.populate('_client', '_id fullName city role address phoneNumber');
+    return ok(serialize(updated.toObject()), 'ویرایش شد');
+  }
+
+  const body = preparePayload(auth.session, resource, raw);
   delete body._storeId;
   const cfg = resource === 'customer-cart' ? { model: M().CustomerCart, populate: { path: '_cloth' } } : lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');

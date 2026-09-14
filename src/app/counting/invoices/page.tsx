@@ -1,13 +1,14 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listInvoices } from '@/actions/crud';
-import { InvoiceWorkspace } from '@/components/counting/InvoiceWorkspace';
+import { clothOptions, personOptions } from '@/actions/options';
+import { InvoiceCrud } from '@/components/counting/InvoiceCrud';
 
 export default async function InvoicesPage() {
-  const res = await listInvoices();
+  const [res, people, clothes] = await Promise.all([listInvoices(), personOptions(), clothOptions()]);
   const rows = Array.isArray(res.data) ? res.data : [];
   return (
-    <CountingShell title="فاکتور" description={res.ok ? 'پیش‌نویس، اقلام سبد و ارسال' : res.message}>
-      <InvoiceWorkspace invoices={rows} />
+    <CountingShell title="فاکتور" description={res.ok ? undefined : res.message}>
+      <InvoiceCrud invoices={rows} people={people} clothes={clothes} />
     </CountingShell>
   );
 }

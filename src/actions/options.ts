@@ -27,7 +27,12 @@ function toOptions(data: unknown, labelKey: string, parentKey?: string): FieldOp
 export async function personOptions(role?: string): Promise<FieldOption[]> {
   const extra = role ? `filter=${encodeURIComponent(JSON.stringify({ role }))}` : '';
   const res = await listByName('person', 1, 500, extra);
-  return toOptions(res.data, 'fullName');
+  if (!Array.isArray(res.data)) return [];
+  return res.data.map((row: { _id?: unknown; fullName?: unknown; address?: unknown }) => ({
+    value: String(row._id),
+    label: String(row.fullName ?? '').trim() || String(row._id),
+    ...(row.address ? { address: String(row.address) } : {}),
+  }));
 }
 
 export async function clothOptions(): Promise<FieldOption[]> {
