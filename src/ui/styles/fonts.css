@@ -1,0 +1,50 @@
+/**
+ * TelC UI brand fonts (Peyda with Farsi numerals).
+ *
+ * Import once in the host app:
+ *   @import '@telc/ui/fonts.css';
+ *
+ * When `html[lang="fa"]`, `--app-font-family` switches to PeydaFaNum.
+ * Non-fa locales keep the system UI stack.
+ */
+
+:root {
+  --app-font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+}
+
+html[lang='fa'] {
+  --app-font-family: 'PeydaFaNum', ui-sans-serif, system-ui, sans-serif;
+}
+
+@font-face {
+  font-family: 'PeydaFaNum';
+  src: url('/fonts/Peyda/PeydaWebFaNum-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PeydaFaNum';
+  src: url('/fonts/Peyda/PeydaWebFaNum-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PeydaFaNum';
+  src: url('/fonts/Peyda/PeydaWebFaNum-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PeydaFaNum';
+  src: url('/fonts/Peyda/PeydaWebFaNum-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

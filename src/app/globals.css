@@ -1,0 +1,21 @@
+@import '../ui/styles/tokens.css';
+@import '../ui/styles/global.css';
+@import '../ui/styles/fonts.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  font-family: var(--app-font-family), Tahoma, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: rgb(var(--gray-50));
+  color: rgb(var(--foreground));
+}
