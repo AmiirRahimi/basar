@@ -2,6 +2,7 @@ import { CountingShell } from '@/components/counting/CountingShell';
 import { listPeople } from '@/actions/crud';
 import { CrudPage } from '@/components/counting/CrudPage';
 import { PERSON_ROLES } from '@/lib/constants';
+import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 
 export default async function PeoplePage() {
   const res = await listPeople();
@@ -16,6 +17,7 @@ export default async function PeoplePage() {
           { header: 'نام', accessor: 'fullName' },
           { header: 'موبایل', accessor: 'phoneNumber' },
           { header: 'نقش', accessor: 'role', format: 'role' },
+          { header: 'شهر', accessor: 'city' },
           { header: 'اجرت دوخت', accessor: 'sewingFee', format: 'toman' },
           { header: 'آدرس', accessor: 'address' },
         ]}
@@ -23,7 +25,13 @@ export default async function PeoplePage() {
           { name: 'fullName', label: 'نام' },
           { name: 'phoneNumber', label: 'موبایل' },
           { name: 'address', label: 'آدرس' },
-          { name: 'city', label: 'شهر' },
+          {
+            name: 'city',
+            label: 'شهر',
+            type: 'select',
+            searchable: true,
+            options: IRAN_CITY_OPTIONS,
+          },
           {
             name: 'role',
             label: 'نقش',

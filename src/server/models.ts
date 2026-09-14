@@ -69,7 +69,7 @@ const PersonSchema = new Schema(
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     address: String,
     fullName: String,
-    city: Number,
+    city: Schema.Types.Mixed,
     phoneNumber: Schema.Types.Mixed,
     role: { type: String, required: true },
     sewingFee: Number,

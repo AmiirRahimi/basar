@@ -24,6 +24,7 @@ export type Field = {
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
   required?: boolean;
+  searchable?: boolean;
   /** When set, this numeric field is multiplied by `option.price` of the named relation field. */
   priceFrom?: string;
   /** Show this field only when another field's value is one of `values`. */
@@ -235,7 +236,7 @@ export function ResourceCrud({
                     value={form[field.name] || ''}
                     onChange={(v) => setValue(field, String(v ?? ''))}
                     options={optionsFor(field)}
-                    searchable={field.type === 'relation'}
+                    searchable={field.searchable ?? field.type === 'relation'}
                     clearable={!field.required}
                     disabled={waitingOnParent}
                     placeholder="انتخاب کنید"
