@@ -1,9 +1,14 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listFabric } from '@/actions/crud';
+import { personOptions } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
 
 export default async function FabricPage() {
-  const res = await listFabric();
+  const [res, mercers, tailors] = await Promise.all([
+    listFabric(),
+    personOptions('3'),
+    personOptions('2'),
+  ]);
   const rows = Array.isArray(res.data) ? res.data : [];
   return (
     <CountingShell title="خرید پارچه">
@@ -18,11 +23,11 @@ export default async function FabricPage() {
           { header: 'فی', accessor: 'priceForUnit', format: 'toman' },
         ]}
         fields={[
-          { name: '_mercer', label: 'شناسه بنکدار' },
-          { name: '_tailor', label: 'شناسه خیاط' },
-          { name: 'amount', label: 'متراژ', type: 'number' },
-          { name: 'priceForUnit', label: 'فی', type: 'number' },
-          { name: 'priceForShipingForUnit', label: 'حمل', type: 'number' },
+          { name: '_mercer', label: 'بنکدار', type: 'relation', options: mercers, required: true },
+          { name: '_tailor', label: 'خیاط', type: 'relation', options: tailors, required: true },
+          { name: 'amount', label: 'متراژ', type: 'number', required: true },
+          { name: 'priceForUnit', label: 'فی', type: 'number', required: true },
+          { name: 'priceForShipingForUnit', label: 'حمل', type: 'number', required: true },
         ]}
       />
     </CountingShell>

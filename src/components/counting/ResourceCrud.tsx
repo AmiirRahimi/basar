@@ -7,17 +7,23 @@ import {
   createColumnHelper,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { BasicTable, Button, Input, Modal, FormCard, EmptyState, Select } from '@/ui';
+import { BasicTable, Button, Input, Modal, FormCard, EmptyState, Select, Textarea } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
+import type { FieldOption } from '@/lib/types';
+
+export type { FieldOption };
 
 export type Field = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'select' | 'textarea';
-  options?: { label: string; value: string }[];
+  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation';
+  options?: FieldOption[];
+  /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
+  dependsOn?: string;
+  required?: boolean;
 };
 
 export type ColumnSpec = {
@@ -45,6 +51,7 @@ export function ResourceCrud({
   const [editing, setEditing] = useState<Record<string, any> | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
+  const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
 
   const tableColumns = useMemo(() => {
@@ -81,6 +88,7 @@ export function ResourceCrud({
                     value && typeof value === 'object' ? String(value._id || '') : String(value ?? '');
                 });
                 setForm(next);
+                setShowErrors(false);
                 setOpen(true);
               }}
             >
@@ -113,7 +121,39 @@ export function ResourceCrud({
     getRowId: (row) => String(row._id),
   });
 
+  /** Options visible for a field, narrowed to the current value of its parent field.
+   *  Options with no parent are unassigned and stay available everywhere. */
+  function optionsFor(field: Field): FieldOption[] {
+    const all = field.options || [];
+    if (!field.dependsOn) return all;
+    const parentValue = form[field.dependsOn];
+    if (!parentValue) return [];
+    return all.filter((option) => !option.parent || option.parent === parentValue);
+  }
+
+  function setValue(field: Field, value: string) {
+    setForm((s) => {
+      if (s[field.name] === value) return s;
+      const next = { ...s, [field.name]: value };
+      fields.forEach((f) => {
+        if (f.dependsOn === field.name) next[f.name] = '';
+      });
+      return next;
+    });
+  }
+
+  function missingFor(field: Field) {
+    return Boolean(field.required) && !String(form[field.name] ?? '').trim();
+  }
+
   function submit() {
+    const missing = fields.filter(missingFor);
+    if (missing.length) {
+      setShowErrors(true);
+      setMessage(`تکمیل این موارد الزامی است: ${missing.map((f) => f.label).join('، ')}`);
+      return;
+    }
+    setShowErrors(false);
     start(async () => {
       const payload: Record<string, unknown> = {};
       fields.forEach((f) => {
@@ -138,6 +178,7 @@ export function ResourceCrud({
           onClick={() => {
             setEditing(null);
             setForm({});
+            setShowErrors(false);
             setOpen(true);
           }}
         >
@@ -154,25 +195,54 @@ export function ResourceCrud({
         <FormCard>
           <h3 className="mb-4 text-lg font-medium">{editing ? `ویرایش ${title}` : `ثبت ${title}`}</h3>
           <div className="grid gap-3">
-            {fields.map((field) =>
-              field.type === 'select' ? (
-                <Select
-                  key={field.name}
-                  label={field.label}
-                  value={form[field.name] || ''}
-                  onChange={(v: any) => setForm((s) => ({ ...s, [field.name]: String(v) }))}
-                  options={field.options || []}
-                />
-              ) : (
+            {fields.map((field) => {
+              const label = field.required ? `${field.label} *` : field.label;
+              const error = showErrors && missingFor(field) ? 'الزامی است' : undefined;
+
+              if (field.type === 'select' || field.type === 'relation') {
+                const waitingOnParent = Boolean(field.dependsOn) && !form[field.dependsOn!];
+                const parentLabel = fields.find((f) => f.name === field.dependsOn)?.label;
+                return (
+                  <Select
+                    key={field.name}
+                    label={label}
+                    error={error}
+                    value={form[field.name] || ''}
+                    onChange={(v) => setValue(field, String(v ?? ''))}
+                    options={optionsFor(field)}
+                    searchable={field.type === 'relation'}
+                    clearable={!field.required}
+                    disabled={waitingOnParent}
+                    placeholder="انتخاب کنید"
+                    hint={waitingOnParent ? `ابتدا ${parentLabel} را انتخاب کنید` : undefined}
+                    labels={{ search: 'جستجو', remove: 'حذف انتخاب', noOptionsFound: 'موردی یافت نشد' }}
+                  />
+                );
+              }
+
+              if (field.type === 'textarea') {
+                return (
+                  <Textarea
+                    key={field.name}
+                    label={label}
+                    error={error}
+                    value={form[field.name] || ''}
+                    onChange={(e) => setValue(field, e.target.value)}
+                  />
+                );
+              }
+
+              return (
                 <Input
                   key={field.name}
-                  label={field.label}
+                  label={label}
+                  error={error}
                   type={field.type === 'number' ? 'number' : 'text'}
                   value={form[field.name] || ''}
-                  onChange={(e) => setForm((s) => ({ ...s, [field.name]: e.target.value }))}
+                  onChange={(e) => setValue(field, e.target.value)}
                 />
-              ),
-            )}
+              );
+            })}
             <Button onClick={submit} disabled={pending}>
               ذخیره
             </Button>

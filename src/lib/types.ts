@@ -101,3 +101,11 @@ export type WholesaleCartItem = {
   productId: string;
   qty: number;
 };
+
+/** An option for a form dropdown. `parent` links the option to the owning record
+ *  of a dependent field, e.g. a size belongs to a cloth kind. */
+export type FieldOption = {
+  label: string;
+  value: string;
+  parent?: string;
+};

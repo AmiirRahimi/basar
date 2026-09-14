@@ -4,6 +4,7 @@ type Cache = {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose | 'file'> | null;
   engine: 'mongo' | 'file' | null;
+  seeded: Promise<void> | null;
 };
 
 const globalForMongo = globalThis as typeof globalThis & { __basarMongo?: Cache };
@@ -17,7 +18,7 @@ function envUri() {
 }
 
 export async function db() {
-  const cache = globalForMongo.__basarMongo || { conn: null, promise: null, engine: null };
+  const cache = globalForMongo.__basarMongo || { conn: null, promise: null, engine: null, seeded: null };
   globalForMongo.__basarMongo = cache;
   if (cache.engine) return cache.conn;
   if (!cache.promise) {
@@ -39,8 +40,15 @@ export async function db() {
     })();
   }
   await cache.promise;
-  const { seedLookups } = await import('./seed');
-  await seedLookups();
+  // Seed once per process: concurrent cold-start callers would otherwise each
+  // see empty lookup tables and insert their own duplicate set.
+  if (!cache.seeded) {
+    cache.seeded = (async () => {
+      const { seedLookups } = await import('./seed');
+      await seedLookups();
+    })();
+  }
+  await cache.seeded;
   return cache.conn;
 }
 

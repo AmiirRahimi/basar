@@ -59,6 +59,7 @@ const POP: Record<string, string> = {
   _returnedPerson: 'people',
   _person: 'people',
   _type: 'clothkinds',
+  _clothKind: 'clothkinds',
   _size: 'sizes',
   _color: 'colors',
   _cloth: 'clothes',

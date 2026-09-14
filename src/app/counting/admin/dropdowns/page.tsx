@@ -1,9 +1,15 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listClothKinds, listColors, listSizes } from '@/actions/crud';
+import { clothKindOptions } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
 
 export default async function DropdownsPage() {
-  const [colors, sizes, kinds] = await Promise.all([listColors(), listSizes(), listClothKinds()]);
+  const [colors, sizes, kinds, kindOptions] = await Promise.all([
+    listColors(),
+    listSizes(),
+    listClothKinds(),
+    clothKindOptions(),
+  ]);
   return (
     <CountingShell title="لیست‌های کمکی">
       <div className="grid gap-8">
@@ -14,7 +20,7 @@ export default async function DropdownsPage() {
             title="رنگ"
             rows={Array.isArray(colors.data) ? colors.data : []}
             columns={[{ header: 'نام', accessor: 'name' }]}
-            fields={[{ name: 'name', label: 'نام' }]}
+            fields={[{ name: 'name', label: 'نام', required: true }]}
           />
         </section>
         <section>
@@ -23,8 +29,14 @@ export default async function DropdownsPage() {
             resource="size"
             title="سایز"
             rows={Array.isArray(sizes.data) ? sizes.data : []}
-            columns={[{ header: 'نام', accessor: 'name' }]}
-            fields={[{ name: 'name', label: 'نام' }]}
+            columns={[
+              { header: 'نام', accessor: 'name' },
+              { header: 'نوع لباس', accessor: '_clothKind', format: 'name' },
+            ]}
+            fields={[
+              { name: 'name', label: 'نام', required: true },
+              { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
+            ]}
           />
         </section>
         <section>
@@ -34,7 +46,7 @@ export default async function DropdownsPage() {
             title="نوع"
             rows={Array.isArray(kinds.data) ? kinds.data : []}
             columns={[{ header: 'نام', accessor: 'name' }]}
-            fields={[{ name: 'name', label: 'نام' }]}
+            fields={[{ name: 'name', label: 'نام', required: true }]}
           />
         </section>
       </div>

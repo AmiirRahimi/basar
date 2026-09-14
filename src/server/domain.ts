@@ -49,7 +49,7 @@ function lookups() {
     },
     returned: { model: m.Returned, populate: { path: '_returnedPerson', select: '_id fullName city address phoneNumber' }, sort: '-timeStamp' },
     color: { model: m.Color, global: true, sort: 'name' },
-    size: { model: m.Size, global: true, sort: 'name' },
+    size: { model: m.Size, populate: { path: '_clothKind' }, global: true, sort: 'name' },
     'cloth-kind': { model: m.ClothKind, global: true, sort: 'name' },
     change: { model: m.Change, sort: '-timeStamp' },
     permision: { model: m.Permision, global: true },
