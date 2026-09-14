@@ -15,7 +15,7 @@ export default async function PeoplePage() {
         columns={[
           { header: 'نام', accessor: 'fullName' },
           { header: 'موبایل', accessor: 'phoneNumber' },
-          { header: 'نقش', accessor: 'role', cell: (r) => PERSON_ROLES[String(r.role)] || r.role },
+          { header: 'نقش', accessor: 'role', format: 'role' },
           { header: 'آدرس', accessor: 'address' },
         ]}
         fields={[

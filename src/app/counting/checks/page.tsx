@@ -1,7 +1,6 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listChecks } from '@/actions/crud';
 import { CrudPage } from '@/components/counting/CrudPage';
-import { displayName, toman } from '@/lib/format';
 
 export default async function ChecksPage() {
   const res = await listChecks();
@@ -13,8 +12,8 @@ export default async function ChecksPage() {
         title="چک"
         rows={rows}
         columns={[
-          { header: 'صاحب', accessor: '_owner', cell: (r) => displayName(r._owner) },
-          { header: 'مبلغ', accessor: 'amount', cell: (r) => toman(r.amount) },
+          { header: 'صاحب', accessor: '_owner', format: 'name' },
+          { header: 'مبلغ', accessor: 'amount', format: 'toman' },
           { header: 'سررسید', accessor: 'dueDate' },
           { header: 'صیادی', accessor: 'sayadiNumber' },
         ]}

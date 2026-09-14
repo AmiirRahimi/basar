@@ -1,7 +1,6 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listChanges } from '@/actions/crud';
 import { CrudPage } from '@/components/counting/CrudPage';
-import { faDate } from '@/lib/format';
 
 export default async function ChangePage() {
   const res = await listChanges();
@@ -14,7 +13,7 @@ export default async function ChangePage() {
         rows={rows}
         columns={[
           { header: 'توضیح', accessor: 'description' },
-          { header: 'تاریخ', accessor: 'timeStamp', cell: (r) => faDate(r.timeStamp) },
+          { header: 'تاریخ', accessor: 'timeStamp', format: 'date' },
         ]}
         fields={[{ name: 'description', label: 'توضیح' }]}
       />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ResourceCrud, type Field } from './ResourceCrud';
+import { ResourceCrud, type ColumnSpec, type Field } from './ResourceCrud';
 
 export function CrudPage({
   resource,
@@ -13,7 +13,7 @@ export function CrudPage({
   resource: string;
   title: string;
   rows: Record<string, any>[];
-  columns: { header: string; accessor: string; cell?: (row: any) => React.ReactNode }[];
+  columns: ColumnSpec[];
   fields: Field[];
 }) {
   const router = useRouter();

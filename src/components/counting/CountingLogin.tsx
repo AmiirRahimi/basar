@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button, Input, SignInShell } from '@/ui';
 import { checkPhone, loginWithOtp, sendOtp } from '@/actions/auth';
 
+function toEnDigits(value: string) {
+  return value.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/\s/g, '');
+}
+
 export function CountingLogin() {
   const router = useRouter();
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
@@ -27,18 +31,24 @@ export function CountingLogin() {
         onSubmit={(e) => {
           e.preventDefault();
           start(async () => {
+            const phone = toEnDigits(phonenumber);
             if (step === 'phone') {
-              if (!/^09\d{9}$/.test(phonenumber)) {
+              if (!/^09\d{9}$/.test(phone)) {
                 setMessage('شماره باید با ۰۹ شروع شود');
                 return;
               }
-              await checkPhone(phonenumber);
-              const otp = await sendOtp(phonenumber);
-              setMessage(otp.ok ? 'کد ارسال شد' : otp.message);
+              setPhonenumber(phone);
+              await checkPhone(phone);
+              const otp = await sendOtp(phone);
+              setMessage(otp.message || (otp.ok ? 'کد ارسال شد' : 'ارسال ناموفق'));
               if (otp.ok) setStep('otp');
               return;
             }
-            const res = await loginWithOtp({ phonenumber, code, password: password || undefined });
+            const res = await loginWithOtp({
+              phonenumber: phone,
+              code: toEnDigits(code),
+              password: password || undefined,
+            });
             if (res.ok) router.push('/counting/dashboard');
             else setMessage(res.message || 'ورود ناموفق');
           });
@@ -47,13 +57,18 @@ export function CountingLogin() {
         <Input
           label="شماره موبایل"
           value={phonenumber}
-          onChange={(e) => setPhonenumber(e.target.value)}
+          onChange={(e) => setPhonenumber(toEnDigits(e.target.value))}
           disabled={step === 'otp'}
           dir="ltr"
         />
         {step === 'otp' ? (
           <>
-            <Input label="کد تایید" value={code} onChange={(e) => setCode(e.target.value)} dir="ltr" />
+            <Input
+              label="کد تایید"
+              value={code}
+              onChange={(e) => setCode(toEnDigits(e.target.value))}
+              dir="ltr"
+            />
             <Input
               label="رمز ادمین (اختیاری)"
               type="password"

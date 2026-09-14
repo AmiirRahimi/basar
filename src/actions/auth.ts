@@ -1,56 +1,48 @@
 'use server';
 
-import { nestFetch, setAuthCookies, clearAuthCookies } from '@/lib/nest';
-import type { AuthTokens, UserInfo } from '@/lib/types';
 import { redirect } from 'next/navigation';
+import {
+  activateSubscription as activate,
+  checkPhone as checkPhoneDb,
+  getSessionUser as sessionUser,
+  listUsers as usersDb,
+  loginWithOtp as loginDb,
+  logout as logoutDb,
+  sendOtp as sendOtpDb,
+  updateProfile as updateProfileDb,
+} from '@/server/auth';
 
 export async function checkPhone(phonenumber: string) {
-  return nestFetch('/auth/check-number', {
-    method: 'POST',
-    body: JSON.stringify({ phoneNumber: phonenumber, phonenumber }),
-    auth: false,
-  });
+  return checkPhoneDb(phonenumber);
 }
 
 export async function sendOtp(phonenumber: string) {
-  return nestFetch('/auth/otp', {
-    method: 'POST',
-    body: JSON.stringify({ phonenumber }),
-    auth: false,
-  });
+  return sendOtpDb(phonenumber);
 }
 
 export async function loginWithOtp(form: { phonenumber: string; code: string; password?: string }) {
-  const res = await nestFetch<AuthTokens>('/auth/get-token', {
-    method: 'POST',
-    body: JSON.stringify(form),
-    auth: false,
-  });
-  if (res.ok && res.data) {
-    await setAuthCookies(res.data);
-  }
+  const res = await loginDb(form);
+  if (res.ok) redirect('/counting/dashboard');
   return res;
 }
 
 export async function logout() {
-  await nestFetch('/auth/sign-out', { method: 'GET' });
-  await clearAuthCookies();
+  await logoutDb();
   redirect('/counting/login');
 }
 
 export async function getSessionUser() {
-  const res = await nestFetch<UserInfo>('/user');
-  if (!res.ok) {
-    const fallback = await nestFetch<UserInfo>('/auth/user-info');
-    return fallback;
-  }
-  return res;
+  return sessionUser();
 }
 
 export async function updateProfile(payload: Record<string, unknown>) {
-  return nestFetch('/user', { method: 'PUT', body: JSON.stringify(payload) });
+  return updateProfileDb(payload);
 }
 
 export async function activateSubscription(payload: Record<string, unknown>) {
-  return nestFetch('/user/subscription', { method: 'POST', body: JSON.stringify(payload) });
+  return activate(payload);
+}
+
+export async function listAuthUsers(page = 1, skip = 50) {
+  return usersDb(page, skip);
 }

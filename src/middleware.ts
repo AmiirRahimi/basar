@@ -4,7 +4,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith('/counting')) return NextResponse.next();
   if (pathname.startsWith('/counting/login')) return NextResponse.next();
-  const token = request.cookies.get('basar_access')?.value;
+  const token = request.cookies.get('basar_access')?.value || request.cookies.get('basar_refresh')?.value;
   if (!token) {
     const url = request.nextUrl.clone();
     url.pathname = '/counting/login';

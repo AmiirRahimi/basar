@@ -1,23 +1,22 @@
 'use server';
 
-import { clothToProduct, sampleCatalog } from '@/lib/catalog';
-import { nestFetch } from '@/lib/nest';
+import { clothToProduct } from '@/lib/catalog';
 import type { CatalogProduct, Cloth } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { CART_COOKIE } from '@/lib/constants';
 import type { WholesaleCartItem } from '@/lib/types';
-import { addInvoiceLine, createResource } from './crud';
+import { addInvoiceLine, createResource, listClothes, listPublicCatalog } from './crud';
 
 export async function getCatalog(): Promise<CatalogProduct[]> {
-  const res = await nestFetch<Cloth[]>('/cloth/public', { auth: false });
-  if (res.ok && Array.isArray(res.data) && res.data.length) {
-    return res.data.map(clothToProduct);
+  const published = await listPublicCatalog();
+  if (published.ok && Array.isArray(published.data) && published.data.length) {
+    return published.data.map((cloth) => clothToProduct(cloth as Cloth));
   }
-  const staff = await nestFetch<Cloth[]>('/cloth?page=1&skip=40');
+  const staff = await listClothes(1, 40);
   if (staff.ok && Array.isArray(staff.data) && staff.data.length) {
-    return staff.data.map(clothToProduct);
+    return staff.data.map((cloth) => clothToProduct(cloth as Cloth));
   }
-  return sampleCatalog();
+  return [];
 }
 
 export async function getCatalogProduct(id: string): Promise<CatalogProduct | null> {
@@ -106,7 +105,7 @@ export async function checkoutWholesale(input: {
     if (!product) continue;
     await addInvoiceLine({
       _invoice: invoiceId,
-      _cloth: product.id.startsWith('sample-') ? undefined : product.id,
+      _cloth: product.id,
       count: line.qty,
       price: product.wholesalePrice,
     });

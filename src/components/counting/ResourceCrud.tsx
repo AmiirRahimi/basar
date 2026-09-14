@@ -10,11 +10,20 @@ import {
 import { BasicTable, Button, Input, Modal, FormCard, EmptyState, Select } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 
+import { displayName, faDate, toman } from '@/lib/format';
+import { PERSON_ROLES } from '@/lib/constants';
+
 export type Field = {
   name: string;
   label: string;
   type?: 'text' | 'number' | 'select' | 'textarea';
   options?: { label: string; value: string }[];
+};
+
+export type ColumnSpec = {
+  header: string;
+  accessor: string;
+  format?: 'text' | 'name' | 'toman' | 'date' | 'role';
 };
 
 export function ResourceCrud({
@@ -28,7 +37,7 @@ export function ResourceCrud({
   resource: string;
   title: string;
   rows: Record<string, any>[];
-  columns: { header: string; accessor: string; cell?: (row: any) => React.ReactNode }[];
+  columns: ColumnSpec[];
   fields: Field[];
   reload: () => void;
 }) {
@@ -43,7 +52,15 @@ export function ResourceCrud({
     const defs: ColumnDef<any, any>[] = columns.map((col) =>
       helper.accessor(col.accessor, {
         header: col.header,
-        cell: (info) => (col.cell ? col.cell(info.row.original) : String(info.getValue() ?? '—')),
+        cell: (info) => {
+          const row = info.row.original;
+          const value = info.getValue();
+          if (col.format === 'name') return displayName(value);
+          if (col.format === 'toman') return toman(value);
+          if (col.format === 'date') return faDate(value);
+          if (col.format === 'role') return PERSON_ROLES[String(row.role)] || String(row.role ?? '—');
+          return String(value ?? '—');
+        },
       }),
     );
     defs.push(

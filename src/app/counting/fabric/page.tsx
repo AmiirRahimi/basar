@@ -1,7 +1,6 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listFabric } from '@/actions/crud';
 import { CrudPage } from '@/components/counting/CrudPage';
-import { displayName, toman } from '@/lib/format';
 
 export default async function FabricPage() {
   const res = await listFabric();
@@ -13,10 +12,10 @@ export default async function FabricPage() {
         title="پارچه"
         rows={rows}
         columns={[
-          { header: 'بنکدار', accessor: '_mercer', cell: (r) => displayName(r._mercer) },
-          { header: 'خیاط', accessor: '_tailor', cell: (r) => displayName(r._tailor) },
+          { header: 'بنکدار', accessor: '_mercer', format: 'name' },
+          { header: 'خیاط', accessor: '_tailor', format: 'name' },
           { header: 'متراژ', accessor: 'amount' },
-          { header: 'فی', accessor: 'priceForUnit', cell: (r) => toman(r.priceForUnit) },
+          { header: 'فی', accessor: 'priceForUnit', format: 'toman' },
         ]}
         fields={[
           { name: '_mercer', label: 'شناسه بنکدار' },

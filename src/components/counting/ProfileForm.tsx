@@ -5,8 +5,8 @@ import { Button, FormCard, Input } from '@/ui';
 import { useState, useTransition } from 'react';
 
 export function ProfileForm({ user }: { user: any }) {
-  const [fullName, setFullName] = useState(user?.fullName || '');
-  const [address, setAddress] = useState(user?.address || '');
+  const [fullName, setFullName] = useState(user?.fullName || 'کاربر آزمایشی بازار');
+  const [address, setAddress] = useState(user?.address || 'تهران، بازار');
   const [message, setMessage] = useState('');
   const [pending, start] = useTransition();
 
