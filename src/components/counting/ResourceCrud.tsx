@@ -7,11 +7,12 @@ import {
   createColumnHelper,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { BasicTable, Button, Input, Modal, FormCard, EmptyState, Select, Textarea } from '@/ui';
+import { BasicTable, Button, Input, Modal, FormCard, EmptyState, Select, Textarea, toast } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
+import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { FieldOption } from '@/lib/types';
 
 export type { FieldOption };
@@ -55,7 +56,6 @@ export function ResourceCrud({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, any> | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState('');
   const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
 
@@ -105,7 +105,9 @@ export function ResourceCrud({
               onClick={() =>
                 start(async () => {
                   const res = await deleteResource(resource, row.original._id);
-                  setMessage(res.message);
+                  if (redirectIfUnauthorized(res)) return;
+                  if (res.ok) toast.success(res.message || 'حذف شد');
+                  else toast.error(res.message || 'حذف نشد');
                   reload();
                 })
               }
@@ -174,7 +176,7 @@ export function ResourceCrud({
     const missing = fields.filter(missingFor);
     if (missing.length) {
       setShowErrors(true);
-      setMessage(`تکمیل این موارد الزامی است: ${missing.map((f) => f.label).join('، ')}`);
+      toast.error(`تکمیل این موارد الزامی است: ${missing.map((f) => f.label).join('، ')}`);
       return;
     }
     setShowErrors(false);
@@ -187,11 +189,14 @@ export function ResourceCrud({
       const res = editing
         ? await updateResource(resource, editing._id, payload)
         : await createResource(resource, payload);
-      setMessage(res.message || (res.ok ? 'ثبت شد' : 'خطا'));
+      if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
+        toast.success(res.message || 'ثبت شد');
         setOpen(false);
         setEditing(null);
         reload();
+      } else {
+        toast.error(res.message || 'ثبت نشد');
       }
     });
   }
@@ -210,7 +215,6 @@ export function ResourceCrud({
           ثبت {title}
         </Button>
       </div>
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
       {rows.length ? (
         <BasicTable table={table} isLoading={pending} labels={{ nothingToShow: 'موردی نیست' }} />
       ) : (

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { LeftSidebar, MainWrapper, PageHeader, Button } from '@/ui';
 import { logout } from '@/actions/auth';
+import { ResultToast } from './ResultToast';
 
 const menuSections = [
   { id: 'dashboard', name: 'داشبورد', icon: LayoutDashboard, href: '/counting/dashboard', menuItems: [] },
@@ -47,10 +48,13 @@ export function CountingShell({
   children,
   title,
   description,
+  error,
 }: {
   children: React.ReactNode;
   title: string;
   description?: string;
+  /** Reported as a toast rather than as body text, so it never replaces the table. */
+  error?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -82,6 +86,7 @@ export function CountingShell({
         <MainWrapper>
           <PageHeader title={title} />
           {description ? <p className="mb-4 text-sm text-muted-foreground">{description}</p> : null}
+          <ResultToast message={error} />
           {children}
         </MainWrapper>
       </div>

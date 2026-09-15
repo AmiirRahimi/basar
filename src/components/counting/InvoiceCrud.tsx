@@ -18,6 +18,7 @@ import {
   Input,
   Modal,
   Select,
+  toast,
 } from '@/ui';
 import {
   createResource,
@@ -26,6 +27,7 @@ import {
   updateResource,
 } from '@/actions/crud';
 import { displayName, faDate, toman } from '@/lib/format';
+import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { FieldOption, Invoice } from '@/lib/types';
 
 type DraftItem = {
@@ -81,7 +83,6 @@ export function InvoiceCrud({
   const [client, setClient] = useState('');
   const [address, setAddress] = useState('');
   const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
-  const [message, setMessage] = useState('');
   const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
 
@@ -142,7 +143,9 @@ export function InvoiceCrud({
               onClick={() =>
                 start(async () => {
                   const res = await deleteResource('invoice', row.original._id);
-                  setMessage(res.message);
+                  if (redirectIfUnauthorized(res)) return;
+                  if (res.ok) toast.success(res.message || 'حذف شد');
+                  else toast.error(res.message || 'حذف نشد');
                   router.refresh();
                 })
               }
@@ -185,6 +188,7 @@ export function InvoiceCrud({
     setOpen(true);
     start(async () => {
       const cart = await getInvoiceCart(invoice._id);
+      if (redirectIfUnauthorized(cart)) return;
       const lines = Array.isArray(cart.data) ? cart.data : [];
       setItems(
         lines.length
@@ -233,7 +237,7 @@ export function InvoiceCrud({
         missingOwner() ? 'صاحب فاکتور' : '',
         badItems.length ? 'اقلام (محصول و تعداد)' : '',
       ].filter(Boolean);
-      setMessage(`تکمیل این موارد الزامی است: ${parts.join('، ')}`);
+      toast.error(`تکمیل این موارد الزامی است: ${parts.join('، ')}`);
       return;
     }
     setShowErrors(false);
@@ -250,8 +254,12 @@ export function InvoiceCrud({
       const res = editing
         ? await updateResource('invoice', editing._id, payload)
         : await createResource('invoice', payload);
-      setMessage(res.message || (res.ok ? 'ثبت شد' : 'خطا'));
-      if (!res.ok) return;
+      if (redirectIfUnauthorized(res)) return;
+      if (!res.ok) {
+        toast.error(res.message || 'ثبت نشد');
+        return;
+      }
+      toast.success(res.message || 'ثبت شد');
       const saved = (res.data || {}) as Invoice;
       setSummary({
         id: String(saved._id || editing?._id || ''),
@@ -282,7 +290,6 @@ export function InvoiceCrud({
       <div className="flex justify-end">
         <Button onClick={openCreate}>ثبت فاکتور</Button>
       </div>
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
       {invoices.length ? (
         <BasicTable table={table} isLoading={pending} labels={{ nothingToShow: 'موردی نیست' }} />
       ) : (

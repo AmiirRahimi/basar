@@ -2,12 +2,14 @@ import { CountingShell } from '@/components/counting/CountingShell';
 import { listChecks } from '@/actions/crud';
 import { personOptions } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
+import { errorMessage, guardSession } from '@/lib/auth-guard';
 
 export default async function ChecksPage() {
   const [res, people] = await Promise.all([listChecks(), personOptions()]);
+  guardSession(res);
   const rows = Array.isArray(res.data) ? res.data : [];
   return (
-    <CountingShell title="چک">
+    <CountingShell title="چک" error={errorMessage(res)}>
       <CrudPage
         resource="check"
         title="چک"

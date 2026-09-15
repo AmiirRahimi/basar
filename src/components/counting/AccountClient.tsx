@@ -1,15 +1,15 @@
 'use client';
 
 import { createPayment, listPayments } from '@/actions/crud';
-import { Button, FormCard, Input, Select } from '@/ui';
+import { Button, FormCard, Input, Select, toast } from '@/ui';
 import { toman } from '@/lib/format';
+import { redirectIfUnauthorized } from '@/lib/session-client';
 import { useState, useTransition } from 'react';
 
 export function AccountClient({ people }: { people: any[] }) {
   const [person, setPerson] = useState('');
   const [rows, setRows] = useState<any[]>([]);
   const [cash, setCash] = useState(0);
-  const [message, setMessage] = useState('');
   const [pending, start] = useTransition();
 
   return (
@@ -24,6 +24,7 @@ export function AccountClient({ people }: { people: any[] }) {
             setPerson(id);
             start(async () => {
               const res = await listPayments(id);
+              if (redirectIfUnauthorized(res)) return;
               setRows(Array.isArray(res.data) ? res.data : []);
             });
           }}
@@ -35,7 +36,9 @@ export function AccountClient({ people }: { people: any[] }) {
             onClick={() =>
               start(async () => {
                 const res = await createPayment({ _invoice: person, paymentType: 1, cash });
-                setMessage(res.message);
+                if (redirectIfUnauthorized(res)) return;
+                if (res.ok) toast.success(res.message || 'پرداخت ثبت شد');
+                else toast.error(res.message || 'پرداخت ثبت نشد');
                 const list = await listPayments(person);
                 setRows(Array.isArray(list.data) ? list.data : []);
               })
@@ -43,7 +46,6 @@ export function AccountClient({ people }: { people: any[] }) {
           >
             ثبت پرداخت
           </Button>
-          {message ? <p className="text-sm">{message}</p> : null}
         </div>
       </FormCard>
       <FormCard>

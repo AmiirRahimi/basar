@@ -1,12 +1,12 @@
 'use client';
 
 import { activateSubscription } from '@/actions/auth';
-import { Button, FormCard, Input } from '@/ui';
+import { Button, FormCard, Input, toast } from '@/ui';
+import { redirectIfUnauthorized } from '@/lib/session-client';
 import { useState, useTransition } from 'react';
 
 export function SubscriptionForm() {
   const [code, setCode] = useState('');
-  const [message, setMessage] = useState('');
   const [pending, start] = useTransition();
   return (
     <FormCard>
@@ -17,13 +17,14 @@ export function SubscriptionForm() {
           onClick={() =>
             start(async () => {
               const res = await activateSubscription({ code, subscriptionType: 1 });
-              setMessage(res.message);
+              if (redirectIfUnauthorized(res)) return;
+              if (res.ok) toast.success(res.message || 'فعال شد');
+              else toast.error(res.message || 'فعال نشد');
             })
           }
         >
           فعال‌سازی
         </Button>
-        {message ? <p className="text-sm">{message}</p> : null}
       </div>
     </FormCard>
   );

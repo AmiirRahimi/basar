@@ -3,6 +3,7 @@ import { listClothes } from '@/actions/crud';
 import { clothKindOptions, clothStyleOptions, colorOptions, fabricOptions, sizeOptions } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
 import { clothUnitPrice } from '@/lib/cloth-price';
+import { errorMessage, guardSession } from '@/lib/auth-guard';
 
 export default async function ClothesPage() {
   const [res, kinds, styles, sizes, colors, fabrics] = await Promise.all([
@@ -13,12 +14,13 @@ export default async function ClothesPage() {
     colorOptions(),
     fabricOptions(),
   ]);
+  guardSession(res);
   const rows = (Array.isArray(res.data) ? res.data : []).map((row: Record<string, any>) => ({
     ...row,
     unitPrice: clothUnitPrice(row),
   }));
   return (
-    <CountingShell title="البسه" description={res.ok ? undefined : res.message}>
+    <CountingShell title="البسه" error={errorMessage(res)}>
       <CrudPage
         resource="cloth"
         title="لباس"

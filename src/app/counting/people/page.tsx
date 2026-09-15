@@ -3,12 +3,14 @@ import { listPeople } from '@/actions/crud';
 import { CrudPage } from '@/components/counting/CrudPage';
 import { PERSON_ROLES } from '@/lib/constants';
 import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
+import { errorMessage, guardSession } from '@/lib/auth-guard';
 
 export default async function PeoplePage() {
   const res = await listPeople();
+  guardSession(res);
   const rows = Array.isArray(res.data) ? res.data : [];
   return (
-    <CountingShell title="اشخاص">
+    <CountingShell title="اشخاص" error={errorMessage(res)}>
       <CrudPage
         resource="person"
         title="شخص"
@@ -43,7 +45,7 @@ export default async function PeoplePage() {
             label: 'اجرت دوخت پارچه',
             type: 'number',
             required: true,
-            visibleWhen: { field: 'role', values: ['2', '3'] },
+            visibleWhen: { field: 'role', values: ['2'] },
           },
         ]}
       />

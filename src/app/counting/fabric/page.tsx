@@ -2,6 +2,7 @@ import { CountingShell } from '@/components/counting/CountingShell';
 import { listFabric } from '@/actions/crud';
 import { personOptions } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
+import { errorMessage, guardSession } from '@/lib/auth-guard';
 
 export default async function FabricPage() {
   const [res, mercers, tailors] = await Promise.all([
@@ -9,9 +10,10 @@ export default async function FabricPage() {
     personOptions('3'),
     personOptions('2'),
   ]);
+  guardSession(res);
   const rows = Array.isArray(res.data) ? res.data : [];
   return (
-    <CountingShell title="خرید پارچه">
+    <CountingShell title="خرید پارچه" error={errorMessage(res)}>
       <CrudPage
         resource="fabric"
         title="پارچه"

@@ -2,6 +2,7 @@ import { CountingShell } from '@/components/counting/CountingShell';
 import { listClothKinds, listClothStyles, listColors, listSizes } from '@/actions/crud';
 import { clothKindOptions } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
+import { errorMessage, guardSession } from '@/lib/auth-guard';
 
 export default async function DropdownsPage() {
   const [colors, sizes, kinds, styles, kindOptions] = await Promise.all([
@@ -11,8 +12,9 @@ export default async function DropdownsPage() {
     listClothStyles(),
     clothKindOptions(),
   ]);
+  guardSession(colors, sizes, kinds, styles);
   return (
-    <CountingShell title="لیست‌های کمکی">
+    <CountingShell title="لیست‌های کمکی" error={errorMessage(kinds)}>
       <div className="grid gap-8">
         <section>
           <h3 className="mb-3 font-medium">نوع لباس</h3>

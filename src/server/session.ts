@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { ACCESS_COOKIE, REFRESH_COOKIE } from '@/lib/constants';
+import { ACCESS_COOKIE, REFRESH_COOKIE, SESSION_DAYS } from '@/lib/constants';
 import { db, dbEngine } from './db';
 import * as mongo from './models';
 import { fileModels } from './file-db';
@@ -16,8 +16,7 @@ export type Session = {
   _storeId: string;
 };
 
-const ACCESS_MIN = 30;
-const REFRESH_DAYS = 7;
+const COOKIE_MAX_AGE = SESSION_DAYS * 24 * 60 * 60;
 
 function accessSecret() {
   return process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
@@ -28,21 +27,24 @@ function refreshSecret() {
 
 export function signTokens(session: Session, sub = 'otp') {
   const payload = { sub, phonenumber: session.phonenumber, _id: session._id, _storeId: session._storeId };
-  const accessToken = jwt.sign(payload, accessSecret(), { expiresIn: `${ACCESS_MIN}m` });
-  const refreshToken = jwt.sign(payload, refreshSecret(), { expiresIn: `${REFRESH_DAYS}d` });
+  const expiresIn = `${SESSION_DAYS}d`;
+  const accessToken = jwt.sign(payload, accessSecret(), { expiresIn });
+  const refreshToken = jwt.sign(payload, refreshSecret(), { expiresIn });
   return { accessToken, refreshToken };
 }
 
-export async function setAuthCookies(tokens: { accessToken?: string; refreshToken?: string; access?: string; refresh?: string }) {
+export async function setAuthCookies(tokens: {
+  accessToken?: string;
+  refreshToken?: string;
+  access?: string;
+  refresh?: string;
+}) {
   const jar = await cookies();
   const access = tokens.accessToken || tokens.access || '';
   const refresh = tokens.refreshToken || tokens.refresh || '';
-  if (access) {
-    jar.set(ACCESS_COOKIE, access, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: ACCESS_MIN * 60 });
-  }
-  if (refresh) {
-    jar.set(REFRESH_COOKIE, refresh, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: REFRESH_DAYS * 24 * 60 * 60 });
-  }
+  const cookie = { httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge: COOKIE_MAX_AGE };
+  if (access) jar.set(ACCESS_COOKIE, access, cookie);
+  if (refresh) jar.set(REFRESH_COOKIE, refresh, cookie);
 }
 
 export async function clearAuthCookies() {
@@ -61,6 +63,18 @@ function readPayload(token: string, secret: string): Session | null {
   }
 }
 
+async function userForRefresh(session: Session, refresh: string) {
+  const models = M() as any;
+  const user = await models.User.findOne({ _id: session._id }).lean();
+  if (!user) return null;
+  const stored = user.refreshToken ? String(user.refreshToken) : '';
+  if (stored && stored !== refresh) return null;
+  if (!stored) {
+    await models.User.updateOne({ _id: session._id }, { refreshToken: refresh });
+  }
+  return user;
+}
+
 export async function getSession(): Promise<Session | null> {
   await db();
   const jar = await cookies();
@@ -73,11 +87,20 @@ export async function getSession(): Promise<Session | null> {
   if (!refresh) return null;
   const session = readPayload(refresh, refreshSecret());
   if (!session) return null;
-  const user = await M().User.findOne({ _id: session._id, refreshToken: refresh }).lean();
+  const models = M() as any;
+  const user = await userForRefresh(session, refresh);
   if (!user) return null;
-  const store = await M().Store.findOne({ _userId: session._id }).lean();
+  const store = await models.Store.findOne({ _userId: session._id }).lean();
   const next = { ...session, _storeId: String(store?._id || session._storeId) };
-  await setAuthCookies(signTokens(next));
+  // Mint a new access token but keep the existing refresh token. Rotating it here
+  // without writing the new value to user.refreshToken would leave the cookie and
+  // the user record out of sync, ending the 7-day window at the next expiry.
+  try {
+    await setAuthCookies({ accessToken: signTokens(next).accessToken });
+  } catch {
+    // Server Components are not allowed to write cookies. The refresh cookie still
+    // carries the session, so this request succeeds and the next Server Action refreshes it.
+  }
   return next;
 }
 

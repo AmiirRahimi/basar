@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, SignInShell } from '@/ui';
+import { Button, Input, SignInShell, toast } from '@/ui';
 import { checkPhone, loginWithOtp, sendOtp } from '@/actions/auth';
 
 function toEnDigits(value: string) {
@@ -15,7 +15,6 @@ export function CountingLogin() {
   const [phonenumber, setPhonenumber] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
   const [pending, start] = useTransition();
 
   return (
@@ -34,14 +33,18 @@ export function CountingLogin() {
             const phone = toEnDigits(phonenumber);
             if (step === 'phone') {
               if (!/^09\d{9}$/.test(phone)) {
-                setMessage('شماره باید با ۰۹ شروع شود');
+                toast.error('شماره باید با ۰۹ شروع شود');
                 return;
               }
               setPhonenumber(phone);
               await checkPhone(phone);
               const otp = await sendOtp(phone);
-              setMessage(otp.message || (otp.ok ? 'کد ارسال شد' : 'ارسال ناموفق'));
-              if (otp.ok) setStep('otp');
+              if (otp.ok) {
+                toast.success(otp.message || 'کد ارسال شد');
+                setStep('otp');
+              } else {
+                toast.error(otp.message || 'ارسال ناموفق');
+              }
               return;
             }
             const res = await loginWithOtp({
@@ -50,7 +53,7 @@ export function CountingLogin() {
               password: password || undefined,
             });
             if (res.ok) router.push('/counting/dashboard');
-            else setMessage(res.message || 'ورود ناموفق');
+            else toast.error(res.message || 'ورود ناموفق');
           });
         }}
       >
@@ -77,7 +80,6 @@ export function CountingLogin() {
             />
           </>
         ) : null}
-        {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
         <Button type="submit" fullWidth disabled={pending}>
           {step === 'phone' ? 'ادامه' : 'ورود'}
         </Button>

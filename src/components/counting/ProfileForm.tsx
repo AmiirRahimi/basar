@@ -1,13 +1,13 @@
 'use client';
 
 import { updateProfile } from '@/actions/auth';
-import { Button, FormCard, Input } from '@/ui';
+import { Button, FormCard, Input, toast } from '@/ui';
+import { redirectIfUnauthorized } from '@/lib/session-client';
 import { useState, useTransition } from 'react';
 
 export function ProfileForm({ user }: { user: any }) {
   const [fullName, setFullName] = useState(user?.fullName || 'کاربر آزمایشی بازار');
   const [address, setAddress] = useState(user?.address || 'تهران، بازار');
-  const [message, setMessage] = useState('');
   const [pending, start] = useTransition();
 
   return (
@@ -20,13 +20,14 @@ export function ProfileForm({ user }: { user: any }) {
           onClick={() =>
             start(async () => {
               const res = await updateProfile({ fullName, address });
-              setMessage(res.message || (res.ok ? 'ذخیره شد' : 'خطا'));
+              if (redirectIfUnauthorized(res)) return;
+              if (res.ok) toast.success(res.message || 'ذخیره شد');
+              else toast.error(res.message || 'ذخیره نشد');
             })
           }
         >
           ذخیره
         </Button>
-        {message ? <p className="text-sm">{message}</p> : null}
       </div>
     </FormCard>
   );
