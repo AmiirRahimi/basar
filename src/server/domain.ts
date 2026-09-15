@@ -25,11 +25,7 @@ function storeFilter(session: Session, extra: Record<string, unknown> = {}) {
 function clothVisibleFilter(session: Session) {
   return {
     isDeleted: false,
-    $or: [
-      { sellInAllStores: true, _brandId: oid(session._brandId) },
-      { _storeIds: oid(session._storeId) },
-      { _storeId: oid(session._storeId) },
-    ],
+    $or: [{ _storeId: oid(session._storeId) }, { _storeIds: oid(session._storeId) }],
   };
 }
 
@@ -182,10 +178,9 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
 }
 
 function applyClothAvailability(session: Session, body: Record<string, unknown>) {
-  const all = body.sellInAllStores === true || body.sellInAllStores === 'true';
-  body.sellInAllStores = all;
+  body.sellInAllStores = false;
   body._brandId = oid(session._brandId);
-  body._storeIds = all ? [] : convertIdList(body._storeIds).length ? convertIdList(body._storeIds) : [oid(session._storeId)];
+  body._storeIds = [oid(session._storeId)];
   return body;
 }
 
@@ -207,7 +202,6 @@ function lineClothId(item: any) {
 
 function clothSellsInStore(cloth: any, session: Session) {
   if (!cloth) return false;
-  if (cloth.sellInAllStores && String(cloth._brandId) === String(session._brandId)) return true;
   const assigned = (cloth._storeIds || []).map((id: unknown) => String(id));
   if (assigned.includes(String(session._storeId))) return true;
   return String(cloth._storeId) === String(session._storeId);

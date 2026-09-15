@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   FileText,
@@ -14,10 +14,12 @@ import {
   Shield,
   Store,
   BadgePercent,
+  Menu,
 } from 'lucide-react';
-import { LeftSidebar, MainWrapper, PageHeader } from '@/ui';
+import { MainWrapper, PageHeader } from '@/ui';
 import { canAccessMenu, pathMenuId } from '@/lib/roles';
 import { ResultToast } from './ResultToast';
+import { CountingSidebar } from './CountingSidebar';
 import { SidebarWorkspace } from './SidebarWorkspace';
 import { useWorkspace } from './WorkspaceProvider';
 
@@ -56,38 +58,46 @@ export function CountingShell({
   error?: string;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const workspace = useWorkspace();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const role = workspace?.storeRole || 'owner';
   const visibleMenu = menuSections.filter((section) =>
     canAccessMenu(role, section.id, workspace?.isPlatformAdmin),
   );
-  const activeGroup = visibleMenu.find((section) => {
-    if (section.href && pathname.startsWith(section.href)) return true;
-    return section.menuItems?.some((item: { href?: string }) => item.href && pathname.startsWith(item.href));
-  })?.id;
   const allowed = canAccessMenu(role, pathMenuId(pathname) || 'dashboard', workspace?.isPlatformAdmin);
+  const activeBrand = workspace?.brands.find((brand) => brand._id === workspace.activeBrandId);
+  const activeStore = workspace?.stores.find((store) => store._id === workspace.activeStoreId);
+  const contextLabel = [activeBrand?.name, activeStore?.name].filter(Boolean).join(' · ');
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   return (
     <main className="flex min-h-screen gap-4 bg-gray-50 p-3 md:p-4" dir="rtl">
-      <div className="hidden w-[220px] shrink-0 md:block" aria-hidden />
-      <LeftSidebar
-        menuSections={visibleMenu}
-        t={(s) => s}
-        hideSearchBar
-        hideDashboardLink
-        wide
-        dir="rtl"
+      <div className="hidden w-[264px] shrink-0 md:block" aria-hidden />
+      <CountingSidebar
         pathname={pathname}
-        activeGroup={activeGroup}
-        LinkComponent={Link}
-        onNavigate={(href) => router.push(href)}
-        dashboardHref="/counting/dashboard"
-        header={<SidebarWorkspace />}
+        menuSections={visibleMenu}
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
       />
-      <div className="flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-1 flex-col">
+      <div className="flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-1 flex-col gap-3">
+        <div className="flex items-center gap-2 rounded-2xl bg-sidebar-gradient px-3 py-2 text-white md:hidden">
+          <button
+            type="button"
+            aria-label="باز کردن منو"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10"
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <button type="button" className="min-w-0 flex-1 text-right" onClick={() => setMobileOpen(true)}>
+            <SidebarWorkspace compact />
+          </button>
+        </div>
         <MainWrapper>
-          <PageHeader title={title} />
+          <PageHeader title={title} subtitle={contextLabel || undefined} />
           {description ? <p className="mb-4 text-sm text-muted-foreground">{description}</p> : null}
           <ResultToast message={error} />
           {allowed ? children : <p className="text-sm text-muted-foreground">به این بخش دسترسی ندارید.</p>}

@@ -148,7 +148,7 @@ export function BrandStoreWorkspace() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground">عمده‌فروشی چندبرند — فروشگاه‌ها موجودی لباس را به‌صورت مشترک می‌فروشند.</p>
+          <p className="text-sm text-muted-foreground">هر فروشگاه فاکتور، چک و لباس خودش را جدا ثبت می‌کند. فروشگاه فعال را از منوی کناری عوض کنید.</p>
         </div>
         <Button
           onClick={() => {
