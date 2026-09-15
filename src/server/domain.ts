@@ -1,10 +1,12 @@
 import mongoose from 'mongoose';
-import { db, dbEngine, serialize } from './db';
-import * as mongo from './models';
-import { fileModels } from './file-db';
-import { fail, ok, type ActionResult } from './result';
-import { requireSession, type Session } from './session';
 import { fabricUnitCost } from '@/lib/cloth-price';
+import { canWriteResource } from '@/lib/roles';
+import { db, dbEngine, serialize } from './db';
+import { fileModels } from './file-db';
+import * as mongo from './models';
+import { fail, ok, type ActionResult } from './result';
+import type { Session } from './session';
+import { withWorkspace } from './workspace';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -20,17 +22,26 @@ function storeFilter(session: Session, extra: Record<string, unknown> = {}) {
   return { _storeId: oid(session._storeId), isDeleted: false, ...extra };
 }
 
+function clothVisibleFilter(session: Session) {
+  return {
+    isDeleted: false,
+    $or: [
+      { sellInAllStores: true, _brandId: oid(session._brandId) },
+      { _storeIds: oid(session._storeId) },
+      { _storeId: oid(session._storeId) },
+    ],
+  };
+}
+
 async function withSession() {
-  try {
-    await db();
-  } catch (error) {
-    return {
-      error: fail(error instanceof Error ? error.message : 'اتصال به پایگاه داده برقرار نشد', 500) as ActionResult,
-    };
+  return withWorkspace();
+}
+
+function denyWrite(session: Session, resource: string) {
+  if (!canWriteResource(session.storeRole, resource, session.isPlatformAdmin)) {
+    return fail('اجازه این کار را ندارید', 403);
   }
-  const auth = await requireSession();
-  if ('error' in auth) return { error: auth.error as ActionResult };
-  return { session: auth.session };
+  return null;
 }
 
 function lookups() {
@@ -38,7 +49,15 @@ function lookups() {
   return {
     person: { model: m.Person, sort: 'fullName' },
     cloth: { model: m.Cloth, populate: mongo.CLOTH_POPULATE, sort: 'code' },
-    invoice: { model: m.Invoice, populate: { path: '_client', select: '_id fullName city role address phoneNumber' }, sort: '-timeStamp' },
+    invoice: {
+      model: m.Invoice,
+      populate: [
+        { path: '_client', select: '_id fullName city role address phoneNumber' },
+        { path: '_storeId', select: '_id name _brandId', populate: { path: '_brandId', select: '_id name color' } },
+        { path: '_brandId', select: '_id name' },
+      ],
+      sort: '-timeStamp',
+    },
     check: { model: m.Check, populate: { path: '_owner', select: '_id fullName city address phoneNumber' }, sort: 'dueDate' },
     fabric: {
       model: m.Fabric,
@@ -73,13 +92,28 @@ function parseFilter(session: Session, extra = '') {
   return storeFilter(session, filters);
 }
 
+function decorateInvoice(row: any) {
+  const store = row?._storeId;
+  const brandFromStore = store && typeof store === 'object' ? store._brandId : null;
+  const brand = brandFromStore && typeof brandFromStore === 'object' ? brandFromStore : row?._brandId;
+  return {
+    ...row,
+    storeName: store && typeof store === 'object' ? store.name || '' : '',
+    brandName: brand && typeof brand === 'object' ? brand.name || '' : '',
+  };
+}
+
 export async function listResource(resource: string, page = 1, skip = 50, extra = ''): Promise<ActionResult> {
   try {
     const auth = await withSession();
     if ('error' in auth) return auth.error;
     const cfg = lookups()[resource];
     if (!cfg) return fail('منبع ناشناخته');
-    const filter = cfg.global ? {} : parseFilter(auth.session, extra);
+    const filter = cfg.global
+      ? {}
+      : resource === 'cloth'
+        ? clothVisibleFilter(auth.session)
+        : parseFilter(auth.session, extra);
     let q = cfg.model.find(filter);
     if (cfg.populate) q = q.populate(cfg.populate);
     if (cfg.sort) q = q.sort(cfg.sort);
@@ -87,7 +121,8 @@ export async function listResource(resource: string, page = 1, skip = 50, extra 
       .skip((page - 1) * skip)
       .limit(skip)
       .lean();
-    return ok(serialize(rows));
+    const data = resource === 'invoice' ? (rows as any[]).map(decorateInvoice) : rows;
+    return ok(serialize(data));
   } catch (error) {
     return fail(error instanceof Error ? error.message : 'خطای پایگاه داده', 500);
   }
@@ -104,18 +139,35 @@ export async function getResource(resource: string, id: string): Promise<ActionR
   }
   const cfg = lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
-  const filter = cfg.global ? { _id: id } : storeFilter(auth.session, { _id: id });
+  const filter = cfg.global
+    ? { _id: id }
+    : resource === 'cloth'
+      ? { _id: id, ...clothVisibleFilter(auth.session) }
+      : storeFilter(auth.session, { _id: id });
   let q = cfg.model.findOne(filter);
   if (cfg.populate) q = q.populate(cfg.populate);
   const row = await q.lean();
   if (!row) return fail('پیدا نشد', 404);
-  return ok(serialize(row));
+  return ok(serialize(resource === 'invoice' ? decorateInvoice(row) : row));
+}
+
+function convertIdList(value: unknown) {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(',').map((part) => part.trim()).filter(Boolean)
+      : [];
+  return raw.map((item) => oid(item)).filter(Boolean);
 }
 
 function preparePayload(session: Session, resource: string, payload: Record<string, unknown>) {
   const next = { ...payload };
   Object.keys(next).forEach((key) => {
     if (!key.startsWith('_')) return;
+    if (key === '_storeIds') {
+      next[key] = convertIdList(next[key]);
+      return;
+    }
     const converted = oid(next[key]);
     if (converted === undefined) delete next[key];
     else next[key] = converted;
@@ -123,9 +175,18 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
   const cfg = lookups()[resource];
   if (!cfg?.global) {
     next._storeId = oid(session._storeId);
+    if (session._brandId) next._brandId = oid(session._brandId);
     if (next.isDeleted == null) next.isDeleted = false;
   }
   return next;
+}
+
+function applyClothAvailability(session: Session, body: Record<string, unknown>) {
+  const all = body.sellInAllStores === true || body.sellInAllStores === 'true';
+  body.sellInAllStores = all;
+  body._brandId = oid(session._brandId);
+  body._storeIds = all ? [] : convertIdList(body._storeIds).length ? convertIdList(body._storeIds) : [oid(session._storeId)];
+  return body;
 }
 
 async function applyClothCost(body: Record<string, unknown>) {
@@ -138,17 +199,73 @@ async function applyClothCost(body: Record<string, unknown>) {
   return body;
 }
 
+function lineClothId(item: any) {
+  const value = item?._cloth;
+  if (value && typeof value === 'object' && value && '_id' in value) return String(value._id);
+  return String(value || '');
+}
+
+function clothSellsInStore(cloth: any, session: Session) {
+  if (!cloth) return false;
+  if (cloth.sellInAllStores && String(cloth._brandId) === String(session._brandId)) return true;
+  const assigned = (cloth._storeIds || []).map((id: unknown) => String(id));
+  if (assigned.includes(String(session._storeId))) return true;
+  return String(cloth._storeId) === String(session._storeId);
+}
+
+async function changeStock(clothId: unknown, delta: number) {
+  const id = typeof clothId === 'object' && clothId && '_id' in (clothId as object) ? (clothId as { _id: unknown })._id : clothId;
+  const cloth = await M().Cloth.findOne({ _id: oid(id), isDeleted: false }).lean();
+  if (!cloth) return fail('لباس پیدا نشد');
+  const next = Number(cloth.count || 0) + delta;
+  if (next < 0) return fail('موجودی این لباس کافی نیست');
+  await M().Cloth.updateOne({ _id: cloth._id }, { count: next });
+  return ok(null);
+}
+
+async function sellItems(session: Session, items: any[]) {
+  const needed = new Map<string, number>();
+  for (const item of items) {
+    const id = lineClothId(item);
+    if (!id) continue;
+    needed.set(id, (needed.get(id) || 0) + Number(item.count || 0));
+  }
+  for (const [id, qty] of needed) {
+    const cloth = await M().Cloth.findOne({ _id: oid(id), isDeleted: false }).lean();
+    if (!cloth) return fail('لباس پیدا نشد');
+    if (!clothSellsInStore(cloth, session)) return fail('این لباس در این فروشگاه قابل فروش نیست');
+    if (Number(cloth.count || 0) < qty) return fail('موجودی این لباس کافی نیست');
+  }
+  for (const [id, qty] of needed) {
+    const result = await changeStock(id, -qty);
+    if (!result.ok) return result;
+  }
+  return ok(null);
+}
+
+async function restoreItems(items: any[]) {
+  for (const item of items) {
+    const id = lineClothId(item);
+    if (!id) continue;
+    await changeStock(id, Number(item.count || 0));
+  }
+}
+
 export async function createResource(resource: string, payload: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyWrite(auth.session, resource === 'customer-cart' ? 'customer-cart' : resource);
+  if (denied) return denied;
   const body = (payload || {}) as Record<string, unknown>;
 
   if (resource === 'invoice') {
+    const items = Array.isArray(body.items) ? body.items : [];
+    const sold = await sellItems(auth.session, items);
+    if (!sold.ok) return sold;
     let invoiceNumber = Math.floor(10000 + Math.random() * 9000);
     while (await M().Invoice.exists({ invoiceNumber })) {
       invoiceNumber = Math.floor(10000 + Math.random() * 9000);
     }
-    const items = Array.isArray(body.items) ? body.items : [];
     const created = await M().Invoice.create(
       preparePayload(auth.session, resource, { ...body, items: undefined, invoiceNumber }),
     );
@@ -160,11 +277,16 @@ export async function createResource(resource: string, payload: unknown): Promis
         })),
       );
     }
-    await created.populate('_client', '_id fullName city role address phoneNumber');
-    return ok(serialize(created.toObject()), 'ثبت شد');
+    await created.populate([
+      { path: '_client', select: '_id fullName city role address phoneNumber' },
+      { path: '_storeId', select: '_id name _brandId', populate: { path: '_brandId', select: '_id name color' } },
+    ]);
+    return ok(serialize(decorateInvoice(created.toObject())), 'ثبت شد');
   }
 
   if (resource === 'customer-cart') {
+    const sold = await sellItems(auth.session, [body]);
+    if (!sold.ok) return sold;
     const created = await M().CustomerCart.create(preparePayload(auth.session, resource, body));
     await created.populate('_cloth');
     return ok(serialize(created.toObject()), 'ثبت شد');
@@ -173,7 +295,10 @@ export async function createResource(resource: string, payload: unknown): Promis
   const cfg = lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
   let next = preparePayload(auth.session, resource, body);
-  if (resource === 'cloth') next = await applyClothCost(next);
+  if (resource === 'cloth') {
+    next = applyClothAvailability(auth.session, next);
+    next = await applyClothCost(next);
+  }
   const created = await cfg.model.create(next);
   if (cfg.populate) await created.populate(cfg.populate);
   if (resource === 'check') {
@@ -191,6 +316,8 @@ export async function createResource(resource: string, payload: unknown): Promis
 export async function updateResource(resource: string, id: string, payload: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyWrite(auth.session, resource === 'customer-cart' ? 'customer-cart' : resource);
+  if (denied) return denied;
   const raw = (payload || {}) as Record<string, unknown>;
 
   if (resource === 'invoice') {
@@ -202,6 +329,15 @@ export async function updateResource(resource: string, id: string, payload: unkn
     const updated = await M().Invoice.findOneAndUpdate(filter, body, { new: true });
     if (!updated) return fail('پیدا نشد', 404);
     if (items) {
+      const previous = await M().CustomerCart.find({ _invoice: oid(id), isDeleted: false }).lean();
+      await restoreItems(previous);
+      const sold = await sellItems(auth.session, items.filter((item: any) => item && item._cloth));
+      if (!sold.ok) {
+        await restoreItems(
+          previous.map((item: any) => ({ ...item, count: -Number(item.count || 0) })),
+        );
+        return sold;
+      }
       await M().CustomerCart.updateMany(
         { _invoice: oid(id), _storeId: oid(auth.session._storeId) },
         { isDeleted: true },
@@ -216,16 +352,39 @@ export async function updateResource(resource: string, id: string, payload: unkn
         );
       }
     }
-    await updated.populate('_client', '_id fullName city role address phoneNumber');
-    return ok(serialize(updated.toObject()), 'ویرایش شد');
+    await updated.populate([
+      { path: '_client', select: '_id fullName city role address phoneNumber' },
+      { path: '_storeId', select: '_id name _brandId', populate: { path: '_brandId', select: '_id name color' } },
+    ]);
+    return ok(serialize(decorateInvoice(updated.toObject())), 'ویرایش شد');
+  }
+
+  if (resource === 'customer-cart') {
+    const previous = await M().CustomerCart.findOne({ _id: id, _storeId: oid(auth.session._storeId) }).lean();
+    if (!previous) return fail('پیدا نشد', 404);
+    await restoreItems([previous]);
+    const nextLine = { ...previous, ...raw };
+    const sold = await sellItems(auth.session, [nextLine]);
+    if (!sold.ok) {
+      await sellItems(auth.session, [previous]);
+      return sold;
+    }
   }
 
   let body = preparePayload(auth.session, resource, raw);
   delete body._storeId;
-  if (resource === 'cloth') body = await applyClothCost(body);
+  if (resource === 'cloth') {
+    body = applyClothAvailability(auth.session, body);
+    body = await applyClothCost(body);
+  }
   const cfg = resource === 'customer-cart' ? { model: M().CustomerCart, populate: { path: '_cloth' } } : lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
-  const filter = 'global' in cfg && cfg.global ? { _id: id } : { _id: id, _storeId: oid(auth.session._storeId) };
+  const filter =
+    'global' in cfg && cfg.global
+      ? { _id: id }
+      : resource === 'cloth'
+        ? { _id: id, ...clothVisibleFilter(auth.session) }
+        : { _id: id, _storeId: oid(auth.session._storeId) };
   const updated = await cfg.model.findOneAndUpdate(filter, body, { new: true });
   if (!updated) return fail('پیدا نشد', 404);
   if (cfg.populate) await updated.populate(cfg.populate);
@@ -235,14 +394,27 @@ export async function updateResource(resource: string, id: string, payload: unkn
 export async function deleteResource(resource: string, id: string): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyWrite(auth.session, resource === 'customer-cart' ? 'customer-cart' : resource);
+  if (denied && resource !== 'color' && resource !== 'size' && resource !== 'cloth-kind' && resource !== 'cloth-style' && resource !== 'permision') {
+    return denied;
+  }
   if (resource === 'color' || resource === 'size' || resource === 'cloth-kind' || resource === 'cloth-style' || resource === 'permision') {
     const cfg = lookups()[resource];
     await cfg.model.findByIdAndDelete(id);
     return ok(null, 'حذف شد');
   }
+  if (resource === 'customer-cart') {
+    const line = await M().CustomerCart.findOne({ _id: id, _storeId: oid(auth.session._storeId) }).lean();
+    if (line && !line.isDeleted) await restoreItems([line]);
+  }
+  if (resource === 'invoice') {
+    const lines = await M().CustomerCart.find({ _invoice: oid(id), isDeleted: false }).lean();
+    await restoreItems(lines);
+  }
   const cfg = resource === 'customer-cart' ? { model: M().CustomerCart } : lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
-  await cfg.model.findOneAndUpdate({ _id: id, _storeId: oid(auth.session._storeId) }, { isDeleted: true });
+  const filter = resource === 'cloth' ? { _id: id, ...clothVisibleFilter(auth.session) } : { _id: id, _storeId: oid(auth.session._storeId) };
+  await cfg.model.findOneAndUpdate(filter, { isDeleted: true });
   if (resource === 'invoice') {
     await M().CustomerCart.updateMany({ _invoice: oid(id), _storeId: oid(auth.session._storeId) }, { isDeleted: true });
   }
@@ -264,28 +436,19 @@ export async function listPublicClothes(): Promise<ActionResult> {
 }
 
 export async function getStore(): Promise<ActionResult> {
-  const auth = await withSession();
-  if ('error' in auth) return auth.error;
-  const store = await M().Store.findOne({ _userId: auth.session._id }).lean();
-  if (!store) return fail('فروشگاه پیدا نشد', 404);
-  const branches = await M().StoreBranch.find({ _storeId: store._id, isDeleted: false }).lean();
-  const main = branches.find((b) => b.isMain) || branches[0] || null;
-  return ok(serialize({ ...store, branches, ...main }));
+  const { getWorkspace } = await import('./workspace');
+  return getWorkspace();
 }
 
-export async function addStoreBranch(payload: unknown, main = false): Promise<ActionResult> {
-  const auth = await withSession();
-  if ('error' in auth) return auth.error;
-  const store = await M().Store.findOne({ _userId: auth.session._id });
-  if (!store) return fail('فروشگاه پیدا نشد', 404);
+export async function addStoreBranch(payload: unknown, _main = false): Promise<ActionResult> {
+  const { createStore } = await import('./workspace');
   const body = (payload || {}) as Record<string, unknown>;
-  const branch = await M().StoreBranch.create({
-    ...body,
-    _storeId: store._id,
-    isMain: main,
-    isDeleted: false,
+  return createStore({
+    name: body.name,
+    address: body.address,
+    phonenumbers: body.phonenumbers,
+    city: body.city,
   });
-  return ok(serialize(branch.toObject()), 'شعبه اضافه شد');
 }
 
 export async function listPayments(id: string, type = '2', page = 1, skip = 20): Promise<ActionResult> {
@@ -304,6 +467,8 @@ export async function listPayments(id: string, type = '2', page = 1, skip = 20):
 export async function createPayment(info: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyWrite(auth.session, 'payment');
+  if (denied) return denied;
   const items = Array.isArray(info) ? info : [info];
   const docs = items.map((item: any) => ({
     ...item,
@@ -320,12 +485,15 @@ export async function createPayment(info: unknown): Promise<ActionResult> {
 export async function addReturnedItem(payload: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyWrite(auth.session, 'returned');
+  if (denied) return denied;
   const body = payload as Record<string, unknown>;
   const created = await M().ReturnedItems.create({
     _returned: oid(body._returned),
     _cloth: oid(body._cloth),
     count: Number(body.count || 1),
   });
+  await changeStock(body._cloth, Number(body.count || 1));
   return ok(serialize(created.toObject()), 'ثبت شد');
 }
 
@@ -346,9 +514,8 @@ export async function deleteAttachment(id: string): Promise<ActionResult> {
 export async function listUserPermisions(): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
-  if (auth.session.phonenumber === process.env.ADMIN_PHONENUMBER) return ok(['IS_ADMIN']);
-  const owner = await M().Store.countDocuments({ _userId: auth.session._id, _id: oid(auth.session._storeId) });
-  if (owner) return ok(['IS_OWNER']);
+  if (auth.session.isPlatformAdmin) return ok(['IS_ADMIN']);
+  if (auth.session.storeRole === 'owner') return ok(['IS_OWNER']);
   const rows = await M().UserPermision.find({ _userId: auth.session._id }).populate('_permision').lean();
   return ok(serialize(rows));
 }
@@ -368,4 +535,3 @@ export async function clothCounts(id: string, type: string): Promise<ActionResul
   }
   return fail('نوع نامعتبر');
 }
-

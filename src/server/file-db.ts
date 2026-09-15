@@ -30,19 +30,40 @@ function eq(a: unknown, b: unknown) {
   return String(a) === String(b);
 }
 
-function matches(doc: Doc, filter: Doc) {
-  return Object.entries(filter || {}).every(([key, value]) => {
-    if (typeof value === 'boolean') return Boolean(doc[key]) === value;
-    if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-      if ('$gte' in value || '$gt' in value) {
-        const t = new Date(doc[key]).getTime();
-        if (value.$gte && t < new Date(value.$gte).getTime()) return false;
-        if (value.$gt && t <= new Date(value.$gt).getTime()) return false;
-        return true;
-      }
+function matchField(doc: Doc, key: string, value: unknown) {
+  if (typeof value === 'boolean') return Boolean(doc[key]) === value;
+  if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+    const op = value as Record<string, unknown>;
+    if ('$in' in op) {
+      const list = Array.isArray(op.$in) ? op.$in : [];
+      const docVal = doc[key];
+      if (Array.isArray(docVal)) return docVal.some((item) => list.some((candidate) => eq(item, candidate)));
+      return list.some((candidate) => eq(docVal, candidate));
     }
-    return eq(doc[key], value);
-  });
+    if ('$ne' in op) return !eq(doc[key], op.$ne);
+    if ('$exists' in op) {
+      const exists = doc[key] !== undefined && doc[key] !== null;
+      return Boolean(op.$exists) === exists;
+    }
+    if ('$gte' in op || '$gt' in op) {
+      const t = new Date(doc[key]).getTime();
+      if (op.$gte && t < new Date(op.$gte as string | Date).getTime()) return false;
+      if (op.$gt && t <= new Date(op.$gt as string | Date).getTime()) return false;
+      return true;
+    }
+  }
+  if (Array.isArray(doc[key]) && !Array.isArray(value)) {
+    return doc[key].some((item: unknown) => eq(item, value));
+  }
+  return eq(doc[key], value);
+}
+
+function matches(doc: Doc, filter: Doc) {
+  if (!filter) return true;
+  const { $or, $and, ...rest } = filter as Doc & { $or?: Doc[]; $and?: Doc[] };
+  if ($or && !$or.some((part) => matches(doc, part))) return false;
+  if ($and && !$and.every((part) => matches(doc, part))) return false;
+  return Object.entries(rest).every(([key, value]) => matchField(doc, key, value));
 }
 
 function clone<T>(v: T): T {
@@ -68,6 +89,8 @@ const POP: Record<string, string> = {
   _check: 'checks',
   _producedFrom: 'fabrics',
   _permision: 'permisions',
+  _storeId: 'stores',
+  _brandId: 'brands',
 };
 
 class Query {
@@ -122,7 +145,17 @@ class Query {
       const from = POP[spec.path];
       if (!from) continue;
       rows = rows.map((row) => {
-        const related = (state[from] || []).find((item) => eq(item._id, row[spec.path]));
+        const related = clone((state[from] || []).find((item) => eq(item._id, row[spec.path])) || null);
+        const nested = spec.populate;
+        if (related && nested) {
+          const nestedList = Array.isArray(nested) ? nested : [nested];
+          for (const child of nestedList) {
+            const childFrom = POP[child.path];
+            if (!childFrom) continue;
+            related[child.path] =
+              (state[childFrom] || []).find((item) => eq(item._id, related[child.path])) || related[child.path];
+          }
+        }
         return { ...row, [spec.path]: related || row[spec.path] };
       });
     }
@@ -216,7 +249,9 @@ export const fileModels = {
   User: new FileModel('users'),
   UserSubscription: new FileModel('usersubscriptions'),
   OTP: new FileModel('otps'),
+  Brand: new FileModel('brands'),
   Store: new FileModel('stores'),
+  StoreMember: new FileModel('storemembers'),
   StoreBranch: new FileModel('storebranches'),
   Person: new FileModel('people'),
   ClothKind: new FileModel('clothkinds'),

@@ -9,12 +9,16 @@ export function CrudPage({
   rows,
   columns,
   fields,
+  defaults,
+  allowWrite = true,
 }: {
   resource: string;
   title: string;
   rows: Record<string, any>[];
   columns: ColumnSpec[];
   fields: Field[];
+  defaults?: Record<string, string>;
+  allowWrite?: boolean;
 }) {
   const router = useRouter();
   return (
@@ -24,6 +28,8 @@ export function CrudPage({
       rows={rows}
       columns={columns}
       fields={fields}
+      defaults={defaults}
+      allowWrite={allowWrite}
       reload={() => router.refresh()}
     />
   );

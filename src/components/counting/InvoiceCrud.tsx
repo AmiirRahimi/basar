@@ -100,6 +100,23 @@ export function InvoiceCrud({
         header: 'شماره فاکتور',
         cell: (info) => String(info.getValue() ?? '—'),
       }),
+      helper.accessor((row) => row.storeName || row._storeId, {
+        id: 'store',
+        header: 'فروشگاه فروشنده',
+        cell: (info) => {
+          const row = info.row.original;
+          const store = row._storeId;
+          const storeName =
+            row.storeName ||
+            (store && typeof store === 'object' ? String(store.name || '') : '');
+          const brand =
+            row.brandName ||
+            (store && typeof store === 'object' && store._brandId && typeof store._brandId === 'object'
+              ? String(store._brandId.name || '')
+              : '');
+          return [brand, storeName].filter(Boolean).join(' / ') || '—';
+        },
+      }),
       helper.accessor((row) => row._client, {
         id: '_client',
         header: 'صاحب فاکتور',

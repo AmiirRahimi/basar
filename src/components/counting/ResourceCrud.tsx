@@ -20,7 +20,7 @@ export type { FieldOption };
 export type Field = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation';
+  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'storescope';
   options?: FieldOption[];
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
@@ -35,7 +35,7 @@ export type Field = {
 export type ColumnSpec = {
   header: string;
   accessor: string;
-  format?: 'text' | 'name' | 'toman' | 'date' | 'role';
+  format?: 'text' | 'name' | 'toman' | 'date' | 'role' | 'availability';
 };
 
 export function ResourceCrud({
@@ -45,6 +45,8 @@ export function ResourceCrud({
   columns,
   fields,
   reload,
+  defaults,
+  allowWrite = true,
 }: {
   resource: string;
   title: string;
@@ -52,6 +54,8 @@ export function ResourceCrud({
   columns: ColumnSpec[];
   fields: Field[];
   reload: () => void;
+  defaults?: Record<string, string>;
+  allowWrite?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, any> | null>(null);
@@ -71,15 +75,22 @@ export function ResourceCrud({
           if (col.format === 'toman') return value == null || value === '' ? '—' : toman(value);
           if (col.format === 'date') return faDate(value);
           if (col.format === 'role') return PERSON_ROLES[String(row.role)] || String(row.role ?? '—');
+          if (col.format === 'availability') {
+            if (row.sellInAllStores) return 'همه فروشگاه‌های برند';
+            const count = Array.isArray(row._storeIds) ? row._storeIds.length : 0;
+            return count ? `${count} فروشگاه` : 'همین فروشگاه';
+          }
           return String(value ?? '—');
         },
       }),
     );
-    defs.push(
+    if (allowWrite) {
+      defs.push(
       helper.display({
         id: 'actions',
         header: 'عملیات',
-        cell: ({ row }) => (
+        cell: ({ row }) =>
+          allowWrite ? (
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -88,6 +99,18 @@ export function ResourceCrud({
                 setEditing(row.original);
                 const next: Record<string, string> = {};
                 fields.forEach((f) => {
+                  if (f.type === 'storescope') {
+                    next.sellInAllStores = row.original.sellInAllStores ? 'true' : 'false';
+                    const ids = Array.isArray(row.original._storeIds)
+                      ? row.original._storeIds.map((id: unknown) =>
+                          id && typeof id === 'object' && id && '_id' in (id as object)
+                            ? String((id as { _id: unknown })._id)
+                            : String(id),
+                        )
+                      : [];
+                    next._storeIds = ids.join(',');
+                    return;
+                  }
                   const value = row.original[f.name];
                   next[f.name] =
                     value && typeof value === 'object' ? String(value._id || '') : String(value ?? '');
@@ -115,11 +138,12 @@ export function ResourceCrud({
               حذف
             </Button>
           </div>
-        ),
+          ) : null,
       }),
     );
+    }
     return defs;
-  }, [columns, fields, resource, reload]);
+  }, [allowWrite, columns, fields, resource, reload]);
 
   const table = useReactTable({
     data: rows,
@@ -159,6 +183,10 @@ export function ResourceCrud({
 
   function missingFor(field: Field) {
     if (!isVisible(field)) return false;
+    if (field.type === 'storescope') {
+      if (form.sellInAllStores === 'true') return false;
+      return !String(form._storeIds || '').trim();
+    }
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
 
@@ -184,6 +212,14 @@ export function ResourceCrud({
       const payload: Record<string, unknown> = {};
       fields.forEach((f) => {
         if (!isVisible(f)) return;
+        if (f.type === 'storescope') {
+          payload.sellInAllStores = form.sellInAllStores === 'true';
+          payload._storeIds = String(form._storeIds || '')
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
+          return;
+        }
         payload[f.name] = f.type === 'number' ? Number(form[f.name]) : form[f.name];
       });
       const res = editing
@@ -203,11 +239,12 @@ export function ResourceCrud({
 
   return (
     <div className="space-y-4">
+      {allowWrite ? (
       <div className="flex justify-end">
         <Button
           onClick={() => {
             setEditing(null);
-            setForm({});
+            setForm(defaults || {});
             setShowErrors(false);
             setOpen(true);
           }}
@@ -215,6 +252,7 @@ export function ResourceCrud({
           ثبت {title}
         </Button>
       </div>
+      ) : null}
       {rows.length ? (
         <BasicTable table={table} isLoading={pending} labels={{ nothingToShow: 'موردی نیست' }} />
       ) : (
@@ -247,6 +285,72 @@ export function ResourceCrud({
                     hint={waitingOnParent ? `ابتدا ${parentLabel} را انتخاب کنید` : undefined}
                     labels={{ search: 'جستجو', remove: 'حذف انتخاب', noOptionsFound: 'موردی یافت نشد' }}
                   />
+                );
+              }
+
+              if (field.type === 'storescope') {
+                const selected = new Set(
+                  String(form._storeIds || '')
+                    .split(',')
+                    .map((id) => id.trim())
+                    .filter(Boolean),
+                );
+                const allStores = form.sellInAllStores === 'true';
+                return (
+                  <div key={field.name} className="space-y-2">
+                    <p className="text-sm font-medium">{label}</p>
+                    {error ? <p className="text-xs text-red-600">{error}</p> : null}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={allStores ? 'primary' : 'outline'}
+                        onClick={() => setForm((s) => ({ ...s, sellInAllStores: 'true', _storeIds: '' }))}
+                      >
+                        همه فروشگاه‌های این برند
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={!allStores ? 'primary' : 'outline'}
+                        onClick={() =>
+                          setForm((s) => ({
+                            ...s,
+                            sellInAllStores: 'false',
+                            _storeIds: s._storeIds || defaults?._storeIds || '',
+                          }))
+                        }
+                      >
+                        فروشگاه‌های انتخابی
+                      </Button>
+                    </div>
+                    {!allStores ? (
+                      <div className="flex flex-wrap gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                        {(field.options || []).map((option) => {
+                          const on = selected.has(option.value);
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                const next = new Set(selected);
+                                if (on) next.delete(option.value);
+                                else next.add(option.value);
+                                setForm((s) => ({ ...s, _storeIds: [...next].join(',') }));
+                              }}
+                              className={`rounded-full px-3 py-1 text-sm ${
+                                on ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-200'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">این لباس از موجودی مشترک در تمام فروشگاه‌های برند فروخته می‌شود.</p>
+                    )}
+                  </div>
                 );
               }
 

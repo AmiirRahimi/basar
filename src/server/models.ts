@@ -40,12 +40,48 @@ const OTPSchema = new Schema(
   { collection: 'otps' },
 );
 
+const BrandSchema = new Schema(
+  {
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    name: { type: String, required: true },
+    logo: { type: String, default: '' },
+    color: { type: String, default: '#0f766e' },
+    description: { type: String, default: '' },
+    timeStamp: { type: Date, required: true, default: Date.now },
+    isDeleted: { type: Boolean, required: true, default: false },
+  },
+  { collection: 'brands' },
+);
+
 const StoreSchema = new Schema(
   {
-    _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    name: { type: String, default: 'فروشگاه اصلی' },
+    address: { type: String, default: '' },
+    phonenumbers: { type: String, default: '' },
+    city: { type: Schema.Types.Mixed, default: '' },
+    isMain: { type: Boolean, required: true, default: false },
     timeStamp: { type: Date, required: true, default: Date.now },
+    isDeleted: { type: Boolean, required: true, default: false },
   },
   { collection: 'stores' },
+);
+
+const StoreMemberSchema = new Schema(
+  {
+    _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', required: true, index: true },
+    _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true, index: true },
+    phonenumber: { type: String, required: true, index: true },
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    fullName: { type: String, default: '' },
+    role: { type: String, required: true, enum: ['admin', 'seller', 'other'] },
+    status: { type: String, required: true, enum: ['pending', 'active'], default: 'pending' },
+    invitedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    timeStamp: { type: Date, required: true, default: Date.now },
+    isDeleted: { type: Boolean, required: true, default: false },
+  },
+  { collection: 'storemembers' },
 );
 
 const StoreBranchSchema = new Schema(
@@ -113,6 +149,9 @@ const FabricSchema = new Schema(
 const ClothSchema = new Schema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
+    _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
+    sellInAllStores: { type: Boolean, default: false },
+    _storeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Store' }], default: [] },
     _type: { type: Schema.Types.ObjectId, ref: 'ClothKind' },
     _style: { type: Schema.Types.ObjectId, ref: 'ClothStyle' },
     _size: { type: Schema.Types.ObjectId, ref: 'Size' },
@@ -141,6 +180,7 @@ const ClothSchema = new Schema(
 const InvoiceSchema = new Schema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
+    _brandId: { type: Schema.Types.ObjectId, ref: 'Brand' },
     _client: { type: Schema.Types.ObjectId, ref: 'Person', required: true },
     receiverAddress: String,
     invoiceNumber: { type: Number, required: true, unique: true },
@@ -266,7 +306,9 @@ const AttachmentSchema = new Schema(
 export const User = modelOf<any>('User', UserSchema);
 export const UserSubscription = modelOf<any>('UserSubscription', UserSubscriptionSchema);
 export const OTP = modelOf<any>('OTP', OTPSchema);
+export const Brand = modelOf<any>('Brand', BrandSchema);
 export const Store = modelOf<any>('Store', StoreSchema);
+export const StoreMember = modelOf<any>('StoreMember', StoreMemberSchema);
 export const StoreBranch = modelOf<any>('StoreBranch', StoreBranchSchema);
 export const Person = modelOf<any>('Person', PersonSchema);
 export const ClothKind = modelOf<any>('ClothKind', ClothKindSchema);

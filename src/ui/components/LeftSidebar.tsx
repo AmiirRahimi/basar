@@ -43,6 +43,9 @@ export type LeftSidebarProps = {
   dashboardHref?: string;
   renderBadge?: (badge: string) => React.ReactNode;
   hideSearchBar: boolean;
+  header?: React.ReactNode;
+  hideDashboardLink?: boolean;
+  wide?: boolean;
 };
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -994,6 +997,9 @@ export default function LeftSidebar({
   dashboardHref = '/dashboard',
   renderBadge,
   hideSearchBar,
+  header,
+  hideDashboardLink,
+  wide,
 }: LeftSidebarProps) {
   const [hoveredMenu, setHoveredMenu] = useState<any>(null);
   const [searchState, setSearchState] = useState({ isOpen: false, query: '' });
@@ -1070,15 +1076,21 @@ export default function LeftSidebar({
         <aside
           role="navigation"
           aria-label="Main navigation"
-          className="fixed flex h-[96vh] w-[120px] flex-col items-center gap-3 rounded-2xl bg-sidebar-gradient py-4 shadow-xl shadow-black/20 backdrop-blur-sm"
+          className={cn(
+            'fixed start-3 top-4 flex h-[96vh] flex-col items-center gap-3 rounded-2xl bg-sidebar-gradient py-4 shadow-xl shadow-black/20 backdrop-blur-sm',
+            wide ? 'w-[220px]' : 'w-[120px]',
+          )}
         >
+          {header ? <div className="w-full shrink-0 px-2">{header}</div> : null}
           {!hideSearchBar ? (
             <div className="w-full px-2">
               <SidebarSearch menuSections={menuSections} onChange={handleSearchChange} />
             </div>
           ) : null}
 
-          <div className="mx-3 h-px w-[calc(100%-24px)] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          {header || !hideSearchBar ? (
+            <div className="mx-3 h-px w-[calc(100%-24px)] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          ) : null}
 
           <MenuList
             menuSections={menuSections}
@@ -1087,32 +1099,34 @@ export default function LeftSidebar({
             onHoverEnd={onHoverEnd}
             searchQuery={searchState.query}
             activeItem={activeGroup}
-            isDashboardActive={isDashboardActive}
+            isDashboardActive={hideDashboardLink ? false : isDashboardActive}
           />
 
-          <div className="w-full px-2">
-            <div className="mx-auto mb-1 h-px w-[calc(100%-24px)] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <LinkComponent
-              href={dashboardHref}
-              className={cn(
-                'flex w-full flex-col items-center gap-1.5 rounded-2xl px-2 py-2.5 transition-all duration-200',
-                isDashboardActive
-                  ? 'bg-white/12 text-white'
-                  : 'text-white/35 hover:bg-white/[0.06] hover:text-white/60'
-              )}
-              aria-label={t('Dashboard')}
-            >
-              <div
+          {!hideDashboardLink ? (
+            <div className="w-full px-2">
+              <div className="mx-auto mb-1 h-px w-[calc(100%-24px)] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              <LinkComponent
+                href={dashboardHref}
                 className={cn(
-                  'flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200',
-                  isDashboardActive ? 'bg-primary/25 scale-105' : 'group-hover:bg-white/[0.06]'
+                  'flex w-full flex-col items-center gap-1.5 rounded-2xl px-2 py-2.5 transition-all duration-200',
+                  isDashboardActive
+                    ? 'bg-white/12 text-white'
+                    : 'text-white/35 hover:bg-white/[0.06] hover:text-white/60'
                 )}
+                aria-label={t('Dashboard')}
               >
-                <FaTachometerAlt className="h-[18px] w-[18px]" />
-              </div>
-              <span className="text-[10px] font-medium tracking-wide">{t('Dashboard')}</span>
-            </LinkComponent>
-          </div>
+                <div
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200',
+                    isDashboardActive ? 'bg-primary/25 scale-105' : 'group-hover:bg-white/[0.06]'
+                  )}
+                >
+                  <FaTachometerAlt className="h-[18px] w-[18px]" />
+                </div>
+                <span className="text-[10px] font-medium tracking-wide">{t('Dashboard')}</span>
+              </LinkComponent>
+            </div>
+          ) : null}
         </aside>
 
         <FloatingSubmenu

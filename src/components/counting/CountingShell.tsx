@@ -13,12 +13,13 @@ import {
   Undo2,
   Shield,
   Store,
-  UserCircle,
   BadgePercent,
 } from 'lucide-react';
-import { LeftSidebar, MainWrapper, PageHeader, Button } from '@/ui';
-import { logout } from '@/actions/auth';
+import { LeftSidebar, MainWrapper, PageHeader } from '@/ui';
+import { canAccessMenu, pathMenuId } from '@/lib/roles';
 import { ResultToast } from './ResultToast';
+import { SidebarWorkspace } from './SidebarWorkspace';
+import { useWorkspace } from './WorkspaceProvider';
 
 const menuSections = [
   { id: 'dashboard', name: 'داشبورد', icon: LayoutDashboard, href: '/counting/dashboard', menuItems: [] },
@@ -29,8 +30,7 @@ const menuSections = [
   { id: 'fabric', name: 'خرید پارچه', icon: Scissors, href: '/counting/fabric', menuItems: [] },
   { id: 'account', name: 'حساب', icon: Wallet, href: '/counting/account', menuItems: [] },
   { id: 'returned', name: 'برگشتی', icon: Undo2, href: '/counting/returned', menuItems: [] },
-  { id: 'store', name: 'فروشگاه', icon: Store, href: '/counting/store', menuItems: [] },
-  { id: 'profile', name: 'پروفایل', icon: UserCircle, href: '/counting/profile', menuItems: [] },
+  { id: 'store', name: 'برند و فروشگاه', icon: Store, href: '/counting/store', menuItems: [] },
   { id: 'subscription', name: 'اشتراک', icon: BadgePercent, href: '/counting/subscription', menuItems: [] },
   {
     id: 'admin',
@@ -53,41 +53,44 @@ export function CountingShell({
   children: React.ReactNode;
   title: string;
   description?: string;
-  /** Reported as a toast rather than as body text, so it never replaces the table. */
   error?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const workspace = useWorkspace();
+  const role = workspace?.storeRole || 'owner';
+  const visibleMenu = menuSections.filter((section) =>
+    canAccessMenu(role, section.id, workspace?.isPlatformAdmin),
+  );
+  const activeGroup = visibleMenu.find((section) => {
+    if (section.href && pathname.startsWith(section.href)) return true;
+    return section.menuItems?.some((item: { href?: string }) => item.href && pathname.startsWith(item.href));
+  })?.id;
+  const allowed = canAccessMenu(role, pathMenuId(pathname) || 'dashboard', workspace?.isPlatformAdmin);
 
   return (
     <main className="flex min-h-screen gap-4 bg-gray-50 p-3 md:p-4" dir="rtl">
-      <div className="hidden w-[120px] shrink-0 md:block" aria-hidden />
+      <div className="hidden w-[220px] shrink-0 md:block" aria-hidden />
       <LeftSidebar
-        menuSections={menuSections}
+        menuSections={visibleMenu}
         t={(s) => s}
         hideSearchBar
+        hideDashboardLink
+        wide
         dir="rtl"
         pathname={pathname}
+        activeGroup={activeGroup}
         LinkComponent={Link}
         onNavigate={(href) => router.push(href)}
         dashboardHref="/counting/dashboard"
+        header={<SidebarWorkspace />}
       />
-      <div className="flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-1 flex-col gap-4">
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
-          <Link href="/" className="text-sm text-primary">
-            وب‌سایت عمده
-          </Link>
-          <form action={logout}>
-            <Button type="submit" variant="outline" size="sm">
-              خروج
-            </Button>
-          </form>
-        </div>
+      <div className="flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-1 flex-col">
         <MainWrapper>
           <PageHeader title={title} />
           {description ? <p className="mb-4 text-sm text-muted-foreground">{description}</p> : null}
           <ResultToast message={error} />
-          {children}
+          {allowed ? children : <p className="text-sm text-muted-foreground">به این بخش دسترسی ندارید.</p>}
         </MainWrapper>
       </div>
     </main>

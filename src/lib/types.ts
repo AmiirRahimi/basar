@@ -1,3 +1,7 @@
+import type { StoreRole, StoreStaffRole } from './constants';
+
+export type { StoreRole, StoreStaffRole };
+
 export type NestEnvelope<T = unknown> = {
   hasError?: boolean;
   message?: string;
@@ -37,6 +41,62 @@ export type Person = {
   sewingFee?: number;
 };
 
+export type Brand = {
+  _id: string;
+  name: string;
+  logo?: string;
+  color?: string;
+  description?: string;
+  _userId?: string;
+};
+
+export type StoreRecord = {
+  _id: string;
+  _brandId?: string | Brand;
+  name?: string;
+  address?: string;
+  phonenumbers?: string;
+  city?: string | number;
+  isMain?: boolean;
+};
+
+export type StoreMember = {
+  _id: string;
+  _brandId?: string;
+  _storeId?: string;
+  phonenumber: string;
+  fullName?: string;
+  role: StoreStaffRole;
+  status: 'pending' | 'active';
+};
+
+export type WorkspaceMember = StoreMember;
+
+export type WorkspaceStore = StoreRecord & {
+  _brandId: string;
+  members: WorkspaceMember[];
+};
+
+export type WorkspaceBrand = Brand & {
+  storeCount: number;
+  memberCount: number;
+};
+
+export type Workspace = {
+  user: {
+    _id: string;
+    fullName?: string;
+    phonenumber: string;
+  };
+  brands: WorkspaceBrand[];
+  stores: WorkspaceStore[];
+  activeBrandId: string;
+  activeStoreId: string;
+  storeRole: StoreRole;
+  isPlatformAdmin: boolean;
+  contextChanged?: boolean;
+};
+
 export type Cloth = {
   _id: string;
   code?: string | number;
@@ -50,6 +110,10 @@ export type Cloth = {
   published?: boolean;
   description?: string;
   images?: string[];
+  sellInAllStores?: boolean;
+  _storeIds?: string[];
+  _brandId?: string;
+  _storeId?: string | StoreRecord;
   _type?: { name?: string; _id?: string } | string;
   _style?: { name?: string; _id?: string } | string;
   _size?: { name?: string; _id?: string } | string;
@@ -72,6 +136,10 @@ export type Invoice = {
   isSent?: boolean;
   timeStamp?: string;
   _client?: Person | string;
+  _storeId?: string | StoreRecord;
+  _brandId?: string | Brand;
+  storeName?: string;
+  brandName?: string;
 };
 
 export type CartLine = {

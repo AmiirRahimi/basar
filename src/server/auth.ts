@@ -6,24 +6,21 @@ import { fileModels } from './file-db';
 import { fail, ok, type ActionResult } from './result';
 import { clearAuthCookies, setAuthCookies, signTokens, type Session } from './session';
 
+import { PHONE_RE } from '@/lib/constants';
+import {
+  activateMemberships,
+  ensureOwnerWorkspace,
+  resolveLoginContext,
+} from './workspace';
+
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
 }
-
-const phoneRe = /^0(9)\d{9}$/;
 
 async function remainingDays(userId: string) {
   const sub = await M().UserSubscription.findOne({ _userId: userId, endDate: { $gte: new Date() } }).sort({ endDate: -1 }).lean();
   if (!sub) return 0;
   return Math.max(0, Math.ceil((new Date(sub.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-}
-
-async function findOrCreateStore(userId: string) {
-  let store = await M().Store.findOne({ _userId: userId });
-  if (!store) {
-    store = await M().Store.create({ _userId: userId });
-  }
-  return store;
 }
 
 async function ensureSubscription(userId: string) {
@@ -50,7 +47,7 @@ export async function checkPhone(phonenumber: string): Promise<ActionResult> {
 export async function sendOtp(phonenumber: string): Promise<ActionResult> {
   try {
     await db();
-    if (!phonenumber || !phoneRe.test(phonenumber)) {
+    if (!phonenumber || !PHONE_RE.test(phonenumber)) {
       return fail('شماره موبایل معتبر نیست');
     }
     const code = String(Math.floor(Math.random() * 90000) + 10000);
@@ -104,12 +101,18 @@ export async function loginWithOtp(form: {
 
   let user = await M().User.findOne({ phonenumber });
   if (!user) user = await M().User.create({ phonenumber });
-  const store = await findOrCreateStore(String(user._id));
-  await ensureSubscription(String(user._id));
+  const userId = String(user._id);
+  await activateMemberships(userId, phonenumber);
+  await ensureOwnerWorkspace(userId, user.fullName, phonenumber);
+  const context = await resolveLoginContext(userId, phonenumber);
+  if (!context) return fail('فروشگاهی برای ورود پیدا نشد');
+  await ensureSubscription(userId);
   const session: Session = {
-    _id: String(user._id),
+    _id: userId,
     phonenumber: String(user.phonenumber),
-    _storeId: String(store._id),
+    _storeId: context._storeId,
+    _brandId: context._brandId,
+    storeRole: context.storeRole,
   };
   const tokens = signTokens(session, code);
   await M().User.updateOne({ _id: String(user._id) }, { refreshToken: tokens.refreshToken });

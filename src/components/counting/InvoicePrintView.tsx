@@ -25,6 +25,12 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
         <header className="border-b pb-4">
           <h1 className="text-2xl font-semibold">فاکتور #{invoice.invoiceNumber ?? invoice._id}</h1>
           <p className="mt-2 text-sm text-gray-600">تاریخ: {faDate(invoice.timeStamp)}</p>
+          <p className="mt-1 text-sm text-gray-600">
+            فروشگاه فروشنده:{' '}
+            {[invoice.brandName, invoice.storeName || (typeof invoice._storeId === 'object' ? invoice._storeId?.name : '')]
+              .filter(Boolean)
+              .join(' / ') || '—'}
+          </p>
         </header>
 
         <section className="grid gap-1 text-sm">

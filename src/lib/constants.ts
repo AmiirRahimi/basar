@@ -13,4 +13,17 @@ export const PERSON_ROLES: Record<string, string> = {
   '5': 'شست‌وشو',
 };
 
+export const STORE_STAFF_ROLES = {
+  admin: 'مدیر فروشگاه',
+  seller: 'فروشنده',
+  other: 'سایر',
+} as const;
+
+export type StoreStaffRole = keyof typeof STORE_STAFF_ROLES;
+export type StoreRole = 'owner' | StoreStaffRole;
+
+export const BRAND_COLORS = ['#0f766e', '#b45309', '#7c3aed', '#be123c', '#0369a1', '#365314'];
+
+export const PHONE_RE = /^0(9)\d{9}$/;
+
 export const DEFAULT_MOQ = 12;
