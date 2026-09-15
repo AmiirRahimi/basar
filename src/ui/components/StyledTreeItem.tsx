@@ -1,3 +1,5 @@
+'use client';
+
 import { TreeItem, treeItemClasses } from '@mui/x-tree-view/TreeItem';
 import { alpha, styled } from '@mui/material/styles';
 

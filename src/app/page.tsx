@@ -1,7 +1,7 @@
 import { ShopFooter, ShopHeader } from '@/components/shop/ShopChrome';
 import { ProductCard } from '@/components/shop/ProductCard';
 import { getCatalog } from '@/actions/shop';
-import { Button } from '@/ui';
+import { Button } from '@/ui/components/Button';
 import Link from 'next/link';
 
 export default async function HomePage() {

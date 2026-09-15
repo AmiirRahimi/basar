@@ -93,9 +93,32 @@ const POP: Record<string, string> = {
   _brandId: 'brands',
 };
 
+function sortSpec(input: unknown): { key: string; desc: boolean } | null {
+  if (!input) return null;
+  if (typeof input === 'string') {
+    const desc = input.startsWith('-');
+    const key = desc ? input.slice(1) : input;
+    return key ? { key, desc } : null;
+  }
+  if (typeof input === 'object' && !Array.isArray(input)) {
+    const [key, direction] = Object.entries(input as Record<string, unknown>)[0] || [];
+    if (!key) return null;
+    return { key, desc: Number(direction) < 0 || direction === 'desc' };
+  }
+  return null;
+}
+
+function compareValues(a: unknown, b: unknown) {
+  const aTime = a instanceof Date || (typeof a === 'string' && /^\d{4}-\d{2}/.test(a)) ? Date.parse(String(a)) : NaN;
+  const bTime = b instanceof Date || (typeof b === 'string' && /^\d{4}-\d{2}/.test(b)) ? Date.parse(String(b)) : NaN;
+  if (!Number.isNaN(aTime) && !Number.isNaN(bTime)) return aTime - bTime;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a ?? '').localeCompare(String(b ?? ''), 'fa');
+}
+
 class Query {
   private pops: any[] = [];
-  private sortKey = '';
+  private sortInput: unknown = '';
   private skipN = 0;
   private limitN = 0;
   constructor(
@@ -106,8 +129,8 @@ class Query {
     this.pops = this.pops.concat(Array.isArray(p) ? p : [p]);
     return this;
   }
-  sort(key: string) {
-    this.sortKey = key;
+  sort(key: unknown) {
+    this.sortInput = key;
     return this;
   }
   skip(n: number) {
@@ -129,13 +152,11 @@ class Query {
   }
   async exec() {
     let rows = clone(this.rows);
-    if (this.sortKey) {
-      const desc = this.sortKey.startsWith('-');
-      const key = desc ? this.sortKey.slice(1) : this.sortKey;
+    const order = sortSpec(this.sortInput);
+    if (order) {
       rows.sort((a, b) => {
-        if (a[key] < b[key]) return desc ? 1 : -1;
-        if (a[key] > b[key]) return desc ? -1 : 1;
-        return 0;
+        const result = compareValues(a[order.key], b[order.key]);
+        return order.desc ? -result : result;
       });
     }
     if (this.skipN) rows = rows.slice(this.skipN);

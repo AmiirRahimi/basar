@@ -1,6 +1,6 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listClothes, listInvoices, listPeople } from '@/actions/crud';
-import { WidgetCard } from '@/ui';
+import { WidgetCard } from '@/ui/components/WidgetCard';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 
 export default async function DashboardPage() {

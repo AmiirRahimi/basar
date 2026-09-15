@@ -147,13 +147,6 @@ export {
 } from './components/FormFieldGrid';
 export { Breadcrumb, type BreadcrumbProps, type BreadcrumbItemProps } from './components/Breadcrumb';
 export { PageHeader, type PageHeaderProps, type PageHeaderCrumb } from './components/PageHeader';
-export { StyledTreeItem } from './components/StyledTreeItem';
-export {
-  TreeNodes,
-  renderTree,
-  type TreeNodesProps,
-  type UiTreeNode,
-} from './components/TreeNodes';
 export { StickyHeader, type StickyHeaderProps } from './components/StickyHeader';
 export { Divider, type DividerProps } from './components/Divider';
 export {

@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { ShopFooter, ShopHeader } from '@/components/shop/ShopChrome';
 import { getCartItems, getCatalog } from '@/actions/shop';
 import { CartEditor } from '@/components/shop/CartEditor';
-import { Button, EmptyState } from '@/ui';
+import { Button } from '@/ui/components/Button';
+import { EmptyState } from '@/ui/components/EmptyState';
 import { toman } from '@/lib/format';
 
 export default async function CartPage() {

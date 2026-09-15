@@ -1,3 +1,5 @@
+'use client';
+
 import React, { type ChangeEventHandler, type ReactNode } from 'react';
 import { Checkbox as RizzuiCheckbox } from 'rizzui';
 
