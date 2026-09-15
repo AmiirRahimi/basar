@@ -23,12 +23,15 @@ import {
 import {
   createResource,
   deleteResource,
+  getInvoiceBalance,
   getInvoiceCart,
   updateResource,
 } from '@/actions/crud';
 import { displayName, faDate, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import type { FieldOption, Invoice } from '@/lib/types';
+import { checkAvailableForPayment } from '@/lib/checks';
+import { PaymentForm } from './PaymentForm';
+import type { Check, FieldOption, Invoice } from '@/lib/types';
 
 type DraftItem = {
   key: string;
@@ -39,10 +42,18 @@ type DraftItem = {
 
 type SummaryState = {
   id: string;
+  personId: string;
   invoiceNumber?: string | number;
   ownerName: string;
   address: string;
   items: { label: string; count: number; price: number }[];
+};
+
+type PayState = {
+  invoiceId: string;
+  personId: string;
+  total: number;
+  remaining: number;
 };
 
 const selectLabels = {
@@ -71,14 +82,17 @@ export function InvoiceCrud({
   invoices,
   people,
   clothes,
+  checks,
 }: {
   invoices: Invoice[];
   people: FieldOption[];
   clothes: FieldOption[];
+  checks: Check[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [summary, setSummary] = useState<SummaryState | null>(null);
+  const [payFor, setPayFor] = useState<PayState | null>(null);
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [client, setClient] = useState('');
   const [address, setAddress] = useState('');
@@ -146,6 +160,13 @@ export function InvoiceCrud({
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => openEdit(row.original)}>
               ویرایش
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openPay(row.original)}
+            >
+              پرداخت
             </Button>
             <Button
               size="sm"
@@ -220,6 +241,24 @@ export function InvoiceCrud({
     });
   }
 
+  function openPay(invoice: Invoice) {
+    start(async () => {
+      const res = await getInvoiceBalance(invoice._id);
+      if (redirectIfUnauthorized(res)) return;
+      if (!res.ok || !res.data) {
+        toast.error(res.message || 'مانده فاکتور پیدا نشد');
+        return;
+      }
+      const data = res.data as { total?: number; remaining?: number; invoice?: Invoice };
+      setPayFor({
+        invoiceId: invoice._id,
+        personId: relationId(invoice._client),
+        total: Number(data.total || 0),
+        remaining: Number(data.remaining || 0),
+      });
+    });
+  }
+
   function setItem(key: string, patch: Partial<DraftItem>) {
     setItems((rows) => rows.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   }
@@ -280,6 +319,7 @@ export function InvoiceCrud({
       const saved = (res.data || {}) as Invoice;
       setSummary({
         id: String(saved._id || editing?._id || ''),
+        personId: client,
         invoiceNumber: saved.invoiceNumber ?? editing?.invoiceNumber,
         ownerName: optionLabel(people, client) || displayName(saved._client),
         address,
@@ -293,6 +333,16 @@ export function InvoiceCrud({
       resetForm();
       router.refresh();
     });
+  }
+
+  function checksForPerson(personId: string): FieldOption[] {
+    return checks
+      .filter((row) => checkAvailableForPayment(row) && (!personId || relationId(row._owner) === personId))
+      .map((row) => ({
+        value: row._id,
+        label: `${toman(row.amount)} — ${row.dueDate || ''}${row.serialNumber ? ` — ${row.serialNumber}` : ''}`,
+        price: Number(row.amount || 0),
+      }));
   }
 
   const summaryTotals = summary
@@ -438,6 +488,17 @@ export function InvoiceCrud({
                 <span>جمع تعداد: {summaryTotals.count}</span>
                 <span>جمع مبلغ: {toman(summaryTotals.amount)}</span>
               </div>
+              <PaymentForm
+                personId={summary.personId}
+                invoiceId={summary.id}
+                total={summaryTotals.amount}
+                remaining={summaryTotals.amount}
+                checks={checksForPerson(summary.personId)}
+                onSaved={() => {
+                  setSummary(null);
+                  router.refresh();
+                }}
+              />
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={() => setSummary(null)}>
                   بستن
@@ -447,6 +508,25 @@ export function InvoiceCrud({
                 </Button>
               </div>
             </div>
+          ) : null}
+        </FormCard>
+      </Modal>
+
+      <Modal isOpen={Boolean(payFor)} onClose={() => setPayFor(null)} size="lg">
+        <FormCard>
+          <h3 className="mb-4 text-lg font-medium">پرداخت فاکتور</h3>
+          {payFor ? (
+            <PaymentForm
+              personId={payFor.personId}
+              invoiceId={payFor.invoiceId}
+              total={payFor.total}
+              remaining={payFor.remaining}
+              checks={checksForPerson(payFor.personId)}
+              onSaved={() => {
+                setPayFor(null);
+                router.refresh();
+              }}
+            />
           ) : null}
         </FormCard>
       </Modal>

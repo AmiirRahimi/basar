@@ -5,16 +5,20 @@ import {
   addStoreBranch as addBranch,
   clothCounts,
   createPayment as pay,
+  createReceivedCheck as receiveCheck,
   createResource as create,
+  dashboardStats,
   deleteAttachment,
   deleteResource as remove,
   getResource as getById,
   getStore as storeDb,
+  invoiceBalance,
   listAttachments,
   listPayments as payments,
   listPublicClothes,
   listResource as listByName,
   listUserPermisions,
+  personAccount,
   updateResource as update,
 } from '@/server/domain';
 import { listUsers as usersDb } from '@/server/auth';
@@ -117,6 +121,22 @@ export async function listPayments(id: string, type = '2', page = 1, skip = 20) 
 
 export async function createPayment(info: unknown) {
   return pay(info);
+}
+
+export async function createReceivedCheck(payload: unknown) {
+  return receiveCheck(payload);
+}
+
+export async function getDashboardStats() {
+  return dashboardStats();
+}
+
+export async function getPersonAccount(personId: string) {
+  return personAccount(personId);
+}
+
+export async function getInvoiceBalance(invoiceId: string) {
+  return invoiceBalance(invoiceId);
 }
 
 export async function listChanges(page = 1, skip = 50) {

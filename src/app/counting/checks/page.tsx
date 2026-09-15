@@ -1,33 +1,21 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listChecks } from '@/actions/crud';
 import { personOptions } from '@/actions/options';
-import { CrudPage } from '@/components/counting/CrudPage';
+import { ChecksCrud } from '@/components/counting/ChecksCrud';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
+import type { Check } from '@/lib/types';
 
 export default async function ChecksPage() {
-  const [res, people] = await Promise.all([listChecks(), personOptions()]);
+  const [res, people] = await Promise.all([listChecks(1, 200), personOptions()]);
   guardSession(res);
-  const rows = Array.isArray(res.data) ? res.data : [];
+  const rows = Array.isArray(res.data) ? (res.data as Check[]) : [];
   return (
-    <CountingShell title="چک" error={errorMessage(res)}>
-      <CrudPage
-        resource="check"
-        title="چک"
-        rows={rows}
-        columns={[
-          { header: 'صاحب', accessor: '_owner', format: 'name' },
-          { header: 'مبلغ', accessor: 'amount', format: 'toman' },
-          { header: 'سررسید', accessor: 'dueDate' },
-          { header: 'صیادی', accessor: 'sayadiNumber' },
-        ]}
-        fields={[
-          { name: '_owner', label: 'صاحب چک', type: 'relation', options: people, required: true },
-          { name: 'amount', label: 'مبلغ', type: 'number', required: true },
-          { name: 'dueDate', label: 'سررسید (مثلاً 1403/01/15)', required: true },
-          { name: 'serialNumber', label: 'سریال', type: 'number', required: true },
-          { name: 'sayadiNumber', label: 'صیادی', type: 'number', required: true },
-        ]}
-      />
+    <CountingShell
+      title="چک"
+      description="دریافت از مشتری یا پرداخت به شخص، واگذاری چک دریافتی، و ثبت پاس‌شده یا برگشتی"
+      error={errorMessage(res)}
+    >
+      <ChecksCrud checks={rows} people={people} />
     </CountingShell>
   );
 }

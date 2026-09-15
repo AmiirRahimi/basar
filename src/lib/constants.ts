@@ -13,6 +13,17 @@ export const PERSON_ROLES: Record<string, string> = {
   '5': 'شست‌وشو',
 };
 
+/** People the store owes money to, opposite of wholesale customers. */
+export const PAYABLE_PERSON_ROLES = ['2', '3', '4', '5'] as const;
+
+export function isPayablePersonRole(role?: string | number | null) {
+  return PAYABLE_PERSON_ROLES.includes(String(role || '') as (typeof PAYABLE_PERSON_ROLES)[number]);
+}
+
+export function personRoleLabel(role?: string | number | null) {
+  return PERSON_ROLES[String(role || '')] || '';
+}
+
 export const STORE_STAFF_ROLES = {
   admin: 'مدیر فروشگاه',
   seller: 'فروشنده',

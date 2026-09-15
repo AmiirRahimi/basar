@@ -31,3 +31,10 @@ export function clothUnitPrice(cloth: {
   if (fromFabric > 0) return fromFabric;
   return Number(cloth.boughtFee || 0);
 }
+
+export function clothPayTotal(
+  cloth: { count?: number | string | null },
+  fee?: number | string | null,
+) {
+  return Math.max(0, Number(fee || 0) * Number(cloth.count || 0));
+}

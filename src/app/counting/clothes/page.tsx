@@ -1,20 +1,30 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listClothes } from '@/actions/crud';
 import { getWorkspace } from '@/actions/workspace';
-import { clothKindOptions, clothStyleOptions, colorOptions, fabricOptions, sizeOptions } from '@/actions/options';
+import {
+  clothKindOptions,
+  clothStyleOptions,
+  colorOptions,
+  fabricOptions,
+  personOptions,
+  sizeOptions,
+} from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
 import { clothUnitPrice } from '@/lib/cloth-price';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { canWriteResource } from '@/lib/roles';
 
 export default async function ClothesPage() {
-  const [res, kinds, styles, sizes, colors, fabrics, workspace] = await Promise.all([
+  const [res, kinds, styles, sizes, colors, fabrics, tailors, washers, sellers, workspace] = await Promise.all([
     listClothes(),
     clothKindOptions(),
     clothStyleOptions(),
     sizeOptions(),
     colorOptions(),
     fabricOptions(),
+    personOptions('2'),
+    personOptions('5'),
+    personOptions('4'),
     getWorkspace(),
   ]);
   guardSession(res);
@@ -39,6 +49,11 @@ export default async function ClothesPage() {
           { header: 'رنگ', accessor: '_color', format: 'name' },
           { header: 'پارچه', accessor: '_producedFrom', format: 'name' },
           { header: 'مصرف پارچه', accessor: 'amountUsed' },
+          { header: 'خیاط', accessor: '_tailor', format: 'name' },
+          { header: 'اجرت دوخت', accessor: 'tailorFee', format: 'toman' },
+          { header: 'شست‌وشو', accessor: '_wash', format: 'name' },
+          { header: 'اجرت شست', accessor: 'washFee', format: 'toman' },
+          { header: 'فروشنده', accessor: '_boughtFrom', format: 'name' },
           { header: 'قیمت', accessor: 'unitPrice', format: 'toman' },
         ]}
         fields={[
@@ -56,6 +71,12 @@ export default async function ClothesPage() {
             required: true,
             priceFrom: '_producedFrom',
           },
+          { name: '_tailor', label: 'خیاط', type: 'relation', options: tailors },
+          { name: 'tailorFee', label: 'اجرت دوخت هر عدد', type: 'number' },
+          { name: '_wash', label: 'شست‌وشو', type: 'relation', options: washers },
+          { name: 'washFee', label: 'اجرت شست‌وشو هر عدد', type: 'number' },
+          { name: '_boughtFrom', label: 'خرید از فروشنده', type: 'relation', options: sellers },
+          { name: 'boughtFee', label: 'قیمت خرید هر عدد از فروشنده', type: 'number' },
         ]}
       />
     </CountingShell>

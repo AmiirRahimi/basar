@@ -127,6 +127,7 @@ export type Cloth = {
     _mercer?: Person | string;
   } | string;
   _tailor?: Person | string;
+  _wash?: Person | string;
   _boughtFrom?: Person | string;
 };
 
@@ -157,9 +158,13 @@ export type Check = {
   serialNumber?: number;
   sayadiNumber?: number;
   dueDate?: string;
+  direction?: 'in' | 'out' | string;
   isCashed?: boolean;
+  isReturned?: boolean;
   isTransferred?: boolean;
   _owner?: Person | string;
+  _sourceCheck?: string | Check;
+  isUsedInPayment?: boolean;
 };
 
 export type CatalogProduct = {

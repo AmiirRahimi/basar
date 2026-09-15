@@ -1,34 +1,33 @@
 import { CountingShell } from '@/components/counting/CountingShell';
-import { listClothes, listInvoices, listPeople } from '@/actions/crud';
-import { WidgetCard } from '@/ui/components/WidgetCard';
+import { DashboardBoard } from '@/components/counting/DashboardBoard';
+import { getDashboardStats } from '@/actions/crud';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
+import type { Check } from '@/lib/types';
 
 export default async function DashboardPage() {
-  const [clothes, invoices, people] = await Promise.all([listClothes(), listInvoices(), listPeople()]);
-  guardSession(clothes, invoices, people);
-  const clothCount = Array.isArray(clothes.data) ? clothes.data.length : 0;
-  const invoiceCount = Array.isArray(invoices.data) ? invoices.data.length : 0;
-  const customerCount = Array.isArray(people.data)
-    ? people.data.filter((p: any) => String(p.role) === '1').length
-    : 0;
+  const res = await getDashboardStats();
+  guardSession(res);
+  const data = (res.data || {}) as {
+    sales?: {
+      week?: { amount: number; count: number };
+      month?: { amount: number; count: number };
+      year?: { amount: number; count: number };
+    };
+    dueThisMonth?: Check[];
+    returnedChecks?: Check[];
+    debtors?: { _id: string; name: string; remaining: number }[];
+    monthlySales?: { label: string; amount: number; count: number }[];
+  };
 
   return (
-    <CountingShell
-      title="داشبورد"
-      description="خلاصه انبار، فاکتور و مشتریان عمده"
-      error={errorMessage(clothes)}
-    >
-      <div className="grid gap-4 md:grid-cols-3">
-        <WidgetCard title="مدل‌های پارچه / لباس">
-          <p className="text-3xl font-semibold">{clothCount}</p>
-        </WidgetCard>
-        <WidgetCard title="فاکتورها">
-          <p className="text-3xl font-semibold">{invoiceCount}</p>
-        </WidgetCard>
-        <WidgetCard title="مشتریان عمده">
-          <p className="text-3xl font-semibold">{customerCount}</p>
-        </WidgetCard>
-      </div>
+    <CountingShell title="داشبورد" description="فروش، سررسید چک، برگشتی و نسیه مشتریان" error={errorMessage(res)}>
+      <DashboardBoard
+        sales={data.sales || {}}
+        monthlySales={data.monthlySales || []}
+        dueThisMonth={data.dueThisMonth || []}
+        returnedChecks={data.returnedChecks || []}
+        debtors={data.debtors || []}
+      />
     </CountingShell>
   );
 }

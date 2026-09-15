@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
-import { fabricUnitCost } from '@/lib/cloth-price';
+import { fabricLotTotal, fabricUnitCost, clothPayTotal } from '@/lib/cloth-price';
+import { isPayablePersonRole, personRoleLabel } from '@/lib/constants';
+import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
 import { canWriteResource } from '@/lib/roles';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
@@ -54,7 +56,14 @@ function lookups() {
       ],
       sort: '-timeStamp',
     },
-    check: { model: m.Check, populate: { path: '_owner', select: '_id fullName city address phoneNumber' }, sort: 'dueDate' },
+    check: {
+      model: m.Check,
+      populate: [
+        { path: '_owner', select: '_id fullName city address phoneNumber' },
+        { path: '_sourceCheck', populate: { path: '_owner', select: '_id fullName' } },
+      ],
+      sort: 'dueDate',
+    },
     fabric: {
       model: m.Fabric,
       populate: [
@@ -88,6 +97,26 @@ function parseFilter(session: Session, extra = '') {
   return storeFilter(session, filters);
 }
 
+async function markUsedChecks(session: Session, rows: any[]) {
+  const ids = rows.map((row) => oid(row._id)).filter(Boolean);
+  if (!ids.length) return rows;
+  const payments = await M().Payment.find({
+    _storeId: oid(session._storeId),
+    isDeleted: false,
+    $or: [{ _check: { $in: ids } }, { _checks: { $in: ids } }],
+  }).lean();
+  const used = new Set<string>();
+  for (const payment of payments as any[]) {
+    const single = relationKey(payment._check);
+    if (single) used.add(single);
+    for (const id of payment._checks || []) {
+      const key = relationKey(id);
+      if (key) used.add(key);
+    }
+  }
+  return rows.map((row) => ({ ...row, isUsedInPayment: used.has(String(row._id)) }));
+}
+
 function decorateInvoice(row: any) {
   const store = row?._storeId;
   const brandFromStore = store && typeof store === 'object' ? store._brandId : null;
@@ -118,6 +147,9 @@ export async function listResource(resource: string, page = 1, skip = 50, extra 
       .limit(skip)
       .lean();
     const data = resource === 'invoice' ? (rows as any[]).map(decorateInvoice) : rows;
+    if (resource === 'check') {
+      return ok(serialize(await markUsedChecks(auth.session, data as any[])));
+    }
     return ok(serialize(data));
   } catch (error) {
     return fail(error instanceof Error ? error.message : 'خطای پایگاه داده', 500);
@@ -192,6 +224,31 @@ async function applyClothCost(body: Record<string, unknown>) {
   if (!fabric) return body;
   body.boughtFee = amountUsed * fabricUnitCost(fabric);
   return body;
+}
+
+function applyCheckFlags(body: Record<string, unknown>) {
+  if (body.status) {
+    Object.assign(body, statusToFlags(String(body.status)));
+    delete body.status;
+  }
+  if (body.isReturned) body.isCashed = false;
+  else if (body.isCashed) body.isReturned = false;
+  if (body.direction !== 'out') body.direction = 'in';
+  return body;
+}
+
+async function applyCheckPayload(session: Session, body: Record<string, unknown>, isCreate: boolean) {
+  applyCheckFlags(body);
+  if (!isCreate || !body._sourceCheck) return ok(body);
+  const source = await M().Check.findOne(storeFilter(session, { _id: body._sourceCheck })).lean();
+  if (!source || !checkAvailableToTransfer(source)) return fail('این چک قابل واگذاری نیست');
+  body.direction = 'out';
+  body.amount = source.amount;
+  body.dueDate = source.dueDate;
+  body.serialNumber = source.serialNumber;
+  body.sayadiNumber = source.sayadiNumber;
+  await M().Check.findOneAndUpdate({ _id: source._id, _storeId: oid(session._storeId) }, { isTransferred: true });
+  return ok(body);
 }
 
 function lineClothId(item: any) {
@@ -293,6 +350,11 @@ export async function createResource(resource: string, payload: unknown): Promis
     next = applyClothAvailability(auth.session, next);
     next = await applyClothCost(next);
   }
+  if (resource === 'check') {
+    const checked = await applyCheckPayload(auth.session, next, true);
+    if (!checked.ok) return checked;
+    next = (checked.data || next) as Record<string, unknown>;
+  }
   const created = await cfg.model.create(next);
   if (cfg.populate) await created.populate(cfg.populate);
   if (resource === 'check') {
@@ -370,6 +432,11 @@ export async function updateResource(resource: string, id: string, payload: unkn
   if (resource === 'cloth') {
     body = applyClothAvailability(auth.session, body);
     body = await applyClothCost(body);
+  }
+  if (resource === 'check') {
+    const checked = await applyCheckPayload(auth.session, body, false);
+    if (!checked.ok) return checked;
+    body = (checked.data || body) as Record<string, unknown>;
   }
   const cfg = resource === 'customer-cart' ? { model: M().CustomerCart, populate: { path: '_cloth' } } : lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
@@ -458,22 +525,115 @@ export async function listPayments(id: string, type = '2', page = 1, skip = 20):
   return ok(serialize(rows));
 }
 
+export async function createReceivedCheck(payload: unknown): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  if (denyWrite(auth.session, 'payment') && denyWrite(auth.session, 'check')) {
+    return fail('اجازه این کار را ندارید', 403);
+  }
+  const raw = (payload || {}) as Record<string, unknown>;
+  if (!raw._owner || !raw.amount || !raw.dueDate) return fail('شخص، مبلغ و سررسید الزامی است');
+  const next = preparePayload(auth.session, 'check', {
+    direction: raw.direction === 'out' ? 'out' : 'in',
+    _owner: raw._owner,
+    amount: Number(raw.amount),
+    dueDate: raw.dueDate,
+    serialNumber: raw.serialNumber ? Number(raw.serialNumber) : undefined,
+    sayadiNumber: raw.sayadiNumber ? Number(raw.sayadiNumber) : undefined,
+    isCashed: false,
+    isReturned: false,
+    isTransferred: false,
+  });
+  const created = await M().Check.create(next);
+  const cfg = lookups().check;
+  if (cfg?.populate) await created.populate(cfg.populate);
+  return ok(serialize(created.toObject ? created.toObject() : created), 'چک ثبت شد');
+}
+
+async function paymentUsesCheck(session: Session, checkId: unknown) {
+  return M().Payment.findOne({
+    _storeId: oid(session._storeId),
+    isDeleted: false,
+    $or: [{ _check: oid(checkId) }, { _checks: oid(checkId) }],
+  }).lean();
+}
+
+async function resolvePaymentChecks(session: Session, item: any) {
+  const ids = Array.isArray(item._checks)
+    ? item._checks.filter(Boolean)
+    : item._check
+      ? [item._check]
+      : [];
+  if (item.check && typeof item.check === 'object' && !ids.length) {
+    const draft = preparePayload(session, 'check', {
+      direction: 'in',
+      _owner: item._person || item._owner,
+      amount: item.check.amount,
+      dueDate: item.check.dueDate,
+      serialNumber: item.check.serialNumber,
+      sayadiNumber: item.check.sayadiNumber,
+      isCashed: false,
+      isReturned: false,
+      isTransferred: false,
+    });
+    const checkDoc = await M().Check.create(draft);
+    return { checkIds: [checkDoc._id], checkAmount: Number(item.check.amount || 0) };
+  }
+  const unique = [...new Set(ids.map((id: unknown) => String(id)))];
+  if (unique.length !== ids.length) return fail('چک تکراری است');
+  let checkAmount = 0;
+  const checkIds: unknown[] = [];
+  for (const id of unique) {
+    const used = await paymentUsesCheck(session, id);
+    if (used) return fail('این چک قبلاً در یک پرداخت ثبت شده');
+    const existing = await M().Check.findOne(storeFilter(session, { _id: id })).lean();
+    if (!existing) return fail('چک پیدا نشد');
+    if (existing.direction === 'out' || existing.isReturned || existing.isTransferred || existing.isDeleted) {
+      return fail('این چک قابل استفاده در پرداخت نیست');
+    }
+    checkAmount += Number(existing.amount || 0);
+    checkIds.push(existing._id);
+  }
+  return { checkIds, checkAmount };
+}
+
 export async function createPayment(info: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
   const denied = denyWrite(auth.session, 'payment');
   if (denied) return denied;
   const items = Array.isArray(info) ? info : [info];
-  const docs = items.map((item: any) => ({
-    ...item,
-    _storeId: oid(auth.session._storeId),
-    _invoice: oid(item._invoice),
-    _person: oid(item._person || item._invoice),
-    cashAmount: item.cashAmount ?? item.cash,
-    isDeleted: false,
-  }));
-  await M().Payment.insertMany(docs);
-  return ok(docs[0] ? serialize(docs[0]) : null, 'پرداخت ثبت شد');
+  const created: any[] = [];
+  for (const item of items as any[]) {
+    if (!item?._person) return fail('شخص الزامی است');
+    const cash = Number(item.cashAmount ?? item.cash ?? 0);
+    const discount = Number(item.discount || 0);
+    const creditAmount = Number(item.creditAmount || 0);
+    const resolved = await resolvePaymentChecks(auth.session, item);
+    if ('ok' in resolved && resolved.ok === false) return resolved;
+    const checkIds = (resolved as { checkIds: unknown[]; checkAmount: number }).checkIds;
+    const checkAmount = (resolved as { checkIds: unknown[]; checkAmount: number }).checkAmount;
+    if (!cash && !checkAmount && !discount && !creditAmount) {
+      return fail('مبلغ نقد، چک، تخفیف یا نسیه را وارد کنید');
+    }
+    const doc = {
+      _storeId: oid(auth.session._storeId),
+      _invoice: item._invoice ? oid(item._invoice) : undefined,
+      _person: oid(item._person),
+      _check: oid(checkIds[0]),
+      _checks: checkIds.map((id) => oid(id)),
+      cash,
+      cashAmount: cash,
+      checkAmount,
+      creditAmount,
+      discount,
+      description: item.description,
+      isDeleted: false,
+    };
+    created.push(doc);
+  }
+  await M().Payment.insertMany(created);
+  return ok(serialize(created[0] || null), 'پرداخت ثبت شد');
 }
 
 export async function addReturnedItem(payload: unknown): Promise<ActionResult> {
@@ -528,4 +688,262 @@ export async function clothCounts(id: string, type: string): Promise<ActionResul
     return ok(serialize(await M().Cloth.find(storeFilter(auth.session, { _wash: oid(id) })).select('washFee count timeStamp').lean()));
   }
   return fail('نوع نامعتبر');
+}
+
+function relationKey(value: unknown) {
+  if (!value) return '';
+  if (typeof value === 'object' && value && '_id' in (value as object)) return String((value as { _id: unknown })._id);
+  return String(value);
+}
+
+async function cartTotalsMap(session: Session) {
+  const lines = await M().CustomerCart.find(storeFilter(session)).lean();
+  const map: Record<string, number> = {};
+  for (const line of lines) {
+    const id = relationKey(line._invoice);
+    map[id] = (map[id] || 0) + Number(line.count || 0) * Number(line.price || 0);
+  }
+  return map;
+}
+
+function salesInRange(invoices: any[], totals: Record<string, number>, start: Date) {
+  let amount = 0;
+  let count = 0;
+  for (const invoice of invoices) {
+    const ts = new Date(invoice.timeStamp);
+    if (Number.isNaN(ts.getTime()) || ts < start) continue;
+    amount += totals[relationKey(invoice._id)] || 0;
+    count += 1;
+  }
+  return { amount, count };
+}
+
+function salesByPersianMonth(invoices: any[], totals: Record<string, number>, year: string) {
+  const months = PERSIAN_MONTHS.map((label) => ({ label, amount: 0, count: 0 }));
+  for (const invoice of invoices) {
+    const ts = new Date(invoice.timeStamp);
+    if (Number.isNaN(ts.getTime())) continue;
+    const key = persianYearMonth(ts);
+    const [invoiceYear, month] = key.split('/');
+    if (invoiceYear !== year) continue;
+    const index = Number(month) - 1;
+    if (index < 0 || index > 11) continue;
+    months[index].amount += totals[relationKey(invoice._id)] || 0;
+    months[index].count += 1;
+  }
+  return months;
+}
+
+function salesForPersianKey(invoices: any[], totals: Record<string, number>, match: (key: string) => boolean) {
+  let amount = 0;
+  let count = 0;
+  for (const invoice of invoices) {
+    const ts = new Date(invoice.timeStamp);
+    if (Number.isNaN(ts.getTime())) continue;
+    if (!match(persianYearMonth(ts))) continue;
+    amount += totals[relationKey(invoice._id)] || 0;
+    count += 1;
+  }
+  return { amount, count };
+}
+
+export async function dashboardStats(): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  const filter = storeFilter(auth.session);
+  const [invoices, payments, checks, people, totals] = await Promise.all([
+    M().Invoice.find(filter).populate('_client', '_id fullName').lean(),
+    M().Payment.find(filter).lean(),
+    M().Check.find(filter).populate('_owner', '_id fullName').lean(),
+    M().Person.find(filter).lean(),
+    cartTotalsMap(auth.session),
+  ]);
+  const now = new Date();
+  const monthKey = persianYearMonth(now);
+  const yearKey = monthKey.slice(0, 4);
+  const startWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const paidByInvoice: Record<string, number> = {};
+  const paidByPerson: Record<string, number> = {};
+  for (const payment of payments) {
+    const invoiceId = relationKey(payment._invoice);
+    const personId = relationKey(payment._person);
+    const applied = paymentApplied(payment);
+    if (invoiceId) paidByInvoice[invoiceId] = (paidByInvoice[invoiceId] || 0) + applied;
+    else if (personId) paidByPerson[personId] = (paidByPerson[personId] || 0) + applied;
+  }
+  const debtMap: Record<string, { name: string; remaining: number }> = {};
+  for (const invoice of invoices) {
+    const personId = relationKey(invoice._client);
+    if (!personId) continue;
+    const remaining = Math.max(0, (totals[relationKey(invoice._id)] || 0) - (paidByInvoice[relationKey(invoice._id)] || 0));
+    if (remaining <= 0) continue;
+    const name = invoice._client?.fullName || people.find((p: any) => String(p._id) === personId)?.fullName || personId;
+    const current = debtMap[personId] || { name, remaining: 0 };
+    current.remaining += remaining;
+    debtMap[personId] = current;
+  }
+  for (const [personId, extraPaid] of Object.entries(paidByPerson)) {
+    if (!debtMap[personId]) continue;
+    debtMap[personId].remaining = Math.max(0, debtMap[personId].remaining - extraPaid);
+    if (debtMap[personId].remaining <= 0) delete debtMap[personId];
+  }
+  const dueThisMonth = checks
+    .filter((row: any) => dueDateMonthKey(row.dueDate) === monthKey && !row.isCashed && !row.isReturned)
+    .sort((a: any, b: any) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+  const returned = checks.filter((row: any) => row.isReturned);
+  return ok(
+    serialize({
+      sales: {
+        week: salesInRange(invoices, totals, startWeek),
+        month: salesForPersianKey(invoices, totals, (key) => key === monthKey),
+        year: salesForPersianKey(invoices, totals, (key) => key.startsWith(`${yearKey}/`)),
+      },
+      monthlySales: salesByPersianMonth(invoices, totals, yearKey),
+      dueThisMonth,
+      returnedChecks: returned,
+      debtors: Object.entries(debtMap)
+        .map(([id, row]) => ({ _id: id, ...row }))
+        .sort((a, b) => b.remaining - a.remaining),
+    }),
+  );
+}
+
+export async function personAccount(personId: string): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  const person = await M().Person.findOne(storeFilter(auth.session, { _id: personId })).lean();
+  if (!person) return fail('شخص پیدا نشد', 404);
+  const role = String(person.role || '1');
+  const payments = await M().Payment.find(storeFilter(auth.session, { _person: oid(personId) }))
+    .populate('_check')
+    .populate('_invoice')
+    .lean();
+  const paidTotal = payments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
+
+  if (isPayablePersonRole(role)) {
+    const items = await vendorItems(auth.session, personId, role);
+    const owedTotal = items.reduce((sum, row) => sum + Number(row.total || 0), 0);
+    return ok(
+      serialize({
+        person,
+        kind: 'payable',
+        role,
+        roleLabel: personRoleLabel(role),
+        items,
+        invoices: [],
+        payments,
+        purchaseTotal: owedTotal,
+        owedTotal,
+        paidTotal,
+        remaining: Math.max(0, owedTotal - paidTotal),
+      }),
+    );
+  }
+
+  const [invoices, totals] = await Promise.all([
+    M().Invoice.find(storeFilter(auth.session, { _client: oid(personId) })).lean(),
+    cartTotalsMap(auth.session),
+  ]);
+  const invoiceRows = invoices
+    .map((invoice: any) => {
+      const total = totals[relationKey(invoice._id)] || 0;
+      const related = payments.filter((row: any) => relationKey(row._invoice) === relationKey(invoice._id));
+      const paid = related.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
+      return {
+        _id: invoice._id,
+        invoiceNumber: invoice.invoiceNumber,
+        timeStamp: invoice.timeStamp,
+        total,
+        paid,
+        remaining: Math.max(0, total - paid),
+      };
+    })
+    .sort((a: any, b: any) => new Date(b.timeStamp).getTime() - new Date(a.timeStamp).getTime());
+  const purchaseTotal = invoiceRows.reduce((sum, row) => sum + row.total, 0);
+  return ok(
+    serialize({
+      person,
+      kind: 'receivable',
+      role,
+      roleLabel: personRoleLabel(role),
+      items: [],
+      invoices: invoiceRows,
+      payments,
+      purchaseTotal,
+      owedTotal: purchaseTotal,
+      paidTotal,
+      remaining: Math.max(0, purchaseTotal - paidTotal),
+    }),
+  );
+}
+
+async function vendorItems(session: Session, personId: string, role: string) {
+  if (role === '3') {
+    const fabrics = await M().Fabric.find(storeFilter(session, { _mercer: oid(personId) })).lean();
+    return fabrics.map((row: any) => ({
+      _id: row._id,
+      kind: 'fabric',
+      label: `${row.amount || 0} متر پارچه`,
+      timeStamp: row.timeStamp,
+      total: fabricLotTotal(row),
+    }));
+  }
+  if (role === '2') {
+    const clothes = await M().Cloth.find(storeFilter(session, { _tailor: oid(personId) }))
+      .select('code count tailorFee timeStamp')
+      .lean();
+    return clothes.map((row: any) => ({
+      _id: row._id,
+      kind: 'cloth',
+      label: `لباس ${row.code || '—'} — ${row.count || 0} عدد`,
+      timeStamp: row.timeStamp,
+      total: clothPayTotal(row, row.tailorFee),
+    }));
+  }
+  if (role === '5') {
+    const clothes = await M().Cloth.find(storeFilter(session, { _wash: oid(personId) }))
+      .select('code count washFee timeStamp')
+      .lean();
+    return clothes.map((row: any) => ({
+      _id: row._id,
+      kind: 'cloth',
+      label: `لباس ${row.code || '—'} — ${row.count || 0} عدد`,
+      timeStamp: row.timeStamp,
+      total: clothPayTotal(row, row.washFee),
+    }));
+  }
+  const clothes = await M().Cloth.find(storeFilter(session, { _boughtFrom: oid(personId) }))
+    .select('code count boughtFee timeStamp')
+    .lean();
+  return clothes.map((row: any) => ({
+    _id: row._id,
+    kind: 'cloth',
+    label: `لباس ${row.code || '—'} — ${row.count || 0} عدد`,
+    timeStamp: row.timeStamp,
+    total: clothPayTotal(row, row.boughtFee),
+  }));
+}
+
+export async function invoiceBalance(invoiceId: string): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: invoiceId }))
+    .populate('_client', '_id fullName')
+    .lean();
+  if (!invoice) return fail('فاکتور پیدا نشد', 404);
+  const [lines, payments] = await Promise.all([
+    M().CustomerCart.find({ _invoice: oid(invoiceId), isDeleted: false }).lean(),
+    M().Payment.find({ _invoice: oid(invoiceId), isDeleted: false }).populate('_check').lean(),
+  ]);
+  const total = lines.reduce((sum: number, line: any) => sum + Number(line.count || 0) * Number(line.price || 0), 0);
+  const paid = payments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
+  return ok(
+    serialize({
+      invoice,
+      total,
+      paid,
+      remaining: Math.max(0, total - paid),
+      payments,
+    }),
+  );
 }

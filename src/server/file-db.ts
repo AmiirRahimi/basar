@@ -87,6 +87,7 @@ const POP: Record<string, string> = {
   _cloth: 'clothes',
   _invoice: 'invoices',
   _check: 'checks',
+  _sourceCheck: 'checks',
   _producedFrom: 'fabrics',
   _permision: 'permisions',
   _storeId: 'stores',
