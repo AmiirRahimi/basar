@@ -123,6 +123,7 @@ export type Cloth = {
     amount?: number;
     priceForUnit?: number;
     priceForShipingForUnit?: number;
+    discount?: number;
     _mercer?: Person | string;
   } | string;
   _tailor?: Person | string;

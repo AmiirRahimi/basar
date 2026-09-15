@@ -1,6 +1,7 @@
 'use server';
 
 import { listResource as listByName } from '@/server/domain';
+import { fabricUnitCost } from '@/lib/cloth-price';
 import type { FieldOption } from '@/lib/types';
 
 function relationId(value: unknown): string | undefined {
@@ -69,13 +70,14 @@ export async function fabricOptions(): Promise<FieldOption[]> {
       amount?: unknown;
       priceForUnit?: unknown;
       priceForShipingForUnit?: unknown;
+      discount?: unknown;
       _mercer?: { fullName?: unknown } | string;
     }) => {
       const mercer =
         row._mercer && typeof row._mercer === 'object'
           ? String(row._mercer.fullName || '').trim()
           : '';
-      const unit = Number(row.priceForUnit || 0) + Number(row.priceForShipingForUnit || 0);
+      const unit = fabricUnitCost(row);
       const amount = row.amount != null ? `${row.amount} متر` : '';
       const label = [mercer, amount].filter(Boolean).join(' — ') || String(row._id);
       return {

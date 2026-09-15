@@ -140,6 +140,7 @@ const FabricSchema = new Schema(
     amount: { type: Number, required: true },
     priceForUnit: { type: Number, required: true },
     priceForShipingForUnit: { type: Number, required: true },
+    discount: { type: Number, default: 0 },
     timeStamp: { type: Date, required: true, default: Date.now },
     isDeleted: { type: Boolean, required: true, default: false },
   },

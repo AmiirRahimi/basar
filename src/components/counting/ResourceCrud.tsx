@@ -171,12 +171,27 @@ export function ResourceCrud({
 
   function computedPrice() {
     const amountField = fields.find((f) => f.priceFrom);
-    if (!amountField?.priceFrom) return null;
-    const fabricField = fields.find((f) => f.name === amountField.priceFrom);
-    const selected = (fabricField?.options || []).find((option) => option.value === form[amountField.priceFrom!]);
-    const amount = Number(form[amountField.name] || 0);
-    if (!selected || !amount) return 0;
-    return amount * Number(selected.price || 0);
+    if (amountField?.priceFrom) {
+      const fabricField = fields.find((f) => f.name === amountField.priceFrom);
+      const selected = (fabricField?.options || []).find((option) => option.value === form[amountField.priceFrom!]);
+      const amount = Number(form[amountField.name] || 0);
+      if (!selected || !amount) return 0;
+      return amount * Number(selected.price || 0);
+    }
+    return null;
+  }
+
+  function fabricLotComputed() {
+    const hasLotFields =
+      fields.some((f) => f.name === 'amount') &&
+      fields.some((f) => f.name === 'priceForUnit') &&
+      fields.some((f) => f.name === 'priceForShipingForUnit');
+    if (!hasLotFields) return null;
+    const amount = Number(form.amount || 0);
+    const unit = Number(form.priceForUnit || 0);
+    const shipping = Number(form.priceForShipingForUnit || 0);
+    const discount = Number(form.discount || 0);
+    return Math.max(0, amount * unit + amount * shipping - discount);
   }
 
   function submit() {
@@ -285,6 +300,11 @@ export function ResourceCrud({
             {fields.find((f) => f.priceFrom) ? (
               <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-medium">
                 قیمت هر لباس: {toman(computedPrice() || 0)}
+              </p>
+            ) : null}
+            {fabricLotComputed() != null ? (
+              <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-medium">
+                مبلغ کل: {toman(fabricLotComputed() || 0)}
               </p>
             ) : null}
             <Button onClick={submit} disabled={pending}>
