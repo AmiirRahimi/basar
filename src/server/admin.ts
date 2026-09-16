@@ -17,6 +17,11 @@ function normalizeCode(value: unknown) {
     .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
 }
 
+function parseUserIds(value: unknown) {
+  const list = Array.isArray(value) ? value : value ? [value] : [];
+  return [...new Set(list.map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
 function monthsBetween(start?: string | Date, end?: string | Date) {
   const from = start ? new Date(start).getTime() : NaN;
   const to = end ? new Date(end).getTime() : NaN;
@@ -91,16 +96,26 @@ export async function getAdminOverview(): Promise<ActionResult> {
     serialize({
       users: userRows,
       purchases,
-      codes: codes.map((row: any) => ({
-        _id: String(row._id),
-        code: row.code,
-        percent: Number(row.percent || 0),
-        maxUses: Number(row.maxUses || 0),
-        usedCount: Number(row.usedCount || 0),
-        expiresAt: row.expiresAt || '',
-        active: row.active !== false,
-        note: row.note || '',
-      })),
+      codes: codes.map((row: any) => {
+        const userIds = parseUserIds(row._userIds);
+        return {
+          _id: String(row._id),
+          code: row.code,
+          percent: Number(row.percent || 0),
+          maxUses: Number(row.maxUses || 0),
+          usedCount: Number(row.usedCount || 0),
+          expiresAt: row.expiresAt || '',
+          active: row.active !== false,
+          note: row.note || '',
+          userIds,
+          users: userIds.map((id) => {
+            const user = users.find((item: any) => String(item._id) === id);
+            return user
+              ? { _id: id, fullName: user.fullName || '', phonenumber: String(user.phonenumber || '') }
+              : { _id: id, fullName: '', phonenumber: '' };
+          }),
+        };
+      }),
       stats: {
         users: userRows.length,
         loggedIn: userRows.filter((row) => row.loggedIn).length,
@@ -129,6 +144,7 @@ export async function createDiscountCode(payload: Record<string, unknown>): Prom
     expiresAt: payload.expiresAt ? new Date(String(payload.expiresAt)) : null,
     active: payload.active === false ? false : true,
     note: String(payload.note || '').trim(),
+    _userIds: parseUserIds(payload._userIds),
   });
   return ok(serialize(created.toObject ? created.toObject() : created), 'کد تخفیف ثبت شد');
 }
@@ -147,6 +163,7 @@ export async function updateDiscountCode(id: string, payload: Record<string, unk
   if (payload.active != null) next.active = Boolean(payload.active);
   if (payload.note != null) next.note = String(payload.note || '').trim();
   if (payload.expiresAt !== undefined) next.expiresAt = payload.expiresAt ? new Date(String(payload.expiresAt)) : null;
+  if (payload._userIds !== undefined) next._userIds = parseUserIds(payload._userIds);
   const updated = await M().DiscountCode.findByIdAndUpdate(id, next);
   if (!updated) return fail('کد پیدا نشد', 404);
   return ok(null, 'ذخیره شد');
@@ -160,7 +177,7 @@ export async function deleteDiscountCode(id: string): Promise<ActionResult> {
   return ok(null, 'حذف شد');
 }
 
-export async function consumeDiscountCode(code: string, price: number) {
+export async function consumeDiscountCode(code: string, price: number, userId = '') {
   const normalized = normalizeCode(code);
   if (!normalized) {
     return { ok: true as const, price, originalPrice: price, code: '' };
@@ -169,6 +186,10 @@ export async function consumeDiscountCode(code: string, price: number) {
   if (!row || row.active === false) return { ok: false as const, message: 'کد تخفیف معتبر نیست' };
   if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) {
     return { ok: false as const, message: 'مهلت این کد تمام شده است' };
+  }
+  const allowed = parseUserIds(row._userIds);
+  if (allowed.length && !allowed.includes(String(userId))) {
+    return { ok: false as const, message: 'این کد برای حساب شما نیست' };
   }
   const maxUses = Number(row.maxUses || 0);
   const usedCount = Number(row.usedCount || 0);

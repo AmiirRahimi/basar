@@ -140,7 +140,7 @@ export async function buyPlan(
   const endDate = new Date(startMs + cycleDays(cycle) * 24 * 60 * 60 * 1000);
   const originalPrice = planPrice(plan, cycle);
   const { consumeDiscountCode } = await import('./admin');
-  const discounted = await consumeDiscountCode(discountCode, originalPrice);
+  const discounted = await consumeDiscountCode(discountCode, originalPrice, session._id);
   if (!discounted.ok) return fail(discounted.message);
   const created = await M().UserSubscription.create({
     _userId: oid(session._id),

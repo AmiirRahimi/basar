@@ -7,7 +7,22 @@ import { createDiscountCode, deleteDiscountCode, updateDiscountCode } from '@/ac
 import { cycleLabel } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { Button, Input, toast } from '@/ui';
+import { Button, Input, MultiSelect, toast } from '@/ui';
+
+const selectLabels = {
+  search: 'جستجو',
+  remove: 'حذف انتخاب',
+  removeAll: 'حذف همه',
+  noOptionsFound: 'موردی یافت نشد',
+};
+
+function userOptionLabel(user: { fullName?: string; phonenumber?: string }) {
+  return [user.fullName, user.phonenumber].filter(Boolean).join(' — ') || 'بدون نام';
+}
+
+function randomCode() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
 
 type AdminUser = {
   _id: string;
@@ -46,6 +61,8 @@ type AdminCode = {
   expiresAt?: string;
   active: boolean;
   note?: string;
+  userIds?: string[];
+  users?: { _id: string; fullName?: string; phonenumber?: string }[];
 };
 
 export type AdminOverview = {
@@ -72,7 +89,7 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
   const [query, setQuery] = useState('');
   const [minMonths, setMinMonths] = useState('3');
   const [pending, start] = useTransition();
-  const [form, setForm] = useState({ code: '', percent: '10', maxUses: '0', note: '' });
+  const [form, setForm] = useState({ code: '', percent: '10', maxUses: '0', note: '', _userIds: [] as string[] });
 
   const q = query.trim();
   const months = Math.max(0, Number(minMonths || 0));
@@ -96,13 +113,29 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
     [overview.purchases, q],
   );
 
+  const userOptions = overview.users.map((user) => ({
+    value: user._id,
+    label: userOptionLabel(user),
+  }));
+
+  function createForUser(user: AdminUser) {
+    setForm({
+      code: randomCode(),
+      percent: '10',
+      maxUses: '1',
+      note: userOptionLabel(user),
+      _userIds: [user._id],
+    });
+    setTab('codes');
+  }
+
   function run(action: () => Promise<{ ok: boolean; message?: string; status?: number }>, success?: string) {
     start(async () => {
       const res = await action();
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
         toast.success(success || res.message || 'انجام شد');
-        setForm({ code: '', percent: '10', maxUses: '0', note: '' });
+        setForm({ code: '', percent: '10', maxUses: '0', note: '', _userIds: [] });
         router.refresh();
       } else {
         toast.error(res.message || 'انجام نشد');
@@ -166,7 +199,7 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
       {tab === 'purchases' ? (
         <PurchaseTable rows={purchases} />
       ) : tab === 'codes' ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
           <section className="h-fit rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h3 className="mb-3 text-sm font-semibold">کد تخفیف جدید</h3>
             <div className="grid gap-3">
@@ -184,6 +217,15 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
                 onChange={(e) => setForm((s) => ({ ...s, maxUses: e.target.value }))}
               />
               <Input label="یادداشت" value={form.note} onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))} />
+              <MultiSelect
+                label="کاربران"
+                value={form._userIds}
+                onChange={(v) => setForm((s) => ({ ...s, _userIds: v.map(String) }))}
+                options={userOptions}
+                searchable
+                labels={selectLabels}
+              />
+              <p className="text-xs text-gray-500">خالی یعنی برای همه. یک نفر یا چند نفر را انتخاب کنید تا کد فقط برای همان‌ها باشد.</p>
               <Button
                 disabled={pending}
                 onClick={() =>
@@ -193,6 +235,7 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
                       percent: Number(form.percent),
                       maxUses: Number(form.maxUses),
                       note: form.note,
+                      _userIds: form._userIds,
                     }),
                   )
                 }
@@ -209,7 +252,7 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
           />
         </div>
       ) : (
-        <UserTable rows={users} />
+        <UserTable rows={users} onCreateCode={createForUser} />
       )}
     </div>
   );
@@ -224,7 +267,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function UserTable({ rows }: { rows: AdminUser[] }) {
+function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (row: AdminUser) => void }) {
   if (!rows.length) return <Empty message="کاربری در این فهرست نیست" />;
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -237,6 +280,7 @@ function UserTable({ rows }: { rows: AdminUser[] }) {
             <th className="p-3 text-right">اشتراک</th>
             <th className="p-3 text-right">مانده</th>
             <th className="p-3 text-right">جمع ماه</th>
+            <th className="p-3 text-right">عملیات</th>
           </tr>
         </thead>
         <tbody>
@@ -250,6 +294,11 @@ function UserTable({ rows }: { rows: AdminUser[] }) {
               <td className="p-3">{row.active ? row.planName || 'فعال' : 'ندارد'}</td>
               <td className="p-3">{row.active ? `${faNumber(row.remainingDays)} روز` : '—'}</td>
               <td className="p-3">{faNumber(row.totalMonths)}</td>
+              <td className="p-3">
+                <Button size="sm" variant="outline" onClick={() => onCreateCode(row)}>
+                  کد تخفیف
+                </Button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -317,6 +366,7 @@ function CodeTable({
           <tr>
             <th className="p-3 text-right">کد</th>
             <th className="p-3 text-right">درصد</th>
+            <th className="p-3 text-right">کاربران</th>
             <th className="p-3 text-right">استفاده</th>
             <th className="p-3 text-right">وضعیت</th>
             <th className="p-3 text-right">عملیات</th>
@@ -330,6 +380,11 @@ function CodeTable({
                 {row.note ? <p className="text-xs font-normal text-gray-500">{row.note}</p> : null}
               </td>
               <td className="p-3">{faNumber(row.percent)}٪</td>
+              <td className="p-3 text-xs text-gray-600">
+                {row.users?.length
+                  ? row.users.map((user) => userOptionLabel(user)).join('، ')
+                  : 'همه'}
+              </td>
               <td className="p-3">
                 {faNumber(row.usedCount)}
                 {row.maxUses ? ` / ${faNumber(row.maxUses)}` : ' / نامحدود'}

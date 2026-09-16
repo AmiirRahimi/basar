@@ -43,6 +43,7 @@ const DiscountCodeSchema = new Schema(
     expiresAt: { type: Date, default: null },
     active: { type: Boolean, default: true },
     note: { type: String, default: '' },
+    _userIds: { type: [String], default: [] },
   },
   { collection: 'discountcodes' },
 );
