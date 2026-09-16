@@ -293,6 +293,7 @@ const ChangeSchema = new Schema(
     changeType: { type: Number, required: true },
     timeStamp: { type: Date, required: true, default: Date.now },
     _changedItemId: { type: Schema.Types.ObjectId, required: true },
+    description: String,
   },
   { collection: 'changes' },
 );

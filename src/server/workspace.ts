@@ -120,23 +120,36 @@ export async function ensureOwnerWorkspace(userId: string, fullName?: string, ph
         });
       }
     }
-    return;
+  } else if (!memberships) {
+    const brand = await M().Brand.create({
+      _userId: oid(userId),
+      name: fullName || 'برند من',
+      color: BRAND_COLORS[0],
+      isDeleted: false,
+    });
+    await M().Store.create({
+      _brandId: brand._id,
+      _userId: oid(userId),
+      name: 'فروشگاه اصلی',
+      phonenumbers: phonenumber || '',
+      isMain: true,
+      isDeleted: false,
+    });
   }
-  if (memberships) return;
-  const brand = await M().Brand.create({
-    _userId: oid(userId),
-    name: fullName || 'برند من',
-    color: BRAND_COLORS[0],
+  await seedOwnedStores(userId);
+}
+
+async function seedOwnedStores(userId: string) {
+  const { seedStoreIfEmpty } = await import('./seed');
+  const brands = await M().Brand.find({ _userId: oid(userId), isDeleted: false }).lean();
+  const brandIds = (brands || []).map((brand: any) => brand._id);
+  const stores = await M().Store.find({
     isDeleted: false,
-  });
-  await M().Store.create({
-    _brandId: brand._id,
-    _userId: oid(userId),
-    name: 'فروشگاه اصلی',
-    phonenumbers: phonenumber || '',
-    isMain: true,
-    isDeleted: false,
-  });
+    $or: [{ _userId: oid(userId) }, ...(brandIds.length ? [{ _brandId: { $in: brandIds } }] : [])],
+  }).lean();
+  for (const store of stores || []) {
+    await seedStoreIfEmpty(store._id, store._brandId, userId);
+  }
 }
 
 export async function accessibleStores(userId: string, phonenumber: string) {
