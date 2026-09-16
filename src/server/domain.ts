@@ -1139,7 +1139,10 @@ async function partnerYearShares(session: Session, invoices: any[], yearKey: str
   }
   const yearIds = new Set(
     invoices
-      .filter((invoice: any) => persianYearMonth(invoice.timeStamp).startsWith(`${yearKey}/`))
+      .filter((invoice: any) => {
+        const key = persianYearMonth(invoice.timeStamp);
+        return key.startsWith(`${yearKey}/`);
+      })
       .map((invoice: any) => relationKey(invoice._id)),
   );
   const lines = await (M().CustomerCart.find(storeFilter(session)) as any)

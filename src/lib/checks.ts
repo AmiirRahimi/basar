@@ -39,7 +39,15 @@ export const PERSIAN_MONTHS = [
   'اسفند',
 ];
 
-export function persianYearMonth(date = new Date()) {
+function toValidDate(value?: Date | string | number | null) {
+  if (value == null || value === '') return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function persianYearMonth(value?: Date | string | number | null) {
+  const date = toValidDate(value === undefined ? new Date() : value);
+  if (!date) return '';
   const parts = new Intl.DateTimeFormat('en-US', {
     calendar: 'persian',
     numberingSystem: 'latn',
@@ -48,7 +56,7 @@ export function persianYearMonth(date = new Date()) {
   }).formatToParts(date);
   const year = parts.find((part) => part.type === 'year')?.value || '';
   const month = (parts.find((part) => part.type === 'month')?.value || '').padStart(2, '0');
-  return `${year}/${month}`;
+  return year && month ? `${year}/${month}` : '';
 }
 
 export function persianMonthLabel(date = new Date()) {
