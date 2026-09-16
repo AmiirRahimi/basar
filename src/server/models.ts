@@ -84,6 +84,23 @@ const StoreMemberSchema = new Schema(
   { collection: 'storemembers' },
 );
 
+const PartnerSchema = new Schema(
+  {
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    allStores: { type: Boolean, required: true, default: false },
+    _brandIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Brand' }], default: [] },
+    _storeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Store' }], default: [] },
+    _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', default: null, index: true },
+    _storeId: { type: Schema.Types.ObjectId, ref: 'Store', default: null, index: true },
+    name: { type: String, required: true },
+    phonenumber: { type: String, default: '' },
+    sharePercent: { type: Number, default: 0 },
+    timeStamp: { type: Date, required: true, default: Date.now },
+    isDeleted: { type: Boolean, required: true, default: false },
+  },
+  { collection: 'partners' },
+);
+
 const StoreBranchSchema = new Schema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
@@ -161,6 +178,7 @@ const ClothSchema = new Schema(
     _producedFrom: { type: Schema.Types.ObjectId, ref: 'Fabric' },
     _boughtFrom: { type: Schema.Types.ObjectId, ref: 'Person' },
     _wash: { type: Schema.Types.ObjectId, ref: 'Person' },
+    _partner: { type: Schema.Types.ObjectId, ref: 'Partner' },
     amountUsed: Number,
     boughtFee: Number,
     tailorFee: Number,
@@ -338,6 +356,7 @@ export const OTP = modelOf<any>('OTP', OTPSchema);
 export const Brand = modelOf<any>('Brand', BrandSchema);
 export const Store = modelOf<any>('Store', StoreSchema);
 export const StoreMember = modelOf<any>('StoreMember', StoreMemberSchema);
+export const Partner = modelOf<any>('Partner', PartnerSchema);
 export const StoreBranch = modelOf<any>('StoreBranch', StoreBranchSchema);
 export const Person = modelOf<any>('Person', PersonSchema);
 export const ClothKind = modelOf<any>('ClothKind', ClothKindSchema);
@@ -369,4 +388,5 @@ export const CLOTH_POPULATE = [
   { path: '_size', select: '_id name' },
   { path: '_producedFrom', populate: [{ path: '_mercer', select: personSelect }, { path: '_tailor', select: personSelect }] },
   { path: '_boughtFrom', select: `${personSelect} role` },
+  { path: '_partner', select: '_id name sharePercent allStores _brandIds _storeIds' },
 ];

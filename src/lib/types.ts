@@ -73,6 +73,17 @@ export type StoreMember = {
 
 export type WorkspaceMember = StoreMember;
 
+export type Partner = {
+  _id: string;
+  _userId?: string;
+  name: string;
+  phonenumber?: string;
+  sharePercent?: number;
+  allStores?: boolean;
+  _brandIds?: string[];
+  _storeIds?: string[];
+};
+
 export type WorkspaceStore = StoreRecord & {
   _brandId: string;
   members: WorkspaceMember[];
@@ -91,6 +102,7 @@ export type Workspace = {
   };
   brands: WorkspaceBrand[];
   stores: WorkspaceStore[];
+  partners: Partner[];
   activeBrandId: string;
   activeStoreId: string;
   storeRole: StoreRole;
@@ -132,6 +144,7 @@ export type Cloth = {
   _tailor?: Person | string;
   _wash?: Person | string;
   _boughtFrom?: Person | string;
+  _partner?: Partner | string;
 };
 
 export type Invoice = {

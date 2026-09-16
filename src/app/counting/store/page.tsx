@@ -9,7 +9,7 @@ export default async function StorePage() {
   return (
     <CountingShell
       title="برند و فروشگاه"
-      description="برندها، فروشگاه‌های عمده و تیم هر فروشگاه را از اینجا مدیریت کنید."
+      description="برندها، فروشگاه‌ها، تیم و شرکای درآمد هر فروشگاه را از اینجا مدیریت کنید."
       error={errorMessage(res)}
     >
       <BrandStoreWorkspace />

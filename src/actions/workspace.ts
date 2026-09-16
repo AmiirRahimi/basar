@@ -8,6 +8,10 @@ import {
   getWorkspace as workspaceDb,
   inviteStoreMember as inviteDb,
   removeStoreMember as removeMemberDb,
+  listPartners as listPartnersDb,
+  createPartner as createPartnerDb,
+  updatePartner as updatePartnerDb,
+  deletePartner as deletePartnerDb,
   switchWorkspace as switchDb,
   updateBrand as updateBrandDb,
   updateStore as updateStoreDb,
@@ -56,4 +60,20 @@ export async function updateStoreMember(id: string, payload: Record<string, unkn
 
 export async function removeStoreMember(id: string) {
   return removeMemberDb(id);
+}
+
+export async function listPartners() {
+  return listPartnersDb();
+}
+
+export async function createPartner(payload: Record<string, unknown>) {
+  return createPartnerDb(payload);
+}
+
+export async function updatePartner(id: string, payload: Record<string, unknown>) {
+  return updatePartnerDb(id, payload);
+}
+
+export async function deletePartner(id: string) {
+  return deletePartnerDb(id);
 }

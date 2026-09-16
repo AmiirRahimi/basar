@@ -1,5 +1,12 @@
 import mongoose from 'mongoose';
 import { BRAND_COLORS, PHONE_RE, type StoreRole, type StoreStaffRole } from '@/lib/constants';
+import {
+  idList,
+  partnerAppliesToStore,
+  partnerBrandIds,
+  partnerStoreIds,
+  sharePercentTotal,
+} from '@/lib/partners';
 import type { Workspace, WorkspaceBrand, WorkspaceStore } from '@/lib/types';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
@@ -305,6 +312,27 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
     };
   });
 
+  const brandIds = [...brandMap.keys()].map((id) => oid(id));
+  const ownerIds = [
+    ...new Set(
+      [...brandMap.values()]
+        .map((brand: any) => idOf(brand._userId))
+        .filter(Boolean),
+    ),
+  ].map((id) => oid(id));
+  const partnerFilter = {
+    isDeleted: false,
+    $or: [
+      ...(ownerIds.length ? [{ _userId: { $in: ownerIds } }] : []),
+      ...(brandIds.length ? [{ _brandIds: { $in: brandIds } }, { _brandId: { $in: brandIds } }] : []),
+      ...(storeIds.length ? [{ _storeIds: { $in: storeIds } }, { _storeId: { $in: storeIds } }] : []),
+    ],
+  };
+  const partnerRows = partnerFilter.$or.length
+    ? await M().Partner.find(partnerFilter).sort('name').lean()
+    : [];
+  const partners = partnerRows.map(partnerView);
+
   const role = await resolveStoreRole({ ...auth.session, ...context });
   return ok(
     serialize({
@@ -315,6 +343,7 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       },
       brands,
       stores: workspaceStores,
+      partners,
       activeBrandId: context._brandId,
       activeStoreId: context._storeId,
       storeRole: role || context.storeRole,
@@ -530,4 +559,200 @@ export async function removeStoreMember(id: string): Promise<ActionResult> {
   if (!owned && !adminHere && !access.session.isPlatformAdmin) return fail('اجازه حذف این همکار را ندارید', 403);
   await M().StoreMember.updateOne({ _id: oid(id) }, { isDeleted: true });
   return ok(null, 'همکار حذف شد');
+}
+
+function partnerView(row: any) {
+  return {
+    _id: String(row._id),
+    _userId: idOf(row._userId),
+    name: row.name || '',
+    phonenumber: row.phonenumber || '',
+    sharePercent: Number(row.sharePercent || 0),
+    allStores: Boolean(row.allStores),
+    _brandIds: partnerBrandIds(row),
+    _storeIds: partnerStoreIds(row),
+  };
+}
+
+function toIdArray(value: unknown) {
+  return idList(value).map((id) => oid(id)).filter(Boolean);
+}
+
+function parsePartnerScope(payload: Record<string, unknown>, current?: any) {
+  const brandIds = payload._brandIds != null ? idList(payload._brandIds) : current ? partnerBrandIds(current) : [];
+  const storeIds = payload._storeIds != null ? idList(payload._storeIds) : current ? partnerStoreIds(current) : [];
+  const allStores =
+    payload.allStores != null ? Boolean(payload.allStores) : Boolean(current?.allStores) && !storeIds.length;
+  if (allStores && !storeIds.length) return { allStores: true, brandIds, storeIds: [] as string[] };
+  return { allStores: false, brandIds, storeIds };
+}
+
+async function assertCanSavePartner(session: Session, scope: { allStores: boolean; brandIds: string[]; storeIds: string[] }) {
+  if (session.isPlatformAdmin) return null;
+  if (scope.allStores) {
+    const owned = await M().Brand.findOne({ _userId: oid(session._id), isDeleted: false }).lean();
+    if (!owned) return fail('فقط صاحب برند می‌تواند شریک همه فروشگاه‌ها را ثبت کند', 403);
+    return null;
+  }
+  if (!scope.brandIds.length && !scope.storeIds.length) return fail('محدوده شریک را انتخاب کنید');
+  for (const brandId of scope.brandIds) {
+    const owned = await requireBrandOwner(session, brandId);
+    if ('error' in owned) return owned.error;
+  }
+  for (const storeId of scope.storeIds) {
+    const store = await M().Store.findOne({ _id: oid(storeId), isDeleted: false }).lean();
+    if (!store) return fail('فروشگاه پیدا نشد', 404);
+    const brandOwner = String((await M().Brand.findOne({ _id: store._brandId }).lean())?._userId) === session._id;
+    const adminHere =
+      session.storeRole === 'admin' &&
+      session._storeId === storeId &&
+      scope.storeIds.every((id) => id === session._storeId);
+    if (!brandOwner && !adminHere) return fail('اجازه تعیین شریک برای این فروشگاه را ندارید', 403);
+  }
+  return null;
+}
+
+async function shareConflict(
+  session: Session,
+  next: { _id?: string; allStores: boolean; brandIds: string[]; storeIds: string[]; sharePercent: number },
+) {
+  const percent = Math.max(0, Number(next.sharePercent || 0));
+  if (percent > 100) return 'درصد سهم نمی‌تواند بیشتر از ۱۰۰ باشد';
+  const { ownedBrands, stores } = await accessibleStores(session._id, session.phonenumber);
+  const ownedBrandIds = new Set(ownedBrands.map((brand: any) => String(brand._id)));
+  const draft = { _id: 'next', name: '', allStores: next.allStores, _brandIds: next.brandIds, _storeIds: next.storeIds };
+  const affected = (next.allStores ? stores.filter((store: any) => ownedBrandIds.has(idOf(store._brandId))) : stores).filter(
+    (store: any) => partnerAppliesToStore(draft, String(store._id), idOf(store._brandId)),
+  );
+  if (!affected.length) return null;
+  const ownerIds = [...new Set([...ownedBrands.map((brand: any) => idOf(brand._userId)), session._id].filter(Boolean))].map(
+    (id) => oid(id),
+  );
+  const brandOids = [...ownedBrandIds].map((id) => oid(id));
+  const storeOids = affected.map((store: any) => store._id);
+  const others = (
+    await M()
+      .Partner.find({
+        isDeleted: false,
+        $or: [
+          { _userId: { $in: ownerIds } },
+          { _brandIds: { $in: brandOids } },
+          { _storeIds: { $in: storeOids } },
+          { _brandId: { $in: brandOids } },
+          { _storeId: { $in: storeOids } },
+        ],
+      })
+      .lean()
+  ).filter((row: any) => String(row._id) !== String(next._id || ''));
+  for (const store of affected) {
+    const applicable = others.filter((row: any) => partnerAppliesToStore(row, String(store._id), idOf(store._brandId)));
+    const sum = sharePercentTotal(applicable) + percent;
+    if (sum > 100) return `جمع درصد شرکا در «${store.name || 'فروشگاه'}» بیشتر از ۱۰۰ می‌شود (${sum}٪)`;
+  }
+  return null;
+}
+
+export async function listPartners(): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const { ownedBrands, stores } = await accessibleStores(access.session._id, access.session.phonenumber);
+  const brandIds = [
+    ...new Set([...ownedBrands.map((brand: any) => String(brand._id)), ...stores.map((store: any) => idOf(store._brandId))]),
+  ]
+    .filter(Boolean)
+    .map((id) => oid(id));
+  const storeIds = stores.map((store: any) => store._id);
+  const ownerIds = [
+    ...new Set(ownedBrands.map((brand: any) => idOf(brand._userId)).filter(Boolean)),
+    access.session._id,
+  ].map((id) => oid(id));
+  const rows = await M()
+    .Partner.find({
+      isDeleted: false,
+      $or: [
+        { _userId: { $in: ownerIds } },
+        { _brandIds: { $in: brandIds } },
+        { _storeIds: { $in: storeIds } },
+        { _brandId: { $in: brandIds } },
+        { _storeId: { $in: storeIds } },
+      ],
+    })
+    .sort('name')
+    .lean();
+  return ok(serialize(rows.map(partnerView)));
+}
+
+export async function createPartner(payload: Record<string, unknown>): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const scope = parsePartnerScope(payload);
+  const denied = await assertCanSavePartner(access.session, scope);
+  if (denied) return denied;
+  const name = String(payload.name || '').trim();
+  if (!name) return fail('نام شریک الزامی است');
+  const sharePercent = Math.max(0, Number(payload.sharePercent || 0));
+  if (Number.isNaN(sharePercent)) return fail('درصد سهم نامعتبر است');
+  const conflict = await shareConflict(access.session, { ...scope, sharePercent });
+  if (conflict) return fail(conflict);
+  const partner = await M().Partner.create({
+    _userId: oid(access.session._id),
+    allStores: scope.allStores,
+    _brandIds: toIdArray(scope.brandIds),
+    _storeIds: toIdArray(scope.storeIds),
+    _brandId: scope.brandIds[0] ? oid(scope.brandIds[0]) : null,
+    _storeId: scope.storeIds[0] ? oid(scope.storeIds[0]) : null,
+    name,
+    phonenumber: String(payload.phonenumber || '').trim(),
+    sharePercent,
+    isDeleted: false,
+  });
+  return ok(serialize(partnerView(partner.toObject ? partner.toObject() : partner)), 'شریک اضافه شد');
+}
+
+export async function updatePartner(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const partner = await M().Partner.findOne({ _id: oid(id), isDeleted: false }).lean();
+  if (!partner) return fail('شریک پیدا نشد', 404);
+  const scope = parsePartnerScope(payload, partner);
+  const denied = await assertCanSavePartner(access.session, scope);
+  if (denied) return denied;
+  const next: Record<string, unknown> = {
+    allStores: scope.allStores,
+    _brandIds: toIdArray(scope.brandIds),
+    _storeIds: toIdArray(scope.storeIds),
+    _brandId: scope.brandIds[0] ? oid(scope.brandIds[0]) : null,
+    _storeId: scope.storeIds[0] ? oid(scope.storeIds[0]) : null,
+  };
+  if (payload.name != null) {
+    const name = String(payload.name).trim();
+    if (!name) return fail('نام شریک الزامی است');
+    next.name = name;
+  }
+  if (payload.phonenumber != null) next.phonenumber = String(payload.phonenumber).trim();
+  if (payload.sharePercent != null) {
+    const sharePercent = Math.max(0, Number(payload.sharePercent));
+    if (Number.isNaN(sharePercent)) return fail('درصد سهم نامعتبر است');
+    next.sharePercent = sharePercent;
+  }
+  const conflict = await shareConflict(access.session, {
+    _id: id,
+    ...scope,
+    sharePercent: Number(next.sharePercent ?? partner.sharePercent ?? 0),
+  });
+  if (conflict) return fail(conflict);
+  const updated = await M().Partner.findOneAndUpdate({ _id: oid(id) }, next, { new: true });
+  return ok(serialize(partnerView(updated?.toObject ? updated.toObject() : updated)), 'شریک ویرایش شد');
+}
+
+export async function deletePartner(id: string): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const partner = await M().Partner.findOne({ _id: oid(id), isDeleted: false }).lean();
+  if (!partner) return fail('شریک پیدا نشد', 404);
+  const denied = await assertCanSavePartner(access.session, parsePartnerScope({}, partner));
+  if (denied) return denied;
+  await M().Partner.updateOne({ _id: oid(id) }, { isDeleted: true });
+  await M().Cloth.updateMany({ _partner: oid(id) }, { _partner: null });
+  return ok(null, 'شریک حذف شد');
 }

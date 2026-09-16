@@ -28,6 +28,7 @@ import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import type { WorkspaceBrand, WorkspaceMember, WorkspaceStore } from '@/lib/types';
 import { Button, EmptyState, Input, Modal, Select, toast } from '@/ui';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { PartnersPanel } from './PartnersPanel';
 import { useWorkspace } from './WorkspaceProvider';
 
 const selectLabels = {
@@ -128,19 +129,29 @@ export function BrandStoreWorkspace() {
   if (!isOwner) {
     const mine = stores.find((store) => store._id === workspace.activeStoreId) || stores[0];
     return (
-      <StorePanel
-        store={mine}
-        brand={brands.find((brand) => brand._id === mine?._brandId)}
-        canInvite
-        pending={pending}
-        invite={invite}
-        setInvite={setInvite}
-        onInvite={() =>
-          run(() => inviteStoreMember({ ...invite, _storeId: mine?._id }), 'دعوت ثبت شد')
-        }
-        onRole={(id, role) => run(() => updateStoreMember(id, { role }))}
-        onRemove={(id) => run(() => removeStoreMember(id), 'حذف شد')}
-      />
+      <div className="space-y-6">
+        <StorePanel
+          store={mine}
+          brand={brands.find((brand) => brand._id === mine?._brandId)}
+          canInvite
+          pending={pending}
+          invite={invite}
+          setInvite={setInvite}
+          onInvite={() =>
+            run(() => inviteStoreMember({ ...invite, _storeId: mine?._id }), 'دعوت ثبت شد')
+          }
+          onRole={(id, role) => run(() => updateStoreMember(id, { role }))}
+          onRemove={(id) => run(() => removeStoreMember(id), 'حذف شد')}
+        />
+        <PartnersPanel
+          brands={brands}
+          stores={stores}
+          selectedBrand={brands.find((brand) => brand._id === mine?._brandId)}
+          selectedStore={mine}
+          partners={workspace.partners || []}
+          canManageStore={workspace.storeRole === 'admin'}
+        />
+      </div>
     );
   }
 
@@ -307,6 +318,16 @@ export function BrandStoreWorkspace() {
           )}
         </section>
       ) : null}
+
+      <PartnersPanel
+        brands={brands}
+        stores={stores}
+        selectedBrand={selectedBrand}
+        selectedStore={selectedStore}
+        partners={workspace.partners || []}
+        canManageBrand
+        canManageStore
+      />
 
       <Modal isOpen={Boolean(brandModal)} onClose={() => setBrandModal(null)}>
         <div className="p-5" dir="rtl">

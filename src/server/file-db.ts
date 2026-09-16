@@ -92,6 +92,7 @@ const POP: Record<string, string> = {
   _permision: 'permisions',
   _storeId: 'stores',
   _brandId: 'brands',
+  _partner: 'partners',
 };
 
 function sortSpec(input: unknown): { key: string; desc: boolean } | null {
@@ -274,6 +275,7 @@ export const fileModels = {
   Brand: new FileModel('brands'),
   Store: new FileModel('stores'),
   StoreMember: new FileModel('storemembers'),
+  Partner: new FileModel('partners'),
   StoreBranch: new FileModel('storebranches'),
   Person: new FileModel('people'),
   ClothKind: new FileModel('clothkinds'),

@@ -1,9 +1,11 @@
 'use server';
 
 import { listResource as listByName } from '@/server/domain';
+import { listPartners, getWorkspace } from '@/actions/workspace';
 import { clothUnitPrice, fabricUnitCost } from '@/lib/cloth-price';
 import { packsFromCloth, totalItems } from '@/lib/packs';
-import type { Cloth, FieldOption } from '@/lib/types';
+import { partnerScopeLabel, partnersForStore } from '@/lib/partners';
+import type { Cloth, FieldOption, Partner } from '@/lib/types';
 
 function relationId(value: unknown): string | undefined {
   if (!value) return undefined;
@@ -103,4 +105,17 @@ export async function fabricOptions(): Promise<FieldOption[]> {
       };
     },
   );
+}
+
+export async function partnerOptions(): Promise<FieldOption[]> {
+  const [partnersRes, workspace] = await Promise.all([listPartners(), getWorkspace()]);
+  const storeId = workspace.data?.activeStoreId || '';
+  const brandId = workspace.data?.activeBrandId || '';
+  const brands = workspace.data?.brands || [];
+  const stores = workspace.data?.stores || [];
+  const rows = Array.isArray(partnersRes.data) ? (partnersRes.data as Partner[]) : [];
+  return partnersForStore(rows, storeId, brandId).map((row) => ({
+    value: String(row._id),
+    label: `${row.name} (${partnerScopeLabel(row, brands, stores)})`,
+  }));
 }

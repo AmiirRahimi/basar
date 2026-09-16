@@ -17,16 +17,28 @@ export default async function DashboardPage() {
     returnedChecks?: Check[];
     debtors?: { _id: string; name: string; remaining: number }[];
     monthlySales?: { label: string; amount: number; count: number }[];
+    partnerShares?: {
+      rows?: {
+        _id: string;
+        name: string;
+        sharePercent?: number;
+        clothAmount?: number;
+        shareAmount?: number;
+        total?: number;
+      }[];
+      ownerShare?: number;
+    };
   };
 
   return (
-    <CountingShell title="داشبورد" description="فروش، سررسید چک، برگشتی و نسیه مشتریان" error={errorMessage(res)}>
+    <CountingShell title="داشبورد" description="فروش، سررسید چک، برگشتی، نسیه و سهم شرکا" error={errorMessage(res)}>
       <DashboardBoard
         sales={data.sales || {}}
         monthlySales={data.monthlySales || []}
         dueThisMonth={data.dueThisMonth || []}
         returnedChecks={data.returnedChecks || []}
         debtors={data.debtors || []}
+        partnerShares={data.partnerShares}
       />
     </CountingShell>
   );

@@ -16,6 +16,7 @@ import {
 import { DEFAULT_MOQ, isPayablePersonRole, personRoleLabel, PHONE_RE } from '@/lib/constants';
 import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
 import { canWriteResource } from '@/lib/roles';
+import { allocateIncome, partnersForStore } from '@/lib/partners';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
@@ -1089,6 +1090,7 @@ export async function dashboardStats(): Promise<ActionResult> {
     .filter((row: any) => dueDateMonthKey(row.dueDate) === monthKey && !row.isCashed && !row.isReturned)
     .sort((a: any, b: any) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
   const returned = checks.filter((row: any) => row.isReturned);
+  const partnerShares = await partnerYearShares(auth.session, invoices, yearKey);
   return ok(
     serialize({
       sales: {
@@ -1102,7 +1104,57 @@ export async function dashboardStats(): Promise<ActionResult> {
       debtors: Object.entries(debtMap)
         .map(([id, row]) => ({ _id: id, ...row }))
         .sort((a, b) => b.remaining - a.remaining),
+      partnerShares,
     }),
+  );
+}
+
+async function partnerYearShares(session: Session, invoices: any[], yearKey: string) {
+  const brand = session._brandId
+    ? await M().Brand.findOne({ _id: oid(session._brandId), isDeleted: false }).lean()
+    : null;
+  const ownerId = brand?._userId || session._id;
+  const partners = await M()
+    .Partner.find({
+      isDeleted: false,
+      $or: [
+        { _userId: oid(ownerId) },
+        { _brandIds: oid(session._brandId) },
+        { _storeIds: oid(session._storeId) },
+        { _brandId: oid(session._brandId) },
+        { _storeId: oid(session._storeId) },
+      ],
+    })
+    .lean();
+  const applicable = partnersForStore(partners, String(session._storeId || ''), session._brandId);
+  if (!applicable.length) {
+    return { rows: [], pool: 0, assigned: 0, ownerShare: 0, total: 0, percentSum: 0 };
+  }
+  const yearIds = new Set(
+    invoices
+      .filter((invoice: any) => persianYearMonth(invoice.timeStamp).startsWith(`${yearKey}/`))
+      .map((invoice: any) => relationKey(invoice._id)),
+  );
+  const lines = await (M().CustomerCart.find(storeFilter(session)) as any)
+    .populate({ path: '_cloth', select: '_partner' })
+    .lean();
+  return allocateIncome(
+    lines
+      .filter((line: any) => yearIds.has(relationKey(line._invoice)))
+      .map((line: any) => ({
+        amount: Number(line.count || 0) * Number(line.price || 0),
+        partnerId: relationKey(typeof line._cloth === 'object' ? line._cloth?._partner : ''),
+      })),
+    applicable.map((row: any) => ({
+      _id: String(row._id),
+      name: row.name || '',
+      sharePercent: Number(row.sharePercent || 0),
+      allStores: Boolean(row.allStores),
+      _brandIds: row._brandIds,
+      _storeIds: row._storeIds,
+      _brandId: row._brandId,
+      _storeId: row._storeId,
+    })),
   );
 }
 

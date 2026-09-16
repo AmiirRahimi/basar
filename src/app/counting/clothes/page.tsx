@@ -6,6 +6,7 @@ import {
   clothStyleOptions,
   colorOptions,
   fabricOptions,
+  partnerOptions,
   personOptions,
   sizeOptions,
 } from '@/actions/options';
@@ -16,7 +17,7 @@ import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { canWriteResource } from '@/lib/roles';
 
 export default async function ClothesPage() {
-  const [res, kinds, styles, sizes, colors, fabrics, tailors, washers, sellers, workspace] = await Promise.all([
+  const [res, kinds, styles, sizes, colors, fabrics, tailors, washers, sellers, partners, workspace] = await Promise.all([
     listClothes(),
     clothKindOptions(),
     clothStyleOptions(),
@@ -26,6 +27,7 @@ export default async function ClothesPage() {
     personOptions('2'),
     personOptions('5'),
     personOptions('4'),
+    partnerOptions(),
     getWorkspace(),
   ]);
   guardSession(res);
@@ -61,6 +63,7 @@ export default async function ClothesPage() {
           { header: 'شست‌وشو', accessor: '_wash', format: 'name' },
           { header: 'اجرت شست', accessor: 'washFee', format: 'toman' },
           { header: 'فروشنده', accessor: '_boughtFrom', format: 'name' },
+          { header: 'شریک', accessor: '_partner', format: 'name' },
           { header: 'قیمت', accessor: 'unitPrice', format: 'toman' },
         ]}
         fields={[
@@ -84,6 +87,7 @@ export default async function ClothesPage() {
           { name: 'washFee', label: 'اجرت شست‌وشو هر عدد', type: 'number' },
           { name: '_boughtFrom', label: 'خرید از فروشنده', type: 'relation', options: sellers },
           { name: 'boughtFee', label: 'قیمت خرید هر عدد از فروشنده', type: 'number' },
+          { name: '_partner', label: 'شریک فروش این لباس', type: 'relation', options: partners },
           { name: 'minOrderQty', label: 'حداقل سفارش عمده', type: 'number' },
           { name: 'description', label: 'توضیح فروشگاه', type: 'textarea' },
           { name: 'images', label: 'تصاویر فروشگاه (هر خط یک آدرس)', type: 'textarea' },
