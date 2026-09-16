@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-table';
 import { BasicTable, Button, Input, Modal, FormCard, EmptyState, Select, Textarea, toast } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
+import { RowActions } from './RowActions';
 
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
@@ -93,13 +94,11 @@ export function ResourceCrud({
       helper.display({
         id: 'actions',
         header: 'عملیات',
+        size: 112,
         cell: ({ row }) =>
           allowWrite ? (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
+            <RowActions
+              onEdit={() => {
                 setEditing(row.original);
                 const next: Record<string, string> = {};
                 fields.forEach((f) => {
@@ -119,25 +118,14 @@ export function ResourceCrud({
                 setShowErrors(false);
                 setOpen(true);
               }}
-            >
-              ویرایش
-            </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() =>
-                start(async () => {
-                  const res = await deleteResource(resource, row.original._id);
-                  if (redirectIfUnauthorized(res)) return;
-                  if (res.ok) toast.success(res.message || 'حذف شد');
-                  else toast.error(res.message || 'حذف نشد');
-                  reload();
-                })
-              }
-            >
-              حذف
-            </Button>
-          </div>
+              onDelete={async () => {
+                const res = await deleteResource(resource, row.original._id);
+                if (redirectIfUnauthorized(res)) return;
+                if (res.ok) toast.success(res.message || 'حذف شد');
+                else toast.error(res.message || 'حذف نشد');
+                reload();
+              }}
+            />
           ) : null,
       }),
     );

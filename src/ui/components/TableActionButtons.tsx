@@ -19,6 +19,12 @@ export type TableActionButtonsLabels = {
   no?: string;
 };
 
+export type TableActionExtra = {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+};
+
 export type TableActionButtonsProps = {
   item?: Record<string, unknown>;
   viewIcon?: ReactNode;
@@ -32,6 +38,7 @@ export type TableActionButtonsProps = {
   viewUrl?: string;
   className?: string;
   extraButtons?: ReactNode;
+  extraActions?: TableActionExtra[];
   onEditClick?: (item: Record<string, unknown>) => void;
   onViewClick?: (item: Record<string, unknown>) => void;
   deleteConfirmation?: ComponentType<DeleteConfirmationProps>;
@@ -50,6 +57,9 @@ const DEFAULT_LABELS: Required<TableActionButtonsLabels> = {
   no: 'No',
 };
 
+const iconClass =
+  'h-7 w-7 shrink-0 rounded-lg border-gray-200/80 text-gray-600 transition-all duration-200 dark:border-gray-700/50 dark:text-gray-400';
+
 export function TableActionButtons({
   item = {},
   viewIcon = <Eye className="size-3.5" />,
@@ -59,10 +69,11 @@ export function TableActionButtons({
   showEdit = true,
   showDelete = true,
   onDelete,
-  editUrl = '#',
-  viewUrl = '#',
+  editUrl,
+  viewUrl,
   className = '',
   extraButtons = null,
+  extraActions = [],
   onEditClick,
   onViewClick,
   deleteConfirmation,
@@ -71,46 +82,46 @@ export function TableActionButtons({
   labels,
 }: TableActionButtonsProps) {
   const copy = { ...DEFAULT_LABELS, ...labels };
-  const Link = LinkComponent;
 
   return (
-    <div className={cn('relative flex w-fit items-center gap-1.5 pe-3', className)}>
-      {showView && (
-        <Tooltip size="sm" content={copy.view} placement="top" color="invert">
-          <Link
-            href={viewUrl}
-            className="inline-flex"
-            onClick={() => onViewClick?.(item)}
-          >
-            <IconButton
-              size="sm"
-              variant="outline"
-              aria-label={copy.view}
-              className="h-7 w-7 rounded-lg border-gray-200/80 text-gray-600 transition-all duration-200 hover:border-blue-500/50 hover:bg-blue-50 hover:text-blue-600 dark:border-gray-700/50 dark:text-gray-400 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10 dark:hover:text-blue-400"
-            >
-              {viewIcon}
-            </IconButton>
-          </Link>
-        </Tooltip>
-      )}
+    <div
+      data-stop-row-click="true"
+      className={cn('inline-flex flex-nowrap items-center gap-1 whitespace-nowrap', className)}
+    >
+      {showView ? (
+        <ActionHit
+          label={copy.view}
+          icon={viewIcon}
+          href={viewUrl}
+          LinkComponent={LinkComponent}
+          className={`${iconClass} hover:border-blue-500/50 hover:bg-blue-50 hover:text-blue-600 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10 dark:hover:text-blue-400`}
+          onClick={onViewClick ? () => onViewClick(item) : undefined}
+        />
+      ) : null}
 
-      {showEdit && (
-        <Tooltip size="sm" content={copy.edit} placement="top" color="invert">
-          <Link href={editUrl} className="inline-flex" onClick={() => onEditClick?.(item)}>
-            <IconButton
-              size="sm"
-              variant="outline"
-              aria-label={copy.edit}
-              className="h-7 w-7 rounded-lg border-gray-200/80 text-gray-600 transition-all duration-200 hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-600 dark:border-gray-700/50 dark:text-gray-400 dark:hover:border-amber-500/30 dark:hover:bg-amber-500/10 dark:hover:text-amber-400"
-            >
-              {editIcon}
-            </IconButton>
-          </Link>
-        </Tooltip>
-      )}
+      {showEdit ? (
+        <ActionHit
+          label={copy.edit}
+          icon={editIcon}
+          href={editUrl}
+          LinkComponent={LinkComponent}
+          className={`${iconClass} hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-600 dark:hover:border-amber-500/30 dark:hover:bg-amber-500/10 dark:hover:text-amber-400`}
+          onClick={onEditClick ? () => onEditClick(item) : undefined}
+        />
+      ) : null}
 
-      {showDelete && (
-        <div className="group inline-flex transition-transform duration-200 active:scale-95">
+      {extraActions.map((action) => (
+        <ActionHit
+          key={action.label}
+          label={action.label}
+          icon={action.icon}
+          className={`${iconClass} hover:border-teal-500/50 hover:bg-teal-50 hover:text-teal-700 dark:hover:border-teal-500/30 dark:hover:bg-teal-500/10 dark:hover:text-teal-400`}
+          onClick={action.onClick}
+        />
+      ))}
+
+      {showDelete ? (
+        <div className="inline-flex shrink-0">
           <DeleteConfirmationTrigger
             item={item}
             onDelete={onDelete}
@@ -124,10 +135,51 @@ export function TableActionButtons({
             noLabel={copy.no}
           />
         </div>
-      )}
+      ) : null}
 
       {extraButtons}
     </div>
+  );
+}
+
+function ActionHit({
+  label,
+  icon,
+  href,
+  onClick,
+  className,
+  LinkComponent = 'a',
+}: {
+  label: string;
+  icon: ReactNode;
+  href?: string;
+  onClick?: () => void;
+  className: string;
+  LinkComponent?: ElementType;
+}) {
+  const button = (
+    <IconButton type="button" size="sm" variant="outline" aria-label={label} className={className} onClick={onClick}>
+      {icon}
+    </IconButton>
+  );
+
+  if (href && href !== '#') {
+    const Link = LinkComponent;
+    return (
+      <Tooltip size="sm" content={label} placement="top" color="invert">
+        <Link href={href} className="inline-flex shrink-0" onClick={onClick}>
+          <IconButton type="button" size="sm" variant="outline" aria-label={label} className={className}>
+            {icon}
+          </IconButton>
+        </Link>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip size="sm" content={label} placement="top" color="invert">
+      <span className="inline-flex shrink-0">{button}</span>
+    </Tooltip>
   );
 }
 

@@ -8,7 +8,7 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
-import { Minus, Plus } from 'lucide-react';
+import { Banknote, Minus, Plus, Printer } from 'lucide-react';
 import {
   BasicTable,
   Button,
@@ -31,6 +31,7 @@ import { displayName, faDate, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { checkAvailableForPayment } from '@/lib/checks';
 import { PaymentForm } from './PaymentForm';
+import { RowActions } from './RowActions';
 import {
   addPacks,
   formatPacksFa,
@@ -183,41 +184,30 @@ export function InvoiceCrud({
       helper.display({
         id: 'actions',
         header: 'عملیات',
+        size: 176,
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => openEdit(row.original)}>
-              ویرایش
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openPay(row.original)}
-            >
-              پرداخت
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => router.push(`/counting/invoices/${row.original._id}/print`)}
-            >
-              چاپ
-            </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() =>
-                start(async () => {
-                  const res = await deleteResource('invoice', row.original._id);
-                  if (redirectIfUnauthorized(res)) return;
-                  if (res.ok) toast.success(res.message || 'حذف شد');
-                  else toast.error(res.message || 'حذف نشد');
-                  router.refresh();
-                })
-              }
-            >
-              حذف
-            </Button>
-          </div>
+          <RowActions
+            onEdit={() => openEdit(row.original)}
+            extraActions={[
+              {
+                label: 'پرداخت',
+                icon: <Banknote className="size-3.5" />,
+                onClick: () => openPay(row.original),
+              },
+              {
+                label: 'چاپ',
+                icon: <Printer className="size-3.5" />,
+                onClick: () => router.push(`/counting/invoices/${row.original._id}/print`),
+              },
+            ]}
+            onDelete={async () => {
+              const res = await deleteResource('invoice', row.original._id);
+              if (redirectIfUnauthorized(res)) return;
+              if (res.ok) toast.success(res.message || 'حذف شد');
+              else toast.error(res.message || 'حذف نشد');
+              router.refresh();
+            }}
+          />
         ),
       }),
     );

@@ -20,6 +20,7 @@ import {
 } from '@/lib/checks';
 import { displayName, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { RowActions } from './RowActions';
 import type { Check, FieldOption } from '@/lib/types';
 
 const selectLabels = {
@@ -110,27 +111,18 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
       helper.display({
         id: 'actions',
         header: 'عملیات',
+        size: 112,
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => openEdit(row.original)}>
-              ویرایش
-            </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() =>
-                start(async () => {
-                  const res = await deleteResource('check', row.original._id);
-                  if (redirectIfUnauthorized(res)) return;
-                  if (res.ok) toast.success(res.message || 'حذف شد');
-                  else toast.error(res.message || 'حذف نشد');
-                  router.refresh();
-                })
-              }
-            >
-              حذف
-            </Button>
-          </div>
+          <RowActions
+            onEdit={() => openEdit(row.original)}
+            onDelete={async () => {
+              const res = await deleteResource('check', row.original._id);
+              if (redirectIfUnauthorized(res)) return;
+              if (res.ok) toast.success(res.message || 'حذف شد');
+              else toast.error(res.message || 'حذف نشد');
+              router.refresh();
+            }}
+          />
         ),
       }),
     );

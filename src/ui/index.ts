@@ -101,6 +101,7 @@ export {
   TableActionButtons,
   type TableActionButtonsProps,
   type TableActionButtonsLabels,
+  type TableActionExtra,
 } from './components/TableActionButtons';
 export {
   ColumnPickerModal,
