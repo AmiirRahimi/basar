@@ -1,12 +1,10 @@
 'use client';
 
-import { faNumber } from '@/lib/format';
 import { cn } from '@/ui/lib/cn';
 import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { useShopCart } from './CartProvider';
 import { ShopButton } from './ShopUi';
 
 const LINKS = [
@@ -19,7 +17,6 @@ const LINKS = [
 
 export function ShopHeader() {
   const pathname = usePathname();
-  const { totals, setDrawerOpen } = useShopCart();
   const [open, setOpen] = useState(false);
 
   return (
@@ -44,16 +41,6 @@ export function ShopHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            className="relative rounded-full border border-white/15 px-3 py-1.5 text-sm hover:border-shop-saffron/50"
-          >
-            سبد
-            <span className="mr-2 inline-flex min-w-5 items-center justify-center rounded-full bg-shop-saffron px-1.5 text-[11px] font-semibold text-shop-ink">
-              {faNumber(totals.packs)}
-            </span>
-          </button>
           <ShopButton href="/counting/login" variant="outline" className="hidden border-white/15 bg-transparent text-shop-bone hover:bg-white/5 sm:inline-flex">
             شمارش
           </ShopButton>

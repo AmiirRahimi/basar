@@ -15,13 +15,13 @@ export default async function HomePage() {
 
   return (
     <div>
-      <section className="relative isolate min-h-[88vh] overflow-hidden bg-shop-ink text-shop-bone">
+      <section data-shop-hero className="relative isolate min-h-[88vh] w-full overflow-hidden bg-shop-ink text-shop-bone">
         <div
           className="absolute inset-0 animate-shop-kenburns bg-cover bg-center opacity-45"
           style={{ backgroundImage: `url(${HERO})` }}
         />
         <div className="shop-grain absolute inset-0 bg-gradient-to-l from-shop-ink via-shop-ink/80 to-shop-ink/40" />
-        <div className="relative mx-auto flex min-h-[88vh] max-w-7xl flex-col justify-end gap-8 px-4 py-16 lg:px-6 lg:py-24">
+        <div className="relative mx-auto flex min-h-[88vh] max-w-7xl flex-col justify-end gap-8 px-4 py-16 pl-24 lg:px-6 lg:py-24 lg:pl-24">
           <p className="text-xs tracking-[0.42em] text-shop-saffron">فروش فقط عمده · فقط با بسته</p>
           <h1 className="max-w-4xl text-5xl font-semibold leading-[1.15] md:text-7xl">
             بازار،
