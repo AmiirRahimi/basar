@@ -1,18 +1,5 @@
-import { CountingShell } from '@/components/counting/CountingShell';
-import { BrandStoreWorkspace } from '@/components/counting/BrandStoreWorkspace';
-import { getWorkspace } from '@/actions/workspace';
-import { errorMessage, guardSession } from '@/lib/auth-guard';
+import { redirect } from 'next/navigation';
 
-export default async function StorePage() {
-  const res = await getWorkspace();
-  guardSession(res);
-  return (
-    <CountingShell
-      title="برند و فروشگاه"
-      description="برندها، فروشگاه‌ها، تیم و شرکای درآمد هر فروشگاه را از اینجا مدیریت کنید."
-      error={errorMessage(res)}
-    >
-      <BrandStoreWorkspace />
-    </CountingShell>
-  );
+export default function StorePage() {
+  redirect('/counting/profile?tab=workspace');
 }

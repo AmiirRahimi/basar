@@ -154,7 +154,17 @@ export async function updateProfile(payload: Record<string, unknown>): Promise<A
   await db();
   const auth = await requireSession();
   if ('error' in auth) return auth.error;
-  const updated = await M().User.findByIdAndUpdate(auth.session._id, payload, { new: true }).select('-password -refreshToken').lean();
+  const updated = await M().User.findByIdAndUpdate(
+    auth.session._id,
+    {
+      ...(payload.fullName != null ? { fullName: String(payload.fullName).trim() } : {}),
+      ...(payload.address != null ? { address: String(payload.address).trim() } : {}),
+      ...(payload.city != null ? { city: String(payload.city).trim() } : {}),
+    },
+    { new: true },
+  )
+    .select('-password -refreshToken')
+    .lean();
   return ok(serialize(updated), 'ذخیره شد');
 }
 

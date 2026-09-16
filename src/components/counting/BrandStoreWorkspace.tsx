@@ -2,16 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Building2,
-  MapPin,
-  Phone,
-  Plus,
-  Store,
-  Trash2,
-  UserPlus,
-  Users,
-} from 'lucide-react';
+import { Building2, MapPin, Phone, Plus, Store, Trash2, UserPlus, Users } from 'lucide-react';
 import {
   createBrand,
   createStore,
@@ -28,7 +19,6 @@ import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import type { WorkspaceBrand, WorkspaceMember, WorkspaceStore } from '@/lib/types';
 import { Button, EmptyState, Input, Modal, Select, toast } from '@/ui';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { PartnersPanel } from './PartnersPanel';
 import { useWorkspace } from './WorkspaceProvider';
 
 const selectLabels = {
@@ -44,16 +34,20 @@ function initials(name?: string) {
   return text ? text.slice(0, 1) : 'ب';
 }
 
-function BrandMark({ brand, size = 'md' }: { brand: Pick<WorkspaceBrand, 'name' | 'logo' | 'color'>; size?: 'sm' | 'md' }) {
-  const dim = size === 'sm' ? 'h-10 w-10 text-base' : 'h-14 w-14 text-xl';
+function BrandMark({
+  brand,
+  size = 'sm',
+}: {
+  brand: Pick<WorkspaceBrand, 'name' | 'logo' | 'color'>;
+  size?: 'sm' | 'md';
+}) {
+  const dim = size === 'sm' ? 'h-9 w-9 text-sm' : 'h-11 w-11 text-base';
   if (brand.logo) {
-    return (
-      <img src={brand.logo} alt="" className={`rounded-2xl object-cover ${dim}`} />
-    );
+    return <img src={brand.logo} alt="" className={`rounded-xl object-cover ${dim}`} />;
   }
   return (
     <div
-      className={`flex items-center justify-center rounded-2xl font-semibold text-white shadow-inner ${dim}`}
+      className={`flex items-center justify-center rounded-xl font-semibold text-white ${dim}`}
       style={{ background: brand.color || BRAND_COLORS[0] }}
     >
       {initials(brand.name)}
@@ -63,23 +57,21 @@ function BrandMark({ brand, size = 'md' }: { brand: Pick<WorkspaceBrand, 'name' 
 
 function MemberStack({ members }: { members: WorkspaceMember[] }) {
   if (!members.length) {
-    return <span className="text-xs text-muted-foreground">هنوز تیمی ندارد</span>;
+    return <span className="text-xs text-gray-400">بدون تیم</span>;
   }
   return (
     <div className="flex items-center">
       {members.slice(0, 4).map((member, index) => (
         <span
           key={member._id}
-          className="-mr-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-[11px] font-medium text-white first:mr-0"
+          className="-mr-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[10px] font-medium text-white first:mr-0"
           style={{ background: BRAND_COLORS[index % BRAND_COLORS.length], zIndex: 4 - index }}
           title={member.fullName || member.phonenumber}
         >
           {initials(member.fullName || member.phonenumber)}
         </span>
       ))}
-      {members.length > 4 ? (
-        <span className="mr-1 text-xs text-muted-foreground">+{members.length - 4}</span>
-      ) : null}
+      {members.length > 4 ? <span className="mr-1 text-xs text-gray-400">+{members.length - 4}</span> : null}
     </div>
   );
 }
@@ -98,6 +90,11 @@ export function BrandStoreWorkspace() {
   const [brandForm, setBrandForm] = useState({ name: '', description: '', color: BRAND_COLORS[0], logo: '' });
   const [storeForm, setStoreForm] = useState({ name: '', address: '', phonenumbers: '', city: '' });
   const [invite, setInvite] = useState({ phonenumber: '', fullName: '', role: 'seller' as StoreStaffRole });
+
+  useEffect(() => {
+    if (workspace?.activeBrandId) setBrandId(workspace.activeBrandId);
+    if (workspace?.activeStoreId) setStoreId(workspace.activeStoreId);
+  }, [workspace?.activeBrandId, workspace?.activeStoreId]);
 
   const selectedBrand = brands.find((brand) => brand._id === brandId) || brands[0];
   const brandStores = useMemo(
@@ -129,205 +126,202 @@ export function BrandStoreWorkspace() {
   if (!isOwner) {
     const mine = stores.find((store) => store._id === workspace.activeStoreId) || stores[0];
     return (
-      <div className="space-y-6">
-        <StorePanel
-          store={mine}
-          brand={brands.find((brand) => brand._id === mine?._brandId)}
-          canInvite
-          pending={pending}
-          invite={invite}
-          setInvite={setInvite}
-          onInvite={() =>
-            run(() => inviteStoreMember({ ...invite, _storeId: mine?._id }), 'دعوت ثبت شد')
-          }
-          onRole={(id, role) => run(() => updateStoreMember(id, { role }))}
-          onRemove={(id) => run(() => removeStoreMember(id), 'حذف شد')}
-        />
-        <PartnersPanel
-          brands={brands}
-          stores={stores}
-          selectedBrand={brands.find((brand) => brand._id === mine?._brandId)}
-          selectedStore={mine}
-          partners={workspace.partners || []}
-          canManageStore={workspace.storeRole === 'admin'}
-        />
-      </div>
+      <StorePanel
+        store={mine}
+        brand={brands.find((brand) => brand._id === mine?._brandId)}
+        canInvite={workspace.storeRole === 'admin'}
+        canEdit={workspace.storeRole === 'admin'}
+        pending={pending}
+        invite={invite}
+        setInvite={setInvite}
+        onInvite={() => run(() => inviteStoreMember({ ...invite, _storeId: mine?._id }), 'دعوت ثبت شد')}
+        onRole={(id, role) => run(() => updateStoreMember(id, { role }))}
+        onRemove={(id) => run(() => removeStoreMember(id), 'حذف شد')}
+      />
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">هر فروشگاه فاکتور، چک و لباس خودش را جدا ثبت می‌کند. فروشگاه فعال را از منوی کناری عوض کنید.</p>
+    <>
+      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <p className="text-xs font-medium text-gray-500">برندها</p>
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            onClick={() => {
+              setBrandForm({
+                name: '',
+                description: '',
+                color: BRAND_COLORS[brands.length % BRAND_COLORS.length],
+                logo: '',
+              });
+              setBrandModal('create');
+            }}
+            aria-label="برند جدید"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
-        <Button
-          onClick={() => {
-            setBrandForm({ name: '', description: '', color: BRAND_COLORS[brands.length % BRAND_COLORS.length], logo: '' });
-            setBrandModal('create');
-          }}
-        >
-          <Plus className="ml-1 h-4 w-4" />
-          برند جدید
-        </Button>
-      </div>
-
-      {brands.length ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {brands.map((brand) => {
-            const active = selectedBrand?._id === brand._id;
-            return (
-              <button
-                key={brand._id}
-                type="button"
-                onClick={() => {
-                  setBrandId(brand._id);
-                  const first = stores.find((store) => store._brandId === brand._id);
-                  setStoreId(first?._id || '');
-                }}
-                className={`rounded-3xl border p-4 text-right transition ${
-                  active ? 'border-transparent text-white shadow-lg' : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
-                style={active ? { background: brand.color || BRAND_COLORS[0] } : undefined}
-              >
-                <div className="flex items-start gap-3">
+        {brands.length ? (
+          <div className="space-y-1">
+            {brands.map((brand) => {
+              const active = selectedBrand?._id === brand._id;
+              return (
+                <button
+                  key={brand._id}
+                  type="button"
+                  onClick={() => {
+                    setBrandId(brand._id);
+                    const first = stores.find((store) => store._brandId === brand._id);
+                    setStoreId(first?._id || '');
+                  }}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-right transition ${
+                    active ? 'bg-gray-900 text-white' : 'text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
                   <BrandMark brand={brand} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-lg font-semibold">{brand.name}</p>
-                    <p className={`mt-1 text-xs ${active ? 'text-white/80' : 'text-muted-foreground'}`}>
-                      {brand.storeCount} فروشگاه · {brand.memberCount} همکار
-                    </p>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <EmptyState icon={<Building2 className="h-7 w-7" />} message="هنوز برندی نساخته‌اید. اولین برند عمده را بسازید." />
-      )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{brand.name}</span>
+                    <span className={`block text-[11px] ${active ? 'text-white/70' : 'text-gray-400'}`}>
+                      {brand.storeCount} فروشگاه
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState icon={<Building2 className="h-6 w-6" />} message="برندی نیست" />
+        )}
+      </aside>
 
       {selectedBrand ? (
-        <section className="rounded-3xl border border-gray-200 bg-white p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <BrandMark brand={selectedBrand} size="sm" />
-              <div>
-                <h2 className="text-lg font-semibold">{selectedBrand.name}</h2>
-                <p className="text-xs text-muted-foreground">{selectedBrand.description || 'فروشگاه‌های این برند لباس را به‌صورت عمده می‌فروشند.'}</p>
+        <div className="space-y-4">
+          <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <BrandMark brand={selectedBrand} size="md" />
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">{selectedBrand.name}</h2>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {selectedBrand.description || 'فروشگاه‌های این برند را از اینجا مدیریت کنید.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setBrandForm({
+                      name: selectedBrand.name,
+                      description: selectedBrand.description || '',
+                      color: selectedBrand.color || BRAND_COLORS[0],
+                      logo: selectedBrand.logo || '',
+                    });
+                    setBrandModal('edit');
+                  }}
+                >
+                  ویرایش برند
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setStoreForm({ name: '', address: '', phonenumbers: '', city: '' });
+                    setStoreModal(true);
+                  }}
+                >
+                  <Plus className="ml-1 h-4 w-4" />
+                  فروشگاه
+                </Button>
+                {brands.length > 1 ? (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => run(() => deleteBrand(selectedBrand._id), 'برند حذف شد')}
+                  >
+                    حذف
+                  </Button>
+                ) : null}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setBrandForm({
-                    name: selectedBrand.name,
-                    description: selectedBrand.description || '',
-                    color: selectedBrand.color || BRAND_COLORS[0],
-                    logo: selectedBrand.logo || '',
-                  });
-                  setBrandModal('edit');
-                }}
-              >
-                ویرایش برند
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setStoreForm({ name: '', address: '', phonenumbers: '', city: '' });
-                  setStoreModal(true);
-                }}
-              >
-                <Plus className="ml-1 h-4 w-4" />
-                فروشگاه
-              </Button>
-              {brands.length > 1 ? (
-                <Button
-                  variant="danger"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() => run(() => deleteBrand(selectedBrand._id), 'برند حذف شد')}
-                >
-                  حذف برند
-                </Button>
-              ) : null}
-            </div>
-          </div>
+          </section>
 
-          {brandStores.length ? (
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)]">
-              <div className="grid gap-3 sm:grid-cols-2">
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-4 py-3">
+              <p className="text-sm font-semibold text-gray-900">فروشگاه‌ها</p>
+            </div>
+            {brandStores.length ? (
+              <ul className="divide-y divide-gray-100">
                 {brandStores.map((store) => {
                   const active = selectedStore?._id === store._id;
                   return (
-                    <button
-                      key={store._id}
-                      type="button"
-                      onClick={() => setStoreId(store._id)}
-                      className={`rounded-2xl border p-4 text-right transition ${
-                        active ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="mb-3 flex items-start justify-between gap-2">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-900 text-white">
-                          <Store className="h-5 w-5" />
-                        </div>
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">عمده</span>
-                      </div>
-                      <p className="font-semibold">{store.name}</p>
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        {store.city || 'شهر ثبت نشده'}
-                      </p>
-                      <div className="mt-3">
+                    <li key={store._id}>
+                      <button
+                        type="button"
+                        onClick={() => setStoreId(store._id)}
+                        className={`flex w-full items-center gap-3 px-4 py-3 text-right transition ${
+                          active ? 'bg-teal-50' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <span
+                          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                            active ? 'bg-teal-700 text-white' : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          <Store className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-gray-900">{store.name}</span>
+                          <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+                            <MapPin className="h-3 w-3" />
+                            {store.city || 'شهر ثبت نشده'}
+                          </span>
+                        </span>
                         <MemberStack members={store.members} />
-                      </div>
-                    </button>
+                      </button>
+                    </li>
                   );
                 })}
+              </ul>
+            ) : (
+              <div className="p-6">
+                <EmptyState icon={<Store className="h-6 w-6" />} message="این برند هنوز فروشگاهی ندارد." />
               </div>
-              <StorePanel
-                key={selectedStore?._id}
-                store={selectedStore}
-                brand={selectedBrand}
-                canInvite
-                canEdit
-                pending={pending}
-                invite={invite}
-                setInvite={setInvite}
-                onInvite={() =>
-                  run(() => inviteStoreMember({ ...invite, _storeId: selectedStore?._id }), 'دعوت ثبت شد')
-                }
-                onSave={(payload) =>
-                  selectedStore ? run(() => updateStore(selectedStore._id, payload), 'فروشگاه ذخیره شد') : undefined
-                }
-                onRole={(id, role) => run(() => updateStoreMember(id, { role }))}
-                onRemove={(id) => run(() => removeStoreMember(id), 'حذف شد')}
-                onDelete={
-                  brandStores.length > 1 && selectedStore
-                    ? () => run(() => deleteStore(selectedStore._id), 'فروشگاه حذف شد')
-                    : undefined
-                }
-              />
-            </div>
-          ) : (
-            <EmptyState icon={<Store className="h-7 w-7" />} message="این برند هنوز فروشگاهی ندارد." />
-          )}
-        </section>
-      ) : null}
+            )}
+          </section>
 
-      <PartnersPanel
-        brands={brands}
-        stores={stores}
-        selectedBrand={selectedBrand}
-        selectedStore={selectedStore}
-        partners={workspace.partners || []}
-        canManageBrand
-        canManageStore
-      />
+          {selectedStore ? (
+            <StorePanel
+              key={selectedStore._id}
+              store={selectedStore}
+              brand={selectedBrand}
+              canInvite
+              canEdit
+              pending={pending}
+              invite={invite}
+              setInvite={setInvite}
+              onInvite={() =>
+                run(() => inviteStoreMember({ ...invite, _storeId: selectedStore._id }), 'دعوت ثبت شد')
+              }
+              onSave={(payload) => run(() => updateStore(selectedStore._id, payload), 'فروشگاه ذخیره شد')}
+              onRole={(id, role) => run(() => updateStoreMember(id, { role }))}
+              onRemove={(id) => run(() => removeStoreMember(id), 'حذف شد')}
+              onDelete={
+                brandStores.length > 1
+                  ? () => run(() => deleteStore(selectedStore._id), 'فروشگاه حذف شد')
+                  : undefined
+              }
+            />
+          ) : null}
+        </div>
+      ) : (
+        <EmptyState icon={<Building2 className="h-7 w-7" />} message="هنوز برندی نساخته‌اید." />
+      )}
+      </div>
 
       <Modal isOpen={Boolean(brandModal)} onClose={() => setBrandModal(null)}>
         <div className="p-5" dir="rtl">
@@ -392,16 +386,14 @@ export function BrandStoreWorkspace() {
             />
             <Button
               disabled={pending}
-              onClick={() =>
-                run(() => createStore({ ...storeForm, _brandId: selectedBrand?._id }), 'فروشگاه اضافه شد')
-              }
+              onClick={() => run(() => createStore({ ...storeForm, _brandId: selectedBrand?._id }), 'فروشگاه اضافه شد')}
             >
               افزودن فروشگاه
             </Button>
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }
 
@@ -447,11 +439,11 @@ function StorePanel({
   if (!store) return <EmptyState message="فروشگاهی انتخاب نشده" />;
 
   return (
-    <aside className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-      <div className="mb-4 flex items-start justify-between gap-2">
+    <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-5">
         <div>
-          <p className="text-xs text-muted-foreground">{brand?.name}</p>
-          <h3 className="text-lg font-semibold">{store.name}</h3>
+          <p className="text-xs text-gray-500">{brand?.name}</p>
+          <h3 className="text-base font-semibold text-gray-900">{store.name}</h3>
         </div>
         {onDelete ? (
           <Button size="sm" variant="danger" disabled={pending} onClick={onDelete}>
@@ -459,102 +451,107 @@ function StorePanel({
           </Button>
         ) : null}
       </div>
-      {canEdit ? (
-        <div className="mb-4 grid gap-2">
-          <Input label="نام" value={name} onChange={(e) => setName(e.target.value)} />
-          <Select
-            label="شهر"
-            value={city}
-            onChange={(v) => setCity(String(v || ''))}
-            options={IRAN_CITY_OPTIONS}
-            searchable
-            labels={selectLabels}
-          />
-          <Input label="آدرس" value={address} onChange={(e) => setAddress(e.target.value)} />
-          <Input label="تلفن" value={phonenumbers} onChange={(e) => setPhonenumbers(e.target.value)} />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={() => onSave?.({ name, address, phonenumbers, city })}
-          >
-            ذخیره مشخصات
-          </Button>
-        </div>
-      ) : (
-        <div className="mb-4 space-y-1 text-sm text-muted-foreground">
-          <p className="flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5" />
-            {store.city || '—'} {store.address ? `· ${store.address}` : ''}
-          </p>
-          <p className="flex items-center gap-1">
-            <Phone className="h-3.5 w-3.5" />
-            {store.phonenumbers || '—'}
-          </p>
-        </div>
-      )}
-
-      <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-        <Users className="h-4 w-4" />
-        تیم فروشگاه
-      </div>
-      <div className="space-y-2">
-        {store.members.length ? (
-          store.members.map((member) => (
-            <div key={member._id} className="flex items-center justify-between rounded-xl bg-white px-3 py-2">
-              <div>
-                <p className="text-sm font-medium">{member.fullName || member.phonenumber}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {member.phonenumber}
-                  {member.status === 'pending' ? ' · در انتظار ورود' : ''}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={member.role}
-                  onChange={(v) => onRole(member._id, String(v) as StoreStaffRole)}
-                  options={roleOptions}
-                  labels={selectLabels}
-                />
-                <Button size="sm" variant="danger" disabled={pending} onClick={() => onRemove(member._id)}>
-                  حذف
-                </Button>
-              </div>
+      <div className="grid gap-6 p-4 sm:p-5 lg:grid-cols-2">
+        <div>
+          <p className="mb-3 text-sm font-medium text-gray-900">مشخصات فروشگاه</p>
+          {canEdit ? (
+            <div className="grid gap-3">
+              <Input label="نام" value={name} onChange={(e) => setName(e.target.value)} />
+              <Select
+                label="شهر"
+                value={city}
+                onChange={(v) => setCity(String(v || ''))}
+                options={IRAN_CITY_OPTIONS}
+                searchable
+                labels={selectLabels}
+              />
+              <Input label="آدرس" value={address} onChange={(e) => setAddress(e.target.value)} />
+              <Input label="تلفن" value={phonenumbers} onChange={(e) => setPhonenumbers(e.target.value)} />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => onSave?.({ name, address, phonenumbers, city })}
+              >
+                ذخیره مشخصات
+              </Button>
             </div>
-          ))
-        ) : (
-          <p className="text-xs text-muted-foreground">مدیر یا فروشنده‌ای دعوت نشده است.</p>
-        )}
-      </div>
-
-      {canInvite ? (
-        <div className="mt-4 space-y-2 rounded-xl border border-dashed border-gray-300 p-3">
-          <p className="flex items-center gap-1 text-sm font-medium">
-            <UserPlus className="h-4 w-4" />
-            دعوت با شماره موبایل
-          </p>
-          <Input
-            label="نام"
-            value={invite.fullName}
-            onChange={(e) => setInvite({ ...invite, fullName: e.target.value })}
-          />
-          <Input
-            label="موبایل"
-            value={invite.phonenumber}
-            onChange={(e) => setInvite({ ...invite, phonenumber: e.target.value })}
-          />
-          <Select
-            label="نقش"
-            value={invite.role}
-            onChange={(v) => setInvite({ ...invite, role: String(v) as StoreStaffRole })}
-            options={roleOptions}
-            labels={selectLabels}
-          />
-          <Button size="sm" disabled={pending} onClick={onInvite}>
-            ارسال دعوت
-          </Button>
+          ) : (
+            <div className="space-y-2 text-sm text-gray-600">
+              <p className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-gray-400" />
+                {store.city || '—'} {store.address ? `· ${store.address}` : ''}
+              </p>
+              <p className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-gray-400" />
+                {store.phonenumbers || '—'}
+              </p>
+            </div>
+          )}
         </div>
-      ) : null}
-    </aside>
+        <div>
+          <p className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-900">
+            <Users className="h-4 w-4" />
+            تیم فروشگاه
+          </p>
+          <div className="space-y-2">
+            {store.members.length ? (
+              store.members.map((member) => (
+                <div key={member._id} className="flex items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{member.fullName || member.phonenumber}</p>
+                    <p className="text-[11px] text-gray-500">
+                      {member.phonenumber}
+                      {member.status === 'pending' ? ' · در انتظار ورود' : ''}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Select
+                      value={member.role}
+                      onChange={(v) => onRole(member._id, String(v) as StoreStaffRole)}
+                      options={roleOptions}
+                      labels={selectLabels}
+                    />
+                    <Button size="sm" variant="danger" disabled={pending} onClick={() => onRemove(member._id)}>
+                      حذف
+                    </Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-gray-500">مدیر یا فروشنده‌ای دعوت نشده است.</p>
+            )}
+          </div>
+          {canInvite ? (
+            <div className="mt-4 space-y-2 rounded-xl border border-dashed border-gray-200 p-3">
+              <p className="flex items-center gap-1 text-sm font-medium">
+                <UserPlus className="h-4 w-4" />
+                دعوت با شماره موبایل
+              </p>
+              <Input
+                label="نام"
+                value={invite.fullName}
+                onChange={(e) => setInvite({ ...invite, fullName: e.target.value })}
+              />
+              <Input
+                label="موبایل"
+                value={invite.phonenumber}
+                onChange={(e) => setInvite({ ...invite, phonenumber: e.target.value })}
+              />
+              <Select
+                label="نقش"
+                value={invite.role}
+                onChange={(v) => setInvite({ ...invite, role: String(v) as StoreStaffRole })}
+                options={roleOptions}
+                labels={selectLabels}
+              />
+              <Button size="sm" disabled={pending} onClick={onInvite}>
+                ارسال دعوت
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }

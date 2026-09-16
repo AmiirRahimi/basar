@@ -12,6 +12,7 @@ export const MENU_ACCESS: Record<string, StoreRole[]> = {
   account: ['owner', 'admin', 'seller'],
   returned: ['owner', 'admin', 'seller'],
   store: ['owner', 'admin'],
+  profile: ALL,
   subscription: ['owner'],
   admin: ['owner'],
 };
@@ -50,9 +51,9 @@ export function pathMenuId(pathname: string) {
   if (pathname.startsWith('/counting/fabric')) return 'fabric';
   if (pathname.startsWith('/counting/account')) return 'account';
   if (pathname.startsWith('/counting/returned')) return 'returned';
-  if (pathname.startsWith('/counting/store')) return 'store';
+  if (pathname.startsWith('/counting/store')) return 'profile';
   if (pathname.startsWith('/counting/subscription')) return 'subscription';
-  if (pathname.startsWith('/counting/profile')) return 'dashboard';
+  if (pathname.startsWith('/counting/profile')) return 'profile';
   if (pathname.startsWith('/counting/dashboard')) return 'dashboard';
   return '';
 }

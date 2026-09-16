@@ -278,7 +278,7 @@ export function SidebarWorkspace({ compact = false }: { compact?: boolean }) {
           onChange={changeBrand}
           leading={<BrandMark name={activeBrand?.name} color={activeBrand?.color} logo={activeBrand?.logo} />}
           emptyText="برندی نیست"
-          footerHref={canManage ? '/counting/store' : undefined}
+          footerHref={canManage ? '/counting/profile?tab=workspace' : undefined}
           footerLabel={canManage ? 'مدیریت برندها' : undefined}
         />
         <WorkspaceSelect
@@ -298,7 +298,7 @@ export function SidebarWorkspace({ compact = false }: { compact?: boolean }) {
             </span>
           }
           emptyText="فروشگاهی نیست"
-          footerHref={canManage ? '/counting/store' : undefined}
+          footerHref={canManage ? '/counting/profile?tab=workspace' : undefined}
           footerLabel={canManage ? 'مدیریت فروشگاه‌ها' : undefined}
         />
       </div>
@@ -349,7 +349,7 @@ export function SidebarUser() {
           onClick={() => setOpen(false)}
           className="flex w-full rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
         >
-          پروفایل
+          تنظیمات
         </Link>
         <button
           type="button"

@@ -146,7 +146,7 @@ export function PartnersPanel({
   }
 
   return (
-    <section className="rounded-3xl border border-gray-200 bg-white p-5">
+    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold">

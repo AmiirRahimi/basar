@@ -12,8 +12,7 @@ import {
   Wallet,
   Undo2,
   Shield,
-  Store,
-  BadgePercent,
+  Settings,
   Menu,
 } from 'lucide-react';
 import { MainWrapper, PageHeader } from '@/ui';
@@ -32,8 +31,7 @@ const menuSections = [
   { id: 'fabric', name: 'خرید پارچه', icon: Scissors, href: '/counting/fabric', menuItems: [] },
   { id: 'account', name: 'حساب', icon: Wallet, href: '/counting/account', menuItems: [] },
   { id: 'returned', name: 'برگشتی', icon: Undo2, href: '/counting/returned', menuItems: [] },
-  { id: 'store', name: 'برند و فروشگاه', icon: Store, href: '/counting/store', menuItems: [] },
-  { id: 'subscription', name: 'اشتراک', icon: BadgePercent, href: '/counting/subscription', menuItems: [] },
+  { id: 'profile', name: 'تنظیمات', icon: Settings, href: '/counting/profile', menuItems: [] },
   {
     id: 'admin',
     name: 'ادمین',
