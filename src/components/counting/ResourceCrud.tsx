@@ -109,7 +109,11 @@ export function ResourceCrud({
                     return;
                   }
                   next[f.name] =
-                    value && typeof value === 'object' ? String(value._id || '') : String(value ?? '');
+                    Array.isArray(value)
+                      ? value.filter(Boolean).join('\n')
+                      : value && typeof value === 'object'
+                        ? String(value._id || '')
+                        : String(value ?? '');
                 });
                 setForm(next);
                 setShowErrors(false);

@@ -84,6 +84,9 @@ export default async function ClothesPage() {
           { name: 'washFee', label: 'اجرت شست‌وشو هر عدد', type: 'number' },
           { name: '_boughtFrom', label: 'خرید از فروشنده', type: 'relation', options: sellers },
           { name: 'boughtFee', label: 'قیمت خرید هر عدد از فروشنده', type: 'number' },
+          { name: 'minOrderQty', label: 'حداقل سفارش عمده', type: 'number' },
+          { name: 'description', label: 'توضیح فروشگاه', type: 'textarea' },
+          { name: 'images', label: 'تصاویر فروشگاه (هر خط یک آدرس)', type: 'textarea' },
         ]}
       />
     </CountingShell>

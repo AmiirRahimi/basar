@@ -1,86 +1,98 @@
 import { DEFAULT_MOQ } from './constants';
 import { clothUnitPrice } from './cloth-price';
-import type { CatalogProduct, Cloth } from './types';
+import { packsFromCloth, totalItems } from './packs';
+import type { CatalogFilters, CatalogProduct, Cloth } from './types';
 
-const SAMPLE: CatalogProduct[] = [
-  {
-    id: 'sample-chino',
-    code: 'WS-101',
-    name: 'شلوار کتان چينو',
-    description: 'پارچه کتان فشرده، مناسب فروش عمده فروشگاه‌های پوشاک مردانه. بسته‌های دوازده‌تایی.',
-    category: 'شلوار',
-    wholesalePrice: 890000,
-    minOrderQty: 12,
-    count: 240,
-    image:
-      'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?auto=format&fit=crop&w=1200&q=80',
-    color: 'خاکی',
-    size: 'M-XL',
-  },
-  {
-    id: 'sample-shirt',
-    code: 'WS-204',
-    name: 'پیراهن آکسفورد',
-    description: 'پیراهن یقه دکمه‌ای با بافت آکسفورد. حداقل سفارش یک کارتن دوازده‌تایی در رنگ واحد.',
-    category: 'پیراهن',
-    wholesalePrice: 720000,
-    minOrderQty: 12,
-    count: 180,
-    image:
-      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=1200&q=80',
-    color: 'سفید / آبی',
-    size: 'S-XXL',
-  },
-  {
-    id: 'sample-coat',
-    code: 'WS-330',
-    name: 'کت پشمی پاییزه',
-    description: 'کت نیم‌فصل برای بنکداران. قیمت عمده فقط روی سفارش بالای ۸ عدد.',
-    category: 'کت',
-    wholesalePrice: 2450000,
-    minOrderQty: 8,
-    count: 64,
-    image:
-      'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=1200&q=80',
-    color: 'زغالی',
-    size: 'L-XXL',
-  },
-  {
-    id: 'sample-knit',
-    code: 'WS-412',
-    name: 'بافت پنبه‌ای یقه اسکی',
-    description: 'بافت سبک عمده برای فروش زمستانه. بسته‌بندی کارتنی.',
-    category: 'بافت',
-    wholesalePrice: 980000,
-    minOrderQty: 16,
-    count: 128,
-    image:
-      'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&w=1200&q=80',
-    color: 'کرم',
-    size: 'M-XL',
-  },
-];
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fit=crop&w=1400&q=80';
 
-export function sampleCatalog() {
-  return SAMPLE;
+function relation(value: Cloth['_type'] | Cloth['_style'] | Cloth['_size'] | Cloth['_color']) {
+  if (!value) return { id: undefined as string | undefined, name: undefined as string | undefined };
+  if (typeof value === 'string') return { id: value, name: undefined as string | undefined };
+  return { id: value._id, name: value.name };
 }
 
 export function clothToProduct(cloth: Cloth): CatalogProduct {
-  const typeName = typeof cloth._type === 'object' ? cloth._type?.name : undefined;
-  const styleName = typeof cloth._style === 'object' ? cloth._style?.name : undefined;
-  const color = typeof cloth._color === 'object' ? cloth._color?.name : undefined;
-  const size = typeof cloth._size === 'object' ? cloth._size?.name : undefined;
+  const type = relation(cloth._type);
+  const style = relation(cloth._style);
+  const color = relation(cloth._color);
+  const size = relation(cloth._size);
+  const stock = packsFromCloth(cloth);
+  const images = (cloth.images || []).map((url) => String(url || '').trim()).filter(Boolean);
   return {
     id: cloth._id,
     code: String(cloth.code ?? cloth._id),
-    name: [typeName, styleName].filter(Boolean).join(' ') || `لباس ${cloth.code ?? ''}`.trim(),
-    description: cloth.description || 'موجودی انبار بازار — فروش فقط به‌صورت عمده.',
-    category: typeName || 'پوشاک',
-    wholesalePrice: clothUnitPrice(cloth),
+    name: [type.name, style.name].filter(Boolean).join(' ') || `لباس ${cloth.code ?? ''}`.trim(),
+    description: cloth.description || 'موجودی انبار بازار — فروش فقط به‌صورت عمده و با بسته.',
+    category: type.name || 'پوشاک',
+    style: style.name,
+    wholesalePrice: cloth.wholesalePrice && cloth.wholesalePrice > 0 ? cloth.wholesalePrice : clothUnitPrice(cloth),
     minOrderQty: Number(cloth.minOrderQty || DEFAULT_MOQ),
-    count: Number(cloth.count || 0),
-    image: cloth.images?.[0] || SAMPLE[0].image,
-    color,
-    size,
+    count: totalItems(stock.packs) || Number(cloth.count || 0),
+    image: images[0] || FALLBACK_IMAGE,
+    images: images.length ? images : [FALLBACK_IMAGE],
+    color: color.name,
+    size: size.name,
+    packSize: stock.packSize,
+    packs: stock.packs,
+    categoryId: type.id,
+    styleId: style.id,
+    sizeId: size.id,
+    colorId: color.id,
   };
+}
+
+export function uniqueFilterOptions(products: CatalogProduct[]) {
+  const collect = (key: 'category' | 'style' | 'size' | 'color', idKey: 'categoryId' | 'styleId' | 'sizeId' | 'colorId') => {
+    const map = new Map<string, string>();
+    for (const product of products) {
+      const id = product[idKey];
+      const label = product[key];
+      if (id && label) map.set(id, label);
+    }
+    return [...map.entries()].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'fa'));
+  };
+  return {
+    types: collect('category', 'categoryId'),
+    styles: collect('style', 'styleId'),
+    sizes: collect('size', 'sizeId'),
+    colors: collect('color', 'colorId'),
+  };
+}
+
+export function filterCatalog(products: CatalogProduct[], filters: CatalogFilters): CatalogProduct[] {
+  const q = String(filters.q || '').trim().toLowerCase();
+  const minPrice = Number(filters.minPrice || 0);
+  const maxPrice = Number(filters.maxPrice || 0);
+  return products.filter((product) => {
+    if (q) {
+      const hay = [product.name, product.code, product.category, product.style, product.color, product.size]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (filters.type && product.categoryId !== filters.type) return false;
+    if (filters.style && product.styleId !== filters.style) return false;
+    if (filters.size && product.sizeId !== filters.size) return false;
+    if (filters.color && product.colorId !== filters.color) return false;
+    if (minPrice > 0 && product.wholesalePrice < minPrice) return false;
+    if (maxPrice > 0 && product.wholesalePrice > maxPrice) return false;
+    if (filters.stock === 'in' && product.count < 1) return false;
+    return true;
+  });
+}
+
+export function collectionsFromCatalog(products: CatalogProduct[]) {
+  const map = new Map<string, { id: string; name: string; image: string; count: number }>();
+  for (const product of products) {
+    const id = product.categoryId || product.category;
+    const current = map.get(id);
+    if (current) {
+      current.count += 1;
+      continue;
+    }
+    map.set(id, { id, name: product.category, image: product.image, count: 1 });
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
 }

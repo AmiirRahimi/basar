@@ -19,3 +19,35 @@ body {
   background: rgb(var(--gray-50));
   color: rgb(var(--foreground));
 }
+
+[data-shop] {
+  --shop-ink: 11 29 42;
+  --shop-mill: 30 58 76;
+  --shop-saffron: 224 160 26;
+  --shop-bone: 246 240 230;
+  --shop-paper: 255 253 248;
+  --shop-madder: 142 58 58;
+  --shop-line: 196 122 58;
+  background: rgb(var(--shop-bone));
+  color: rgb(var(--shop-ink));
+  min-height: 100vh;
+}
+
+[data-shop] .shop-grain {
+  position: relative;
+}
+
+[data-shop] .shop-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.11;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+[data-shop] ::selection {
+  background: rgb(var(--shop-saffron) / 0.35);
+  color: rgb(var(--shop-ink));
+}

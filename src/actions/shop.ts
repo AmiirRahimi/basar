@@ -1,116 +1,124 @@
 'use server';
 
 import { clothToProduct } from '@/lib/catalog';
-import type { CatalogProduct, Cloth } from '@/lib/types';
+import { CART_COOKIE, DEFAULT_MOQ } from '@/lib/constants';
+import { normalizeCartItem } from '@/lib/shop-cart';
+import { mergePacks, packsToOrder, subtractPacks, totalItems, type ClothPack } from '@/lib/packs';
+import type { CatalogProduct, Cloth, PublicOrderSummary, WholesaleCartItem } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { CART_COOKIE } from '@/lib/constants';
-import type { WholesaleCartItem } from '@/lib/types';
-import { addInvoiceLine, createResource, listClothes, listPublicCatalog } from './crud';
+import {
+  getPublicCatalogProduct,
+  listPublicCatalog,
+  loadPublicOrders,
+  placePublicWholesaleOrder,
+} from './crud';
 
 export async function getCatalog(): Promise<CatalogProduct[]> {
   const published = await listPublicCatalog();
   if (published.ok && Array.isArray(published.data) && published.data.length) {
     return published.data.map((cloth) => clothToProduct(cloth as Cloth));
   }
-  const staff = await listClothes(1, 40);
-  if (staff.ok && Array.isArray(staff.data) && staff.data.length) {
-    return staff.data.map((cloth) => clothToProduct(cloth as Cloth));
-  }
   return [];
 }
 
 export async function getCatalogProduct(id: string): Promise<CatalogProduct | null> {
+  const found = await getPublicCatalogProduct(id);
+  if (found.ok && found.data) return clothToProduct(found.data as Cloth);
   const all = await getCatalog();
-  return all.find((p) => p.id === id) || null;
+  return all.find((product) => product.id === id) || null;
 }
 
-export async function getCartItems(): Promise<WholesaleCartItem[]> {
-  const raw = (await cookies()).get(CART_COOKIE)?.value;
+function parseCookieCart(raw: string | undefined, catalog: CatalogProduct[]): WholesaleCartItem[] {
   if (!raw) return [];
   try {
-    return JSON.parse(raw) as WholesaleCartItem[];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((row) => {
+        const productId = row && typeof row === 'object' ? String((row as WholesaleCartItem).productId || '') : '';
+        const product = catalog.find((item) => item.id === productId) || null;
+        return normalizeCartItem(row, product);
+      })
+      .filter(Boolean) as WholesaleCartItem[];
   } catch {
     return [];
   }
+}
+
+export async function getCartItems(catalog?: CatalogProduct[]): Promise<WholesaleCartItem[]> {
+  const products = catalog ?? (await getCatalog());
+  return parseCookieCart((await cookies()).get(CART_COOKIE)?.value, products);
 }
 
 export async function saveCart(items: WholesaleCartItem[]) {
   (await cookies()).set(CART_COOKIE, JSON.stringify(items), { path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 14 });
 }
 
-export async function addToCart(productId: string, qty: number, minOrderQty: number) {
-  if (qty < minOrderQty) {
-    return { ok: false, message: `حداقل سفارش عمده ${minOrderQty} عدد است` };
-  }
-  const items = await getCartItems();
-  const existing = items.find((i) => i.productId === productId);
-  if (existing) existing.qty += qty;
-  else items.push({ productId, qty });
-  await saveCart(items);
-  return { ok: true, message: 'به سبد عمده اضافه شد' };
+async function persistCart(items: WholesaleCartItem[]) {
+  const next = items.filter((item) => totalItems(item.packs) > 0);
+  await saveCart(next);
+  return next;
 }
 
-export async function updateCartQty(productId: string, qty: number, minOrderQty: number) {
-  if (qty === 0) {
-    await saveCart((await getCartItems()).filter((i) => i.productId !== productId));
-    return { ok: true, message: 'حذف شد' };
+export async function setCartPacks(productId: string, packs: ClothPack[], takenOrder: number[] = []) {
+  const product = await getCatalogProduct(productId);
+  if (!product) return { ok: false, message: 'این مدل در کاتالوگ نیست', items: await getCartItems() };
+  const merged = mergePacks(packs);
+  const pieces = totalItems(merged);
+  if (!pieces) {
+    const items = await persistCart((await getCartItems()).filter((item) => item.productId !== productId));
+    return { ok: true, message: 'از سبد حذف شد', items };
   }
-  if (qty < minOrderQty) {
-    return { ok: false, message: `حداقل سفارش عمده ${minOrderQty} عدد است` };
+  const remaining = subtractPacks(product.packs, merged);
+  if (!remaining) return { ok: false, message: 'موجودی این بسته‌ها کافی نیست', items: await getCartItems() };
+  if (pieces < Number(product.minOrderQty || DEFAULT_MOQ)) {
+    return { ok: false, message: `حداقل سفارش عمده ${product.minOrderQty} عدد است`, items: await getCartItems() };
   }
   const items = await getCartItems();
-  const line = items.find((i) => i.productId === productId);
-  if (line) line.qty = qty;
-  await saveCart(items);
-  return { ok: true, message: 'سبد به‌روز شد' };
+  const line = items.find((item) => item.productId === productId);
+  const nextLine: WholesaleCartItem = {
+    productId,
+    packs: merged,
+    takenOrder: takenOrder.length ? takenOrder : packsToOrder(merged, product.packSize),
+  };
+  if (line) Object.assign(line, nextLine);
+  else items.push(nextLine);
+  const saved = await persistCart(items);
+  return { ok: true, message: 'سبد بسته‌ها به‌روز شد', items: saved };
 }
 
-export async function checkoutWholesale(input: {
-  fullName: string;
-  phone: string;
-  address: string;
-  customerId?: string;
-}) {
+export async function removeFromCart(productId: string) {
+  const items = await persistCart((await getCartItems()).filter((item) => item.productId !== productId));
+  return { ok: true, message: 'حذف شد', items };
+}
+
+export async function checkoutWholesale(input: { fullName: string; phone: string; address: string }) {
   const cart = await getCartItems();
   const catalog = await getCatalog();
-  if (!cart.length) return { ok: false, message: 'سبد خالی است' };
-
-  let customerId = input.customerId;
-  if (!customerId) {
-    const created = await createResource('person', {
-      fullName: input.fullName,
-      phoneNumber: input.phone,
-      address: input.address,
-      city: 0,
-      role: '1',
-    });
-    customerId = (created.data as any)?._id;
-    if (!created.ok || !customerId) {
-      return { ok: false, message: created.message || 'برای ثبت سفارش عمده ابتدا وارد شمارش شوید' };
-    }
-  }
-
-  const invoice = await createResource('invoice', {
-    _client: customerId,
-    receiverAddress: input.address,
-    items: [],
+  if (!cart.length) return { ok: false, message: 'سبد خالی است', invoices: [] as PublicOrderSummary[] };
+  const items = cart
+    .map((line) => {
+      const product = catalog.find((row) => row.id === line.productId);
+      if (!product) return null;
+      return { productId: product.id, packs: line.packs, price: product.wholesalePrice };
+    })
+    .filter(Boolean) as Array<{ productId: string; packs: ClothPack[]; price: number }>;
+  const result = await placePublicWholesaleOrder({
+    fullName: input.fullName,
+    phone: input.phone,
+    address: input.address,
+    items,
   });
-  const invoiceId = (invoice.data as any)?._id;
-  if (!invoice.ok || !invoiceId) {
-    return { ok: false, message: invoice.message || 'ثبت فاکتور ناموفق بود' };
+  if (!result.ok || !result.data) {
+    return { ok: false, message: result.message || 'ثبت سفارش ناموفق بود', invoices: [] as PublicOrderSummary[] };
   }
-
-  for (const line of cart) {
-    const product = catalog.find((p) => p.id === line.productId);
-    if (!product) continue;
-    await addInvoiceLine({
-      _invoice: invoiceId,
-      _cloth: product.id,
-      count: line.qty,
-      price: product.wholesalePrice,
-    });
-  }
-
   await saveCart([]);
-  return { ok: true, message: 'سفارش عمده ثبت شد', invoiceId };
+  const invoices = (result.data as { invoices?: PublicOrderSummary[] }).invoices || [];
+  return { ok: true, message: result.message || 'سفارش عمده ثبت شد', invoices };
+}
+
+export async function getPublicOrders(ids: string[]) {
+  const result = await loadPublicOrders(ids);
+  if (!result.ok || !result.data) return [];
+  return result.data as PublicOrderSummary[];
 }

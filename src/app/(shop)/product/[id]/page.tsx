@@ -1,0 +1,54 @@
+import { getCatalog, getCatalogProduct } from '@/actions/shop';
+import { ProductCard } from '@/components/shop/ProductCard';
+import { ProductGallery } from '@/components/shop/ProductGallery';
+import { ProductPackForm } from '@/components/shop/ProductPackForm';
+import { faNumber, toman } from '@/lib/format';
+import { formatStockFa } from '@/lib/packs';
+import { notFound } from 'next/navigation';
+
+export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const product = await getCatalogProduct(id);
+  if (!product) notFound();
+  const related = (await getCatalog())
+    .filter((row) => row.id !== product.id && row.categoryId === product.categoryId)
+    .slice(0, 3);
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-12 lg:px-6">
+      <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+        <ProductGallery images={product.images} name={product.name} />
+        <div className="space-y-6">
+          <div>
+            <p className="text-xs tracking-[0.22em] text-shop-ink/45">
+              {product.category} · کد {product.code}
+            </p>
+            <h1 className="mt-2 text-4xl font-semibold leading-tight">{product.name}</h1>
+            <p className="mt-3 text-shop-ink/65">{product.description}</p>
+          </div>
+          <p className="text-3xl text-shop-saffron">{toman(product.wholesalePrice)}</p>
+          <ul className="grid gap-2 text-sm text-shop-ink/70">
+            <li>حداقل سفارش: {faNumber(product.minOrderQty)} عدد</li>
+            <li>موجودی: {formatStockFa(product.packs)}</li>
+            {product.size ? <li>سایز: {product.size}</li> : null}
+            {product.color ? <li>رنگ: {product.color}</li> : null}
+            {product.style ? <li>مدل: {product.style}</li> : null}
+          </ul>
+          <div className="rounded-[1.6rem] border border-shop-ink/10 bg-shop-paper p-5">
+            <ProductPackForm product={product} />
+          </div>
+        </div>
+      </div>
+      {related.length ? (
+        <section className="mt-16">
+          <h2 className="mb-6 text-2xl font-semibold">مدل‌های هم‌نوع</h2>
+          <div className="grid gap-6 md:grid-cols-3">
+            {related.map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}

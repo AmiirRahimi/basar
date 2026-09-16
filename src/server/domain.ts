@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { fabricLotTotal, fabricUnitCost, clothPayTotal } from '@/lib/cloth-price';
+import { fabricLotTotal, fabricUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
 import {
   addPacks,
   itemsToPacks,
@@ -13,13 +13,15 @@ import {
   validatePacksEditor,
   type ClothPack,
 } from '@/lib/packs';
-import { isPayablePersonRole, personRoleLabel } from '@/lib/constants';
+import { DEFAULT_MOQ, isPayablePersonRole, personRoleLabel, PHONE_RE } from '@/lib/constants';
 import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
 import { canWriteResource } from '@/lib/roles';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
+import { parseImageList } from '@/lib/shop-cart';
 import { fail, ok, type ActionResult } from './result';
+import type { PublicOrderSummary } from '@/lib/types';
 import type { Session } from './session';
 import { withWorkspace } from './workspace';
 
@@ -229,7 +231,7 @@ function applyClothAvailability(session: Session, body: Record<string, unknown>)
   return body;
 }
 
-function applyClothInventory(body: Record<string, unknown>): ActionResult<Record<string, unknown>> {
+function applyClothInventory(body: Record<string, unknown>): ActionResult<Record<string, unknown> | null> {
   let packSize = Math.trunc(Number(body.packSize || 0));
   let packs = parsePacks(body.packs);
   if (typeof body.packs === 'string') {
@@ -248,6 +250,16 @@ function applyClothInventory(body: Record<string, unknown>): ActionResult<Record
   body.packSize = size;
   body.packs = packs;
   body.count = totalItems(packs);
+  return applyClothShopFields(body);
+}
+
+function applyClothShopFields(body: Record<string, unknown>): ActionResult<Record<string, unknown> | null> {
+  if (body.images != null) body.images = parseImageList(body.images);
+  if (body.minOrderQty != null && body.minOrderQty !== '') {
+    const qty = Math.trunc(Number(body.minOrderQty));
+    body.minOrderQty = qty > 0 ? qty : DEFAULT_MOQ;
+  }
+  if (body.description != null) body.description = String(body.description || '').trim();
   return ok(body);
 }
 
@@ -560,15 +572,226 @@ export async function deleteResource(resource: string, id: string): Promise<Acti
   return ok(null, 'حذف شد');
 }
 
+const PUBLIC_CLOTH_POPULATE = [
+  { path: '_type' },
+  { path: '_style' },
+  { path: '_color' },
+  { path: '_size', select: '_id name' },
+  { path: '_producedFrom' },
+];
+
+const PUBLIC_CLOTH_SELECT =
+  '_id code count packSize packs description wholesalePrice minOrderQty images _type _style _size _color _producedFrom amountUsed boughtFee tailorFee _storeId';
+
 export async function listPublicClothes(): Promise<ActionResult> {
   await db();
-  const rows = await M().Cloth.find({ isDeleted: false, published: true })
-    .select('_id code count description wholesalePrice minOrderQty images _type _style _size _color _producedFrom amountUsed boughtFee tailorFee')
-    .populate([{ path: '_type' }, { path: '_style' }, { path: '_color' }, { path: '_size', select: '_id name' }, { path: '_producedFrom' }])
-    .sort('code')
-    .limit(80)
-    .lean();
-  return ok(serialize(rows));
+  const query: any = M().Cloth.find({ isDeleted: false });
+  const rows = await query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).sort('code').lean();
+  const inStock = (Array.isArray(rows) ? rows : []).filter((row: any) => totalItems(packsFromCloth(row).packs) > 0);
+  return ok(serialize(inStock));
+}
+
+export async function getPublicClothById(id: string): Promise<ActionResult> {
+  await db();
+  const query: any = M().Cloth.findOne({ _id: oid(id), isDeleted: false });
+  const row = await query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).lean();
+  if (!row) return fail('لباس پیدا نشد', 404);
+  return ok(serialize(row));
+}
+
+function storeIdOf(cloth: any) {
+  const value = cloth?._storeId;
+  if (value && typeof value === 'object' && '_id' in value) return String(value._id);
+  return String(value || '');
+}
+
+async function sellPublicPacks(items: any[]): Promise<ActionResult<any[]>> {
+  const needed = new Map<string, ClothPack[]>();
+  const prepared: any[] = [];
+  for (const item of items) {
+    const id = lineClothId(item);
+    if (!id) continue;
+    const cloth = await (M().Cloth.findOne({ _id: oid(id), isDeleted: false }) as any).lean();
+    if (!cloth) return fail('لباس پیدا نشد');
+    const stock = packsFromCloth(cloth);
+    const taken = linePacks(item, stock.packSize);
+    if (!taken.length) return fail('حداقل یک بسته انتخاب کنید');
+    const pieces = totalItems(taken);
+    const minOrder = Number(cloth.minOrderQty || DEFAULT_MOQ);
+    if (pieces < minOrder) return fail(`حداقل سفارش عمده ${minOrder} عدد است`);
+    prepared.push({
+      _cloth: id,
+      packs: taken,
+      count: pieces,
+      price: Number(item.price || cloth.wholesalePrice || clothUnitPrice(cloth)),
+      _storeId: storeIdOf(cloth),
+    });
+    needed.set(id, addPacks(needed.get(id) || [], taken));
+  }
+  const nextById = new Map<string, ClothPack[]>();
+  for (const [id, taken] of needed) {
+    const cloth = await (M().Cloth.findOne({ _id: oid(id), isDeleted: false }) as any).lean();
+    if (!cloth) return fail('لباس پیدا نشد');
+    const next = subtractPacks(packsFromCloth(cloth).packs, taken);
+    if (!next) return fail('موجودی این لباس کافی نیست');
+    nextById.set(id, next);
+  }
+  for (const [id, packs] of nextById) {
+    await writeStock(id, packs);
+  }
+  return ok(prepared);
+}
+
+async function findOrCreateWholesaleCustomer(storeId: string, input: { fullName: string; phone: string; address: string }) {
+  const phone = String(input.phone || '').trim();
+  const existing =
+    (await (M().Person.findOne({ _storeId: oid(storeId), isDeleted: false, role: '1', phoneNumber: phone }) as any).lean()) ||
+    (await (M().Person.findOne({ _storeId: oid(storeId), isDeleted: false, role: '1', phoneNumber: Number(phone) }) as any).lean());
+  if (existing) {
+    await (M().Person as any).updateOne({ _id: existing._id }, { fullName: input.fullName, address: input.address, phoneNumber: phone });
+    return existing._id;
+  }
+  const created = await M().Person.create({
+    _storeId: oid(storeId),
+    fullName: input.fullName,
+    phoneNumber: phone,
+    address: input.address,
+    city: 0,
+    role: '1',
+    isDeleted: false,
+  });
+  return created._id;
+}
+
+export async function placeWholesaleOrder(input: {
+  fullName: string;
+  phone: string;
+  address: string;
+  items: Array<{ productId: string; packs?: ClothPack[]; count?: number; price?: number }>;
+}): Promise<ActionResult> {
+  await db();
+  const fullName = String(input.fullName || '').trim();
+  const phone = String(input.phone || '').trim();
+  const address = String(input.address || '').trim();
+  if (!fullName || !phone || !address) return fail('نام، موبایل و آدرس را کامل کنید');
+  if (!PHONE_RE.test(phone)) return fail('شماره موبایل معتبر نیست');
+  const items = Array.isArray(input.items) ? input.items.filter((item) => item?.productId) : [];
+  if (!items.length) return fail('سبد خالی است');
+
+  const grouped = new Map<string, any[]>();
+  for (const item of items) {
+    const cloth = await (M().Cloth.findOne({ _id: oid(item.productId), isDeleted: false }) as any).lean();
+    if (!cloth) return fail('لباس پیدا نشد');
+    const storeId = storeIdOf(cloth);
+    if (!storeId) return fail('فروشگاه این لباس مشخص نیست');
+    const bucket = grouped.get(storeId) || [];
+    bucket.push({
+      _cloth: item.productId,
+      packs: item.packs,
+      count: item.count,
+      price: item.price,
+    });
+    grouped.set(storeId, bucket);
+  }
+
+  const invoices: PublicOrderSummary[] = [];
+  const written: Array<{ clothId: string; packs: ClothPack[] }> = [];
+  try {
+    for (const [storeId, storeItems] of grouped) {
+      const sold = await sellPublicPacks(storeItems);
+      if (!sold.ok) {
+        for (const row of written) {
+          const cloth = await (M().Cloth.findOne({ _id: oid(row.clothId), isDeleted: false }) as any).lean();
+          if (!cloth) continue;
+          await writeStock(row.clothId, addPacks(packsFromCloth(cloth).packs, row.packs));
+        }
+        return sold;
+      }
+      const soldItems = sold.data || [];
+      for (const line of soldItems) written.push({ clothId: String(line._cloth), packs: line.packs });
+      const store = await (M().Store.findOne({ _id: oid(storeId) }) as any).lean();
+      const clientId = await findOrCreateWholesaleCustomer(storeId, { fullName, phone, address });
+      let invoiceNumber = Math.floor(10000 + Math.random() * 9000);
+      while (await M().Invoice.exists({ invoiceNumber })) {
+        invoiceNumber = Math.floor(10000 + Math.random() * 9000);
+      }
+      const created = await M().Invoice.create({
+        _storeId: oid(storeId),
+        _brandId: store?._brandId ? oid(store._brandId) : undefined,
+        _client: oid(clientId),
+        receiverAddress: address,
+        invoiceNumber,
+        isSent: false,
+        isDeleted: false,
+      });
+      if (soldItems.length) {
+        await M().CustomerCart.insertMany(
+          soldItems.map((item: any) => ({
+            _storeId: oid(storeId),
+            _invoice: created._id,
+            _cloth: oid(item._cloth),
+            count: item.count,
+            packs: item.packs,
+            price: item.price,
+            isDeleted: false,
+          })),
+        );
+      }
+      const lines = await (M().CustomerCart.find({ _invoice: created._id, isDeleted: false }) as any)
+        .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
+        .lean();
+      invoices.push(summarizePublicInvoice(created, lines));
+    }
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : 'ثبت سفارش ناموفق بود', 500);
+  }
+  return ok(serialize({ invoices }), 'سفارش عمده ثبت شد');
+}
+
+function clothDisplayName(cloth: any) {
+  if (!cloth || typeof cloth !== 'object') return 'لباس';
+  const typeName = cloth._type && typeof cloth._type === 'object' ? cloth._type.name : '';
+  const styleName = cloth._style && typeof cloth._style === 'object' ? cloth._style.name : '';
+  return [typeName, styleName].filter(Boolean).join(' ') || `لباس ${cloth.code || ''}`.trim();
+}
+
+function summarizePublicInvoice(invoice: any, lines: any[]): PublicOrderSummary {
+  const mapped = (Array.isArray(lines) ? lines : []).map((line) => {
+    const count = Number(line.count || 0);
+    const price = Number(line.price || 0);
+    return {
+      name: clothDisplayName(line._cloth),
+      packsLabel: mergePacks(parsePacks(line.packs))
+        .map((pack) => `${pack.count} بسته ${pack.items} تایی`)
+        .join('، '),
+      count,
+      price,
+      total: count * price,
+    };
+  });
+  return {
+    id: String(invoice._id),
+    invoiceNumber: invoice.invoiceNumber,
+    total: mapped.reduce((sum, line) => sum + line.total, 0),
+    lines: mapped,
+  };
+}
+
+export async function getPublicOrderSummaries(ids: string[]): Promise<ActionResult> {
+  await db();
+  const unique = [...new Set(ids.map((id) => String(id || '')).filter(Boolean))].slice(0, 8);
+  if (!unique.length) return fail('سفارش پیدا نشد', 404);
+  const invoices: PublicOrderSummary[] = [];
+  for (const id of unique) {
+    const invoice = await (M().Invoice.findOne({ _id: oid(id), isDeleted: false }) as any).lean();
+    if (!invoice) continue;
+    const lines = await (M().CustomerCart.find({ _invoice: oid(id), isDeleted: false }) as any)
+      .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
+      .lean();
+    invoices.push(summarizePublicInvoice(invoice, lines));
+  }
+  if (!invoices.length) return fail('سفارش پیدا نشد', 404);
+  return ok(serialize(invoices));
 }
 
 export async function getStore(): Promise<ActionResult> {

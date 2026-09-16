@@ -177,17 +177,52 @@ export type CatalogProduct = {
   name: string;
   description: string;
   category: string;
+  style?: string;
   wholesalePrice: number;
   minOrderQty: number;
   count: number;
   image: string;
+  images: string[];
   color?: string;
   size?: string;
+  packSize: number;
+  packs: ClothPack[];
+  categoryId?: string;
+  styleId?: string;
+  sizeId?: string;
+  colorId?: string;
 };
 
 export type WholesaleCartItem = {
   productId: string;
-  qty: number;
+  packs: ClothPack[];
+  takenOrder: number[];
+};
+
+export type CatalogFilters = {
+  q?: string;
+  type?: string;
+  style?: string;
+  size?: string;
+  color?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  stock?: string;
+};
+
+export type PublicOrderLine = {
+  name: string;
+  packsLabel: string;
+  count: number;
+  price: number;
+  total: number;
+};
+
+export type PublicOrderSummary = {
+  id: string;
+  invoiceNumber: string | number;
+  total: number;
+  lines: PublicOrderLine[];
 };
 
 /** An option for a form dropdown. `parent` links the option to the owning record

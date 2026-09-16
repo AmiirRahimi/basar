@@ -1,7 +1,8 @@
 'use client';
 
 import { checkoutWholesale } from '@/actions/shop';
-import { Button, FormCard, Input } from '@/ui';
+import { useShopCart } from './CartProvider';
+import { shopInputClass, ShopButton, ShopField } from './ShopUi';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
@@ -12,31 +13,40 @@ export function CheckoutForm() {
   const [message, setMessage] = useState('');
   const [pending, start] = useTransition();
   const router = useRouter();
+  const { totals } = useShopCart();
 
   return (
-    <FormCard>
-      <form
-        className="grid gap-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          start(async () => {
-            const res = await checkoutWholesale({ fullName, phone, address });
-            setMessage(res.message);
-            if (res.ok) router.push('/counting/invoices');
-          });
-        }}
-      >
-        <Input label="نام فروشگاه / خریدار" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-        <Input label="موبایل" value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" required />
-        <Input label="آدرس تحویل" value={address} onChange={(e) => setAddress(e.target.value)} required />
-        <p className="text-sm text-muted-foreground">
-          برای صدور فاکتور باید وارد پنل شمارش باشید. سفارش روی مشتری عمده ثبت می‌شود.
-        </p>
-        {message ? <p className="text-sm">{message}</p> : null}
-        <Button type="submit" disabled={pending}>
-          ثبت سفارش عمده
-        </Button>
-      </form>
-    </FormCard>
+    <form
+      className="space-y-4 rounded-[1.6rem] border border-shop-ink/10 bg-shop-paper p-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        start(async () => {
+          const res = await checkoutWholesale({ fullName, phone, address });
+          setMessage(res.message);
+          if (res.ok && res.invoices.length) {
+            const ids = res.invoices.map((invoice) => invoice.id).join(',');
+            router.push(`/order/success?ids=${encodeURIComponent(ids)}`);
+          }
+        });
+      }}
+    >
+      <p className="text-[11px] tracking-[0.22em] text-shop-ink/45">دفتر سفارش عمده</p>
+      <ShopField label="نام فروشگاه / خریدار">
+        <input className={shopInputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+      </ShopField>
+      <ShopField label="موبایل">
+        <input className={shopInputClass} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="09xxxxxxxxx" />
+      </ShopField>
+      <ShopField label="آدرس تحویل">
+        <textarea className={shopInputClass} rows={3} value={address} onChange={(e) => setAddress(e.target.value)} required />
+      </ShopField>
+      <p className="text-sm text-shop-ink/60">
+        فاکتور در شمارش ثبت می‌شود. پرداخت و چک را کارکنان بعد از هماهنگی وارد می‌کنند.
+      </p>
+      {message ? <p className="text-sm text-shop-madder">{message}</p> : null}
+      <ShopButton type="submit" disabled={pending || totals.packs < 1} className="w-full">
+        {pending ? 'در حال ثبت...' : 'ثبت سفارش بسته‌ها'}
+      </ShopButton>
+    </form>
   );
 }

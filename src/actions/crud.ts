@@ -10,6 +10,8 @@ import {
   dashboardStats,
   deleteAttachment,
   deleteResource as remove,
+  getPublicClothById,
+  getPublicOrderSummaries,
   getResource as getById,
   getStore as storeDb,
   invoiceBalance,
@@ -19,6 +21,7 @@ import {
   listResource as listByName,
   listUserPermisions,
   personAccount,
+  placeWholesaleOrder,
   updateResource as update,
 } from '@/server/domain';
 import { listUsers as usersDb } from '@/server/auth';
@@ -49,6 +52,18 @@ export async function listClothes(page = 1, skip = 50) {
 
 export async function listPublicCatalog() {
   return listPublicClothes();
+}
+
+export async function getPublicCatalogProduct(id: string) {
+  return getPublicClothById(id);
+}
+
+export async function placePublicWholesaleOrder(payload: unknown) {
+  return placeWholesaleOrder(payload as Parameters<typeof placeWholesaleOrder>[0]);
+}
+
+export async function loadPublicOrders(ids: string[]) {
+  return getPublicOrderSummaries(ids);
 }
 
 export async function listPeople(page = 1, skip = 100) {
