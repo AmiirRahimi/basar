@@ -162,7 +162,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isDisabled}
         className={cn(
           // Base
-          'inline-flex items-center justify-center font-medium',
+          'inline-flex flex-row items-center justify-center font-medium',
+          '[&_svg]:inline-block [&_svg]:shrink-0',
           'transition-[background-color,border-color,box-shadow,transform,color,opacity,filter] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
           'active:duration-150',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900',
@@ -188,9 +189,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           </>
         ) : (
           <>
-            {icon && iconPosition === 'left' && <span className="shrink-0">{icon}</span>}
-            {children && <span>{children}</span>}
-            {icon && iconPosition === 'right' && <span className="shrink-0">{icon}</span>}
+            {icon && iconPosition === 'left' && <span className="inline-flex shrink-0 items-center">{icon}</span>}
+            {children && <span className="inline-flex items-center gap-1.5">{children}</span>}
+            {icon && iconPosition === 'right' && <span className="inline-flex shrink-0 items-center">{icon}</span>}
           </>
         )}
       </button>
