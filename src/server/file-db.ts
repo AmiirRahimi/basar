@@ -118,11 +118,33 @@ function compareValues(a: unknown, b: unknown) {
   return String(a ?? '').localeCompare(String(b ?? ''), 'fa');
 }
 
+function projectDoc(doc: Doc | null, spec?: string) {
+  if (!doc || !spec) return doc;
+  const parts = String(spec)
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const exclude = parts.filter((part) => part.startsWith('-')).map((part) => part.slice(1));
+  const include = parts.filter((part) => !part.startsWith('-') && part !== '_id');
+  if (exclude.length) {
+    const next = { ...doc };
+    for (const key of exclude) delete next[key];
+    return next;
+  }
+  if (!include.length) return doc;
+  const next: Doc = { _id: doc._id };
+  for (const key of include) {
+    if (key in doc) next[key] = doc[key];
+  }
+  return next;
+}
+
 class Query {
   private pops: any[] = [];
   private sortInput: unknown = '';
   private skipN = 0;
   private limitN = 0;
+  private selectSpec?: string;
   constructor(
     private rows: Doc[],
     private single = false,
@@ -143,7 +165,8 @@ class Query {
     this.limitN = n;
     return this;
   }
-  select() {
+  select(spec?: string) {
+    this.selectSpec = spec;
     return this;
   }
   lean() {
@@ -182,7 +205,28 @@ class Query {
         return { ...row, [spec.path]: related || row[spec.path] };
       });
     }
+    if (this.selectSpec) rows = rows.map((row) => projectDoc(row, this.selectSpec) as Doc);
     return this.single ? rows[0] || null : rows;
+  }
+}
+
+class MutationQuery {
+  private selectSpec?: string;
+  private pending?: Promise<Doc | null>;
+  constructor(private run: () => Doc | null) {}
+  select(spec?: string) {
+    this.selectSpec = spec;
+    return this;
+  }
+  lean() {
+    return this;
+  }
+  then<T>(resolve: (v: any) => T, reject?: (e: unknown) => T) {
+    return this.exec().then(resolve, reject);
+  }
+  async exec() {
+    if (!this.pending) this.pending = Promise.resolve().then(() => this.run());
+    return projectDoc(await this.pending, this.selectSpec);
   }
 }
 
@@ -218,25 +262,22 @@ export class FileModel {
   findById(idValue: string) {
     return this.findOne({ _id: idValue });
   }
-  async findByIdAndUpdate(idValue: string, payload: Doc) {
-    const row = await this.findOneAndUpdate({ _id: idValue }, payload);
-    if (!row) return null;
-    return Object.assign(row, {
-      select: () => ({ lean: async () => row }),
-      lean: async () => row,
-    });
+  findByIdAndUpdate(idValue: string, payload: Doc, options?: Doc) {
+    return this.findOneAndUpdate({ _id: idValue }, payload, options);
   }
   async findByIdAndDelete(idValue: string) {
     state[this.name] = this.all().filter((d) => !eq(d._id, idValue));
     save(state);
     return { _id: idValue };
   }
-  async findOneAndUpdate(filter: Doc, payload: Doc) {
-    const i = this.all().findIndex((d) => matches(d, filter));
-    if (i < 0) return null;
-    this.all()[i] = { ...this.all()[i], ...payload };
-    save(state);
-    return mutateable(this.name, this.all()[i]);
+  findOneAndUpdate(filter: Doc, payload: Doc, _options?: Doc) {
+    return new MutationQuery(() => {
+      const i = this.all().findIndex((d) => matches(d, filter));
+      if (i < 0) return null;
+      this.all()[i] = { ...this.all()[i], ...payload };
+      save(state);
+      return clone(this.all()[i]);
+    });
   }
   async updateOne(filter: Doc, payload: Doc) {
     await this.findOneAndUpdate(filter, payload);
