@@ -1,8 +1,9 @@
 'use server';
 
 import { listResource as listByName } from '@/server/domain';
-import { fabricUnitCost } from '@/lib/cloth-price';
-import type { FieldOption } from '@/lib/types';
+import { clothUnitPrice, fabricUnitCost } from '@/lib/cloth-price';
+import { packsFromCloth, totalItems } from '@/lib/packs';
+import type { Cloth, FieldOption } from '@/lib/types';
 
 function relationId(value: unknown): string | undefined {
   if (!value) return undefined;
@@ -38,7 +39,22 @@ export async function personOptions(role?: string): Promise<FieldOption[]> {
 
 export async function clothOptions(): Promise<FieldOption[]> {
   const res = await listByName('cloth', 1, 500);
-  return toOptions(res.data, 'code');
+  if (!Array.isArray(res.data)) return [];
+  return res.data.map((row: Cloth) => {
+    const stock = packsFromCloth(row);
+    const typeName = typeof row._type === 'object' ? row._type?.name : '';
+    const styleName = typeof row._style === 'object' ? row._style?.name : '';
+    const code = String(row.code ?? '').trim() || String(row._id);
+    const title = [code, typeName, styleName].filter(Boolean).join(' — ');
+    return {
+      value: String(row._id),
+      label: `${title} (${totalItems(stock.packs)} عدد)`,
+      packSize: stock.packSize,
+      packs: stock.packs,
+      count: totalItems(stock.packs),
+      price: clothUnitPrice(row),
+    };
+  });
 }
 
 export async function colorOptions(): Promise<FieldOption[]> {

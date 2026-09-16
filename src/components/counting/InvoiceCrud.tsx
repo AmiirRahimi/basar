@@ -31,12 +31,28 @@ import { displayName, faDate, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { checkAvailableForPayment } from '@/lib/checks';
 import { PaymentForm } from './PaymentForm';
+import {
+  addPacks,
+  formatPacksFa,
+  itemsToPacks,
+  mergePacks,
+  orderToPacks,
+  packsFromCloth,
+  packsToOrder,
+  subtractPacks,
+  takePack,
+  totalItems,
+  type ClothPack,
+} from '@/lib/packs';
 import type { Check, FieldOption, Invoice } from '@/lib/types';
+import { InvoicePackStepper } from './InvoicePackStepper';
 
 type DraftItem = {
   key: string;
   _cloth: string;
   count: number;
+  packs: ClothPack[];
+  takenOrder: number[];
   price: number;
 };
 
@@ -46,7 +62,7 @@ type SummaryState = {
   invoiceNumber?: string | number;
   ownerName: string;
   address: string;
-  items: { label: string; count: number; price: number }[];
+  items: { label: string; count: number; price: number; packs?: ClothPack[] }[];
 };
 
 type PayState = {
@@ -63,7 +79,17 @@ const selectLabels = {
 };
 
 function emptyItem(): DraftItem {
-  return { key: crypto.randomUUID(), _cloth: '', count: 1, price: 0 };
+  return { key: crypto.randomUUID(), _cloth: '', count: 0, packs: [], takenOrder: [], price: 0 };
+}
+
+function lineFromCloth(option: FieldOption | undefined, packs: ClothPack[], price?: number): Pick<DraftItem, 'count' | 'packs' | 'takenOrder' | 'price'> {
+  const stock = option ? packsFromCloth(option) : { packSize: 1, packs: [] };
+  return {
+    packs,
+    takenOrder: packsToOrder(packs, stock.packSize),
+    count: totalItems(packs),
+    price: price ?? Number(option?.price || 0),
+  };
 }
 
 function relationId(value: unknown): string {
@@ -97,6 +123,7 @@ export function InvoiceCrud({
   const [client, setClient] = useState('');
   const [address, setAddress] = useState('');
   const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
+  const [originalLines, setOriginalLines] = useState<DraftItem[]>([]);
   const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
 
@@ -209,6 +236,7 @@ export function InvoiceCrud({
     setClient('');
     setAddress('');
     setItems([emptyItem()]);
+    setOriginalLines([]);
     setShowErrors(false);
   }
 
@@ -217,28 +245,84 @@ export function InvoiceCrud({
     setOpen(true);
   }
 
+  function draftFromLine(line: { _cloth?: unknown; count?: number; price?: number; packs?: ClothPack[] }): DraftItem {
+    const clothId = relationId(line._cloth);
+    const option = clothes.find((item) => item.value === clothId);
+    const stock = packsFromCloth(option || { count: line.count, packs: line.packs, packSize: option?.packSize });
+    const packs = mergePacks(line.packs || []).length
+      ? mergePacks(line.packs || [])
+      : itemsToPacks(Number(line.count || 0), stock.packSize);
+    return {
+      key: crypto.randomUUID(),
+      _cloth: clothId,
+      ...lineFromCloth(option, packs, Number(line.price || option?.price || 0)),
+    };
+  }
+
+  function availableFor(item: DraftItem, allItems = items): ClothPack[] {
+    const option = clothes.find((row) => row.value === item._cloth);
+    if (!option) return [];
+    let stock = packsFromCloth(option).packs;
+    const restored = originalLines
+      .filter((line) => line._cloth === item._cloth)
+      .reduce((packs, line) => addPacks(packs, line.packs), [] as ClothPack[]);
+    stock = addPacks(stock, restored);
+    for (const line of allItems) {
+      if (line.key === item.key || line._cloth !== item._cloth) continue;
+      stock = subtractPacks(stock, line.packs) || [];
+    }
+    return stock;
+  }
+
   function openEdit(invoice: Invoice) {
     setEditing(invoice);
     setClient(relationId(invoice._client));
     setAddress(invoice.receiverAddress || '');
     setItems([emptyItem()]);
+    setOriginalLines([]);
     setShowErrors(false);
     setOpen(true);
     start(async () => {
       const cart = await getInvoiceCart(invoice._id);
       if (redirectIfUnauthorized(cart)) return;
       const lines = Array.isArray(cart.data) ? cart.data : [];
-      setItems(
-        lines.length
-          ? lines.map((line: { _cloth?: unknown; count?: number; price?: number }) => ({
-              key: crypto.randomUUID(),
-              _cloth: relationId(line._cloth),
-              count: Number(line.count || 1),
-              price: Number(line.price || 0),
-            }))
-          : [emptyItem()],
-      );
+      const next = lines.length ? lines.map((line) => draftFromLine(line)) : [emptyItem()];
+      setItems(next);
+      setOriginalLines(next);
     });
+  }
+
+  function changeCloth(key: string, clothId: string) {
+    const option = clothes.find((row) => row.value === clothId);
+    setItem(key, {
+      _cloth: clothId,
+      ...lineFromCloth(option, [], option?.price),
+    });
+  }
+
+  function takePackOnLine(key: string, itemsInPack: number) {
+    setItems((rows) =>
+      rows.map((row) => {
+        if (row.key !== key) return row;
+        const available = availableFor(row, rows);
+        const remaining = subtractPacks(available, row.packs) || [];
+        if (!takePack(remaining, itemsInPack)) return row;
+        const takenOrder = [...row.takenOrder, itemsInPack];
+        const packs = orderToPacks(takenOrder);
+        return { ...row, takenOrder, packs, count: totalItems(packs) };
+      }),
+    );
+  }
+
+  function untakePackOnLine(key: string) {
+    setItems((rows) =>
+      rows.map((row) => {
+        if (row.key !== key || !row.takenOrder.length) return row;
+        const takenOrder = row.takenOrder.slice(0, -1);
+        const packs = orderToPacks(takenOrder);
+        return { ...row, takenOrder, packs, count: totalItems(packs) };
+      }),
+    );
   }
 
   function openPay(invoice: Invoice) {
@@ -301,10 +385,11 @@ export function InvoiceCrud({
       const payload = {
         _client: client,
         receiverAddress: address,
-        items: items.map(({ _cloth, count, price }) => ({
+        items: items.map(({ _cloth, count, price, packs }) => ({
           _cloth,
           count: Number(count),
           price: Number(price),
+          packs,
         })),
       };
       const res = editing
@@ -327,6 +412,7 @@ export function InvoiceCrud({
           label: optionLabel(clothes, item._cloth),
           count: Number(item.count),
           price: Number(item.price),
+          packs: item.packs,
         })),
       });
       setOpen(false);
@@ -392,29 +478,35 @@ export function InvoiceCrud({
               </div>
               {items.map((item) => {
                 const itemError = showErrors && (!item._cloth || Number(item.count) < 1);
+                const option = clothes.find((row) => row.value === item._cloth);
+                const stock = packsFromCloth(option || {});
                 return (
                   <div
                     key={item.key}
-                    className="grid gap-2 rounded-lg bg-gray-50 p-3 md:grid-cols-[minmax(0,1.4fr)_7rem_8rem_auto_auto] md:items-end"
+                    className="grid gap-3 rounded-lg bg-gray-50 p-3 md:grid-cols-[minmax(0,1.2fr)_minmax(14rem,1fr)_8rem_auto_auto] md:items-start"
                   >
                     <Select
                       label="محصول *"
                       error={itemError && !item._cloth ? 'الزامی است' : undefined}
                       value={item._cloth}
-                      onChange={(v) => setItem(item.key, { _cloth: String(v ?? '') })}
+                      onChange={(v) => changeCloth(item.key, String(v ?? ''))}
                       options={clothes}
                       searchable
                       placeholder="انتخاب کنید"
                       labels={selectLabels}
                     />
-                    <Input
-                      label="تعداد *"
-                      type="number"
-                      min={1}
-                      error={itemError && Number(item.count) < 1 ? 'الزامی است' : undefined}
-                      value={item.count}
-                      onChange={(e) => setItem(item.key, { count: Number(e.target.value) })}
-                    />
+                    {item._cloth ? (
+                      <InvoicePackStepper
+                        packSize={stock.packSize}
+                        available={availableFor(item)}
+                        taken={item.packs}
+                        error={itemError && Number(item.count) < 1 ? 'حداقل یک بسته اضافه کنید' : undefined}
+                        onTake={(itemsInPack) => takePackOnLine(item.key, itemsInPack)}
+                        onUntake={() => untakePackOnLine(item.key)}
+                      />
+                    ) : (
+                      <p className="self-center text-sm text-gray-500">ابتدا محصول را انتخاب کنید</p>
+                    )}
                     <Input
                       label="فی"
                       type="number"
@@ -422,14 +514,14 @@ export function InvoiceCrud({
                       value={item.price}
                       onChange={(e) => setItem(item.key, { price: Number(e.target.value) })}
                     />
-                    <div className="pb-2 text-sm text-gray-600">
+                    <div className="pb-2 text-sm text-gray-600 md:pt-8">
                       {toman(Number(item.count || 0) * Number(item.price || 0))}
                     </div>
                     <IconButton
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="mb-1"
+                      className="md:mt-8"
                       disabled={items.length <= 1}
                       onClick={() => removeItem(item.key)}
                       aria-label="حذف قلم"
@@ -467,6 +559,7 @@ export function InvoiceCrud({
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-3 text-right">محصول</th>
+                      <th className="p-3 text-right">بسته‌ها</th>
                       <th className="p-3 text-right">تعداد</th>
                       <th className="p-3 text-right">فی</th>
                       <th className="p-3 text-right">مبلغ</th>
@@ -476,6 +569,7 @@ export function InvoiceCrud({
                     {summary.items.map((item, index) => (
                       <tr key={`${item.label}-${index}`} className="border-t">
                         <td className="p-3">{item.label}</td>
+                        <td className="p-3">{formatPacksFa(item.packs || [])}</td>
                         <td className="p-3">{item.count}</td>
                         <td className="p-3">{toman(item.price)}</td>
                         <td className="p-3">{toman(item.count * item.price)}</td>

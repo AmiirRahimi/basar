@@ -167,6 +167,17 @@ const ClothSchema = new Schema(
     washFee: Number,
     code: { type: String, required: true },
     count: { type: Number, required: true },
+    packSize: { type: Number, default: 1 },
+    packs: {
+      type: [
+        {
+          items: { type: Number, required: true },
+          count: { type: Number, required: true },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
     description: String,
     wholesalePrice: Number,
     minOrderQty: { type: Number, default: 12 },
@@ -198,6 +209,16 @@ const CustomerCartSchema = new Schema(
     _invoice: { type: Schema.Types.ObjectId, ref: 'Invoice', required: true },
     _cloth: { type: Schema.Types.ObjectId, ref: 'Cloth', required: true },
     count: { type: Number, required: true },
+    packs: {
+      type: [
+        {
+          items: { type: Number, required: true },
+          count: { type: Number, required: true },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
     price: { type: Number, required: true },
     timeStamp: { type: Date, default: Date.now },
     isDeleted: { type: Boolean, default: false },

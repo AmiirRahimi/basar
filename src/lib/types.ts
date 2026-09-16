@@ -1,6 +1,7 @@
 import type { StoreRole, StoreStaffRole } from './constants';
+import type { ClothPack } from './packs';
 
-export type { StoreRole, StoreStaffRole };
+export type { StoreRole, StoreStaffRole, ClothPack };
 
 export type NestEnvelope<T = unknown> = {
   hasError?: boolean;
@@ -101,6 +102,8 @@ export type Cloth = {
   _id: string;
   code?: string | number;
   count?: number;
+  packSize?: number;
+  packs?: ClothPack[];
   amountUsed?: number;
   boughtFee?: number;
   tailorFee?: number;
@@ -149,6 +152,7 @@ export type CartLine = {
   _invoice?: string;
   _cloth?: Cloth | string;
   count: number;
+  packs?: ClothPack[];
   price: number;
 };
 
@@ -194,4 +198,7 @@ export type FieldOption = {
   parent?: string;
   address?: string;
   price?: number;
+  packSize?: number;
+  packs?: ClothPack[];
+  count?: number;
 };

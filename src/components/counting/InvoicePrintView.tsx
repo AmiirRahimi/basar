@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/ui';
 import { displayName, faDate, toman } from '@/lib/format';
+import { formatPacksFa } from '@/lib/packs';
 import type { CartLine, Invoice } from '@/lib/types';
 
 export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: CartLine[] }) {
@@ -48,6 +49,7 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
           <thead className="invoice-print-table-header">
             <tr className="border-b bg-gray-100">
               <th className="p-3 text-right font-medium">محصول</th>
+              <th className="p-3 text-right font-medium">بسته‌ها</th>
               <th className="p-3 text-right font-medium">تعداد</th>
               <th className="p-3 text-right font-medium">فی</th>
               <th className="p-3 text-right font-medium">مبلغ ردیف</th>
@@ -58,6 +60,7 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
               lines.map((line, index) => (
                 <tr key={line._id || `${relationFallback(line)}-${index}`} className="border-b">
                   <td className="p-3">{displayName(line._cloth)}</td>
+                  <td className="p-3">{formatPacksFa(line.packs || [])}</td>
                   <td className="p-3">{line.count}</td>
                   <td className="p-3">{toman(line.price)}</td>
                   <td className="p-3">{toman(Number(line.count || 0) * Number(line.price || 0))}</td>
@@ -65,7 +68,7 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
               ))
             ) : (
               <tr>
-                <td className="p-3 text-gray-500" colSpan={4}>
+                <td className="p-3 text-gray-500" colSpan={5}>
                   قلمی ثبت نشده است
                 </td>
               </tr>
@@ -74,6 +77,7 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
           <tfoot>
             <tr className="font-medium">
               <td className="p-3">جمع</td>
+              <td className="p-3" />
               <td className="p-3">{totalCount}</td>
               <td className="p-3" />
               <td className="p-3">{toman(totalAmount)}</td>

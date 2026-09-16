@@ -11,6 +11,7 @@ import {
 } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
 import { clothUnitPrice } from '@/lib/cloth-price';
+import { formatPacksFa, packsFromCloth, totalItems } from '@/lib/packs';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { canWriteResource } from '@/lib/roles';
 
@@ -28,10 +29,15 @@ export default async function ClothesPage() {
     getWorkspace(),
   ]);
   guardSession(res);
-  const rows = (Array.isArray(res.data) ? res.data : []).map((row: Record<string, any>) => ({
-    ...row,
-    unitPrice: clothUnitPrice(row),
-  }));
+  const rows = (Array.isArray(res.data) ? res.data : []).map((row: Record<string, any>) => {
+    const stock = packsFromCloth(row);
+    return {
+      ...row,
+      unitPrice: clothUnitPrice(row),
+      count: totalItems(stock.packs) || Number(row.count || 0),
+      packSummary: formatPacksFa(stock.packs),
+    };
+  });
   const allowWrite = canWriteResource(workspace.data?.storeRole || 'owner', 'cloth', workspace.data?.isPlatformAdmin);
   return (
     <CountingShell title="البسه" error={errorMessage(res)}>
@@ -42,6 +48,7 @@ export default async function ClothesPage() {
         allowWrite={allowWrite}
         columns={[
           { header: 'کد', accessor: 'code' },
+          { header: 'بسته‌ها', accessor: 'packSummary' },
           { header: 'تعداد', accessor: 'count' },
           { header: 'نوع', accessor: '_type', format: 'name' },
           { header: 'مدل', accessor: '_style', format: 'name' },
@@ -58,7 +65,7 @@ export default async function ClothesPage() {
         ]}
         fields={[
           { name: 'code', label: 'کد', required: true },
-          { name: 'count', label: 'تعداد', type: 'number', required: true },
+          { name: 'packs', label: 'موجودی بسته‌ها', type: 'packs', required: true },
           { name: '_type', label: 'نوع', type: 'relation', options: kinds, required: true },
           { name: '_style', label: 'مدل', type: 'relation', options: styles, dependsOn: '_type', required: true },
           { name: '_size', label: 'سایز', type: 'relation', options: sizes, dependsOn: '_type', required: true },

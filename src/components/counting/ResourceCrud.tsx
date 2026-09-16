@@ -13,14 +13,23 @@ import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import {
+  encodePacksEditorValue,
+  mergePacks,
+  parsePacksEditorValue,
+  packsFromCloth,
+  totalItems,
+  validatePacksEditor,
+} from '@/lib/packs';
 import type { FieldOption } from '@/lib/types';
+import { ClothPacksEditor } from './ClothPacksEditor';
 
 export type { FieldOption };
 
 export type Field = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation';
+  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'packs';
   options?: FieldOption[];
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
@@ -95,6 +104,10 @@ export function ResourceCrud({
                 const next: Record<string, string> = {};
                 fields.forEach((f) => {
                   const value = row.original[f.name];
+                  if (f.type === 'packs') {
+                    next[f.name] = encodePacksEditorValue(packsFromCloth(row.original));
+                    return;
+                  }
                   next[f.name] =
                     value && typeof value === 'object' ? String(value._id || '') : String(value ?? '');
                 });
@@ -166,6 +179,9 @@ export function ResourceCrud({
 
   function missingFor(field: Field) {
     if (!isVisible(field)) return false;
+    if (field.type === 'packs') {
+      return Boolean(field.required) && Boolean(validatePacksEditor(parsePacksEditorValue(form[field.name])));
+    }
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
 
@@ -198,7 +214,9 @@ export function ResourceCrud({
     const missing = fields.filter(missingFor);
     if (missing.length) {
       setShowErrors(true);
-      toast.error(`تکمیل این موارد الزامی است: ${missing.map((f) => f.label).join('، ')}`);
+      const packField = missing.find((f) => f.type === 'packs');
+      const packError = packField ? validatePacksEditor(parsePacksEditorValue(form[packField.name])) : null;
+      toast.error(packError || `تکمیل این موارد الزامی است: ${missing.map((f) => f.label).join('، ')}`);
       return;
     }
     setShowErrors(false);
@@ -206,6 +224,13 @@ export function ResourceCrud({
       const payload: Record<string, unknown> = {};
       fields.forEach((f) => {
         if (!isVisible(f)) return;
+        if (f.type === 'packs') {
+          const parsed = parsePacksEditorValue(form[f.name]);
+          payload.packSize = parsed.packSize;
+          payload.packs = mergePacks(parsed.packs);
+          payload.count = totalItems(mergePacks(parsed.packs));
+          return;
+        }
         payload[f.name] = f.type === 'number' ? Number(form[f.name]) : form[f.name];
       });
       const res = editing
@@ -244,7 +269,7 @@ export function ResourceCrud({
       ) : (
         <EmptyState message={`هنوز ${title} ثبت نشده`} />
       )}
-      <Modal isOpen={open} onClose={() => setOpen(false)} size="lg">
+      <Modal isOpen={open} onClose={() => setOpen(false)} size={fields.some((field) => field.type === 'packs') ? 'xl' : 'lg'}>
         <FormCard>
           <h3 className="mb-4 text-lg font-medium">{editing ? `ویرایش ${title}` : `ثبت ${title}`}</h3>
           <div className="grid gap-3">
@@ -270,6 +295,19 @@ export function ResourceCrud({
                     placeholder="انتخاب کنید"
                     hint={waitingOnParent ? `ابتدا ${parentLabel} را انتخاب کنید` : undefined}
                     labels={{ search: 'جستجو', remove: 'حذف انتخاب', noOptionsFound: 'موردی یافت نشد' }}
+                  />
+                );
+              }
+
+              if (field.type === 'packs') {
+                const packsError = showErrors ? validatePacksEditor(parsePacksEditorValue(form[field.name])) : undefined;
+                return (
+                  <ClothPacksEditor
+                    key={field.name}
+                    label={label}
+                    value={form[field.name] || ''}
+                    onChange={(next) => setValue(field, next)}
+                    error={packsError || undefined}
                   />
                 );
               }

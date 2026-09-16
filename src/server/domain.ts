@@ -1,5 +1,18 @@
 import mongoose from 'mongoose';
 import { fabricLotTotal, fabricUnitCost, clothPayTotal } from '@/lib/cloth-price';
+import {
+  addPacks,
+  itemsToPacks,
+  mergePacks,
+  packsFromCloth,
+  parsePacks,
+  parsePacksEditorValue,
+  subtractPacks,
+  takeItemsAsPacks,
+  totalItems,
+  validatePacksEditor,
+  type ClothPack,
+} from '@/lib/packs';
 import { isPayablePersonRole, personRoleLabel } from '@/lib/constants';
 import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
 import { canWriteResource } from '@/lib/roles';
@@ -216,6 +229,34 @@ function applyClothAvailability(session: Session, body: Record<string, unknown>)
   return body;
 }
 
+function applyClothInventory(body: Record<string, unknown>): ActionResult<Record<string, unknown>> {
+  let packSize = Math.trunc(Number(body.packSize || 0));
+  let packs = parsePacks(body.packs);
+  if (typeof body.packs === 'string') {
+    const editor = parsePacksEditorValue(body.packs);
+    packs = mergePacks(editor.packs);
+    if (!packSize) packSize = editor.packSize;
+  }
+  packs = mergePacks(packs);
+  if (!packs.length && Number(body.count || 0) > 0) {
+    packSize = packSize > 0 ? packSize : 1;
+    packs = itemsToPacks(Number(body.count), packSize);
+  }  
+  const size = packSize > 0 ? packSize : Math.max(0, ...packs.map((pack) => pack.items));
+  const invalid = validatePacksEditor({ packSize: size, packs });
+  if (invalid) return fail(invalid);
+  body.packSize = size;
+  body.packs = packs;
+  body.count = totalItems(packs);
+  return ok(body);
+}
+
+function linePacks(item: any, packSize: number): ClothPack[] {
+  const packs = mergePacks(parsePacks(item?.packs));
+  if (packs.length) return packs;
+  return itemsToPacks(Number(item?.count || 0), packSize);
+}
+
 async function applyClothCost(body: Record<string, unknown>) {
   const fabricId = body._producedFrom;
   const amountUsed = Number(body.amountUsed || 0);
@@ -264,41 +305,68 @@ function clothSellsInStore(cloth: any, session: Session) {
   return String(cloth._storeId) === String(session._storeId);
 }
 
+async function writeStock(clothId: unknown, packs: ClothPack[]) {
+  const id = typeof clothId === 'object' && clothId && '_id' in (clothId as object) ? (clothId as { _id: unknown })._id : clothId;
+  await M().Cloth.updateOne({ _id: oid(id) }, { packs, count: totalItems(packs) });
+}
+
 async function changeStock(clothId: unknown, delta: number) {
   const id = typeof clothId === 'object' && clothId && '_id' in (clothId as object) ? (clothId as { _id: unknown })._id : clothId;
   const cloth = await M().Cloth.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!cloth) return fail('لباس پیدا نشد');
-  const next = Number(cloth.count || 0) + delta;
-  if (next < 0) return fail('موجودی این لباس کافی نیست');
-  await M().Cloth.updateOne({ _id: cloth._id }, { count: next });
+  const stock = packsFromCloth(cloth);
+  if (delta > 0) {
+    await writeStock(cloth._id, addPacks(stock.packs, itemsToPacks(delta, stock.packSize)));
+    return ok(null);
+  }
+  if (delta < 0) {
+    const taken = takeItemsAsPacks(stock.packs, -delta, stock.packSize);
+    if (!taken) return fail('موجودی این لباس کافی نیست');
+    const next = subtractPacks(stock.packs, taken);
+    if (!next) return fail('موجودی این لباس کافی نیست');
+    await writeStock(cloth._id, next);
+  }
   return ok(null);
 }
 
-async function sellItems(session: Session, items: any[]) {
-  const needed = new Map<string, number>();
+async function sellItems(session: Session, items: any[]): Promise<ActionResult<any[]>> {
+  const needed = new Map<string, ClothPack[]>();
+  const prepared: any[] = [];
   for (const item of items) {
     const id = lineClothId(item);
     if (!id) continue;
-    needed.set(id, (needed.get(id) || 0) + Number(item.count || 0));
-  }
-  for (const [id, qty] of needed) {
     const cloth = await M().Cloth.findOne({ _id: oid(id), isDeleted: false }).lean();
     if (!cloth) return fail('لباس پیدا نشد');
     if (!clothSellsInStore(cloth, session)) return fail('این لباس در این فروشگاه قابل فروش نیست');
-    if (Number(cloth.count || 0) < qty) return fail('موجودی این لباس کافی نیست');
+    const stock = packsFromCloth(cloth);
+    const taken = linePacks(item, stock.packSize);
+    if (!taken.length) return fail('حداقل یک بسته انتخاب کنید');
+    prepared.push({ ...item, packs: taken, count: totalItems(taken) });
+    needed.set(id, addPacks(needed.get(id) || [], taken));
   }
-  for (const [id, qty] of needed) {
-    const result = await changeStock(id, -qty);
-    if (!result.ok) return result;
+  const nextById = new Map<string, ClothPack[]>();
+  for (const [id, taken] of needed) {
+    const cloth = await M().Cloth.findOne({ _id: oid(id), isDeleted: false }).lean();
+    if (!cloth) return fail('لباس پیدا نشد');
+    const next = subtractPacks(packsFromCloth(cloth).packs, taken);
+    if (!next) return fail('موجودی این لباس کافی نیست');
+    nextById.set(id, next);
   }
-  return ok(null);
+  for (const [id, packs] of nextById) {
+    await writeStock(id, packs);
+  }
+  return ok(prepared);
 }
 
 async function restoreItems(items: any[]) {
   for (const item of items) {
     const id = lineClothId(item);
     if (!id) continue;
-    await changeStock(id, Number(item.count || 0));
+    const cloth = await M().Cloth.findOne({ _id: oid(id), isDeleted: false }).lean();
+    if (!cloth) continue;
+    const stock = packsFromCloth(cloth);
+    const returned = linePacks(item, stock.packSize);
+    await writeStock(cloth._id, addPacks(stock.packs, returned));
   }
 }
 
@@ -313,6 +381,7 @@ export async function createResource(resource: string, payload: unknown): Promis
     const items = Array.isArray(body.items) ? body.items : [];
     const sold = await sellItems(auth.session, items);
     if (!sold.ok) return sold;
+    const soldItems = sold.data || [];
     let invoiceNumber = Math.floor(10000 + Math.random() * 9000);
     while (await M().Invoice.exists({ invoiceNumber })) {
       invoiceNumber = Math.floor(10000 + Math.random() * 9000);
@@ -320,9 +389,9 @@ export async function createResource(resource: string, payload: unknown): Promis
     const created = await M().Invoice.create(
       preparePayload(auth.session, resource, { ...body, items: undefined, invoiceNumber }),
     );
-    if (items.length) {
+    if (soldItems.length) {
       await M().CustomerCart.insertMany(
-        items.map((item: any) => ({
+        soldItems.map((item: any) => ({
           ...preparePayload(auth.session, 'customer-cart', item),
           _invoice: created._id,
         })),
@@ -338,7 +407,8 @@ export async function createResource(resource: string, payload: unknown): Promis
   if (resource === 'customer-cart') {
     const sold = await sellItems(auth.session, [body]);
     if (!sold.ok) return sold;
-    const created = await M().CustomerCart.create(preparePayload(auth.session, resource, body));
+    const line = sold.data?.[0] || body;
+    const created = await M().CustomerCart.create(preparePayload(auth.session, resource, line));
     await created.populate('_cloth');
     return ok(serialize(created.toObject()), 'ثبت شد');
   }
@@ -348,6 +418,9 @@ export async function createResource(resource: string, payload: unknown): Promis
   let next = preparePayload(auth.session, resource, body);
   if (resource === 'cloth') {
     next = applyClothAvailability(auth.session, next);
+    const inventoried = applyClothInventory(next);
+    if (!inventoried.ok) return inventoried;
+    next = inventoried.data || next;
     next = await applyClothCost(next);
   }
   if (resource === 'check') {
@@ -389,16 +462,14 @@ export async function updateResource(resource: string, id: string, payload: unkn
       await restoreItems(previous);
       const sold = await sellItems(auth.session, items.filter((item: any) => item && item._cloth));
       if (!sold.ok) {
-        await restoreItems(
-          previous.map((item: any) => ({ ...item, count: -Number(item.count || 0) })),
-        );
+        await sellItems(auth.session, previous);
         return sold;
       }
       await M().CustomerCart.updateMany(
         { _invoice: oid(id), _storeId: oid(auth.session._storeId) },
         { isDeleted: true },
       );
-      const validItems = items.filter((item: any) => item && item._cloth);
+      const validItems = sold.data || [];
       if (validItems.length) {
         await M().CustomerCart.insertMany(
           validItems.map((item: any) => ({
@@ -425,12 +496,16 @@ export async function updateResource(resource: string, id: string, payload: unkn
       await sellItems(auth.session, [previous]);
       return sold;
     }
+    Object.assign(raw, sold.data?.[0] || {});
   }
 
   let body = preparePayload(auth.session, resource, raw);
   delete body._storeId;
   if (resource === 'cloth') {
     body = applyClothAvailability(auth.session, body);
+    const inventoried = applyClothInventory(body);
+    if (!inventoried.ok) return inventoried;
+    body = inventoried.data || body;
     body = await applyClothCost(body);
   }
   if (resource === 'check') {
