@@ -13,6 +13,7 @@ import { fileModels } from './file-db';
 import * as mongo from './models';
 import { fail, failAuth, ok, type ActionResult } from './result';
 import { requireSession, setAuthCookies, signTokens, type Session } from './session';
+import { listPurchases, subscriptionForSession } from './subscription';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -238,7 +239,16 @@ export async function withWorkspace() {
   if ('error' in auth) return { error: auth.error as ActionResult };
   const role = await resolveStoreRole(auth.session);
   if (!role) return { error: fail('به این فروشگاه دسترسی ندارید', 403) as ActionResult };
-  return { session: { ...auth.session, storeRole: role, isPlatformAdmin: isPlatformAdmin(auth.session.phonenumber) } };
+  const isAdmin = isPlatformAdmin(auth.session.phonenumber);
+  const subscription = await subscriptionForSession({ ...auth.session, storeRole: role, isPlatformAdmin: isAdmin });
+  return {
+    session: {
+      ...auth.session,
+      storeRole: role,
+      isPlatformAdmin: isAdmin,
+      subscriptionActive: subscription.active,
+    },
+  };
 }
 
 function memberView(row: any) {
@@ -334,6 +344,15 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
   const partners = partnerRows.map(partnerView);
 
   const role = await resolveStoreRole({ ...auth.session, ...context });
+  const isAdmin = isPlatformAdmin(String(user.phonenumber));
+  const subscription = await subscriptionForSession({
+    ...auth.session,
+    ...context,
+    storeRole: role || context.storeRole,
+    isPlatformAdmin: isAdmin,
+  });
+  const purchases =
+    role === 'owner' || isAdmin ? await listPurchases(String(user._id)) : [];
   return ok(
     serialize({
       user: {
@@ -347,7 +366,10 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       activeBrandId: context._brandId,
       activeStoreId: context._storeId,
       storeRole: role || context.storeRole,
-      isPlatformAdmin: isPlatformAdmin(String(user.phonenumber)),
+      isPlatformAdmin: isAdmin,
+      subscriptionActive: subscription.active,
+      subscription,
+      purchases,
       contextChanged:
         context._storeId !== auth.session._storeId || context._brandId !== auth.session._brandId,
     }),
@@ -376,6 +398,37 @@ export async function switchWorkspace(payload: { brandId: string; storeId: strin
   return ok({ _brandId: session._brandId, _storeId: session._storeId, storeRole: session.storeRole }, 'فروشگاه فعال شد');
 }
 
+function denyExpired(session: Session) {
+  if (session.isPlatformAdmin) return null;
+  if (session.subscriptionActive === false) {
+    return fail('اشتراک تمام شده است. فقط مشاهده ممکن است. از تنظیمات اشتراک بخرید.', 403);
+  }
+  return null;
+}
+
+async function assertPlanLimits(session: Session, kind: 'brand' | 'store' | 'partner') {
+  const expired = denyExpired(session);
+  if (expired) return expired;
+  if (session.isPlatformAdmin) return null;
+  const sub = await subscriptionForSession(session);
+  if (!sub.active) return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
+  if (kind === 'partner' && !sub.allowPartners) {
+    return fail('طرح فعلی اجازه ثبت شریک ندارد. طرح شرکا یا برندها را بخرید.');
+  }
+  const ownedBrands = await M().Brand.find({ _userId: oid(session._id), isDeleted: false }).lean();
+  if (kind === 'brand' && ownedBrands.length >= sub.maxBrands) {
+    return fail(`طرح فعلی حداکثر ${sub.maxBrands === 99 ? 'نامحدود' : sub.maxBrands} برند می‌دهد. برای برند بیشتر طرح را ارتقا دهید.`);
+  }
+  if (kind === 'store') {
+    const ids = ownedBrands.map((brand: any) => brand._id);
+    const count = ids.length ? await M().Store.countDocuments({ _brandId: { $in: ids }, isDeleted: false }) : 0;
+    if (count >= sub.maxStores) {
+      return fail(`طرح فعلی حداکثر ${sub.maxStores === 99 ? 'نامحدود' : sub.maxStores} فروشگاه می‌دهد. برای فروشگاه بیشتر طرح را ارتقا دهید.`);
+    }
+  }
+  return null;
+}
+
 function nextBrandColor(count: number) {
   return BRAND_COLORS[count % BRAND_COLORS.length];
 }
@@ -386,6 +439,8 @@ export async function createBrand(payload: Record<string, unknown>): Promise<Act
   if (access.session.storeRole !== 'owner' && !access.session.isPlatformAdmin) {
     return fail('فقط صاحب برند می‌تواند برند جدید بسازد', 403);
   }
+  const limited = await assertPlanLimits(access.session, 'brand');
+  if (limited) return limited;
   const name = String(payload.name || '').trim();
   if (!name) return fail('نام برند الزامی است');
   const count = await M().Brand.countDocuments({ _userId: oid(access.session._id), isDeleted: false });
@@ -410,6 +465,8 @@ export async function createBrand(payload: Record<string, unknown>): Promise<Act
 export async function updateBrand(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const brand = await M().Brand.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!brand) return fail('برند پیدا نشد', 404);
   if (String(brand._userId) !== access.session._id && !access.session.isPlatformAdmin) {
@@ -427,6 +484,8 @@ export async function updateBrand(id: string, payload: Record<string, unknown>):
 export async function deleteBrand(id: string): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const brand = await M().Brand.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!brand) return fail('برند پیدا نشد', 404);
   if (String(brand._userId) !== access.session._id && !access.session.isPlatformAdmin) {
@@ -451,6 +510,8 @@ async function requireBrandOwner(session: Session, brandId: string) {
 export async function createStore(payload: Record<string, unknown>): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const limited = await assertPlanLimits(access.session, 'store');
+  if (limited) return limited;
   const brandId = String(payload._brandId || access.session._brandId || '');
   const owned = await requireBrandOwner(access.session, brandId);
   if ('error' in owned) return owned.error;
@@ -472,6 +533,8 @@ export async function createStore(payload: Record<string, unknown>): Promise<Act
 export async function updateStore(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const store = await M().Store.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!store) return fail('فروشگاه پیدا نشد', 404);
   const owned = String((await M().Brand.findOne({ _id: store._brandId }).lean())?._userId) === access.session._id;
@@ -488,6 +551,8 @@ export async function updateStore(id: string, payload: Record<string, unknown>):
 export async function deleteStore(id: string): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const store = await M().Store.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!store) return fail('فروشگاه پیدا نشد', 404);
   const owned = await requireBrandOwner(access.session, idOf(store._brandId));
@@ -502,6 +567,8 @@ export async function deleteStore(id: string): Promise<ActionResult> {
 export async function inviteStoreMember(payload: Record<string, unknown>): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const storeId = String(payload._storeId || access.session._storeId);
   const store = await M().Store.findOne({ _id: oid(storeId), isDeleted: false }).lean();
   if (!store) return fail('فروشگاه پیدا نشد', 404);
@@ -533,6 +600,8 @@ export async function inviteStoreMember(payload: Record<string, unknown>): Promi
 export async function updateStoreMember(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const member = await M().StoreMember.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!member) return fail('همکار پیدا نشد', 404);
   const owned = String((await M().Brand.findOne({ _id: member._brandId }).lean())?._userId) === access.session._id;
@@ -552,6 +621,8 @@ export async function updateStoreMember(id: string, payload: Record<string, unkn
 export async function removeStoreMember(id: string): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const member = await M().StoreMember.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!member) return fail('همکار پیدا نشد', 404);
   const owned = String((await M().Brand.findOne({ _id: member._brandId }).lean())?._userId) === access.session._id;
@@ -685,6 +756,8 @@ export async function listPartners(): Promise<ActionResult> {
 export async function createPartner(payload: Record<string, unknown>): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const limited = await assertPlanLimits(access.session, 'partner');
+  if (limited) return limited;
   const scope = parsePartnerScope(payload);
   const denied = await assertCanSavePartner(access.session, scope);
   if (denied) return denied;
@@ -712,6 +785,8 @@ export async function createPartner(payload: Record<string, unknown>): Promise<A
 export async function updatePartner(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const partner = await M().Partner.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!partner) return fail('شریک پیدا نشد', 404);
   const scope = parsePartnerScope(payload, partner);
@@ -748,6 +823,8 @@ export async function updatePartner(id: string, payload: Record<string, unknown>
 export async function deletePartner(id: string): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
+  const expired = denyExpired(access.session);
+  if (expired) return expired;
   const partner = await M().Partner.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!partner) return fail('شریک پیدا نشد', 404);
   const denied = await assertCanSavePartner(access.session, parsePartnerScope({}, partner));

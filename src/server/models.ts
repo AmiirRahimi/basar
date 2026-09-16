@@ -22,7 +22,10 @@ const UserSchema = new Schema(
 const UserSubscriptionSchema = new Schema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    planId: { type: String, default: 'starter' },
+    billingCycle: { type: String, default: 'month' },
     subscriptionType: { type: Number, required: true },
+    price: { type: Number, default: 0 },
     startDate: { type: Date, required: true, default: Date.now },
     endDate: { type: Date, required: true },
   },

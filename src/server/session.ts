@@ -11,6 +11,7 @@ export type Session = {
   _brandId: string;
   storeRole: StoreRole;
   isPlatformAdmin?: boolean;
+  subscriptionActive?: boolean;
 };
 
 const COOKIE_MAX_AGE = SESSION_DAYS * 24 * 60 * 60;

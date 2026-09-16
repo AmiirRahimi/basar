@@ -14,6 +14,8 @@ import { RowActions } from './RowActions';
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { ClothPacksEditor } from './ClothPacksEditor';
+import { useWritable } from './useWritable';
 import {
   encodePacksEditorValue,
   mergePacks,
@@ -23,7 +25,6 @@ import {
   validatePacksEditor,
 } from '@/lib/packs';
 import type { FieldOption } from '@/lib/types';
-import { ClothPacksEditor } from './ClothPacksEditor';
 
 export type { FieldOption };
 
@@ -72,6 +73,8 @@ export function ResourceCrud({
   const [form, setForm] = useState<Record<string, string>>({});
   const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
+  const subscriptionWritable = useWritable();
+  const writable = allowWrite && subscriptionWritable;
 
   const tableColumns = useMemo(() => {
     const helper = createColumnHelper<any>();
@@ -89,14 +92,14 @@ export function ResourceCrud({
         },
       }),
     );
-    if (allowWrite) {
+    if (writable) {
       defs.push(
       helper.display({
         id: 'actions',
         header: 'عملیات',
         size: 112,
         cell: ({ row }) =>
-          allowWrite ? (
+          writable ? (
             <RowActions
               onEdit={() => {
                 setEditing(row.original);
@@ -131,7 +134,7 @@ export function ResourceCrud({
     );
     }
     return defs;
-  }, [allowWrite, columns, fields, resource, reload]);
+  }, [writable, columns, fields, resource, reload]);
 
   const table = useReactTable({
     data: rows,
@@ -242,7 +245,7 @@ export function ResourceCrud({
 
   return (
     <div className="space-y-4">
-      {allowWrite ? (
+      {writable ? (
       <div className="flex justify-end">
         <Button
           onClick={() => {

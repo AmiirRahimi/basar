@@ -6,12 +6,11 @@ import { BadgePercent, Building2, Handshake, UserRound } from 'lucide-react';
 import { updateProfile } from '@/actions/auth';
 import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import { STORE_STAFF_ROLES } from '@/lib/constants';
-import { faNumber } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, Input, Select, toast } from '@/ui';
 import { BrandStoreWorkspace } from './BrandStoreWorkspace';
 import { PartnersPanel } from './PartnersPanel';
-import { SubscriptionForm } from './SubscriptionForm';
+import { SubscriptionPanel } from './SubscriptionPanel';
 import { useWorkspace } from './WorkspaceProvider';
 
 const selectLabels = {
@@ -105,15 +104,7 @@ export function ProfileSettings({
         />
       ) : null}
       {activeTab === 'subscription' ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-xs text-gray-500">روز باقیمانده</p>
-            <p className="mt-1 text-3xl font-semibold text-gray-900">
-              {faNumber(user.remainingDaysOfSubscription)}
-            </p>
-          </div>
-          <SubscriptionForm />
-        </div>
+        <SubscriptionPanel subscription={workspace?.subscription} purchases={workspace?.purchases} />
       ) : null}
     </div>
   );

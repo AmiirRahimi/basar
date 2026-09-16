@@ -32,6 +32,7 @@ import { redirectIfUnauthorized } from '@/lib/session-client';
 import { checkAvailableForPayment } from '@/lib/checks';
 import { PaymentForm } from './PaymentForm';
 import { RowActions } from './RowActions';
+import { useWritable } from './useWritable';
 import {
   addPacks,
   formatPacksFa,
@@ -127,6 +128,7 @@ export function InvoiceCrud({
   const [originalLines, setOriginalLines] = useState<DraftItem[]>([]);
   const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
+  const writable = useWritable();
 
   const totals = useMemo(() => {
     const count = items.reduce((sum, item) => sum + Number(item.count || 0), 0);
@@ -187,32 +189,40 @@ export function InvoiceCrud({
         size: 176,
         cell: ({ row }) => (
           <RowActions
-            onEdit={() => openEdit(row.original)}
+            onEdit={writable ? () => openEdit(row.original) : undefined}
             extraActions={[
-              {
-                label: 'پرداخت',
-                icon: <Banknote className="size-3.5" />,
-                onClick: () => openPay(row.original),
-              },
+              ...(writable
+                ? [
+                    {
+                      label: 'پرداخت',
+                      icon: <Banknote className="size-3.5" />,
+                      onClick: () => openPay(row.original),
+                    },
+                  ]
+                : []),
               {
                 label: 'چاپ',
                 icon: <Printer className="size-3.5" />,
                 onClick: () => router.push(`/counting/invoices/${row.original._id}/print`),
               },
             ]}
-            onDelete={async () => {
-              const res = await deleteResource('invoice', row.original._id);
-              if (redirectIfUnauthorized(res)) return;
-              if (res.ok) toast.success(res.message || 'حذف شد');
-              else toast.error(res.message || 'حذف نشد');
-              router.refresh();
-            }}
+            onDelete={
+              writable
+                ? async () => {
+                    const res = await deleteResource('invoice', row.original._id);
+                    if (redirectIfUnauthorized(res)) return;
+                    if (res.ok) toast.success(res.message || 'حذف شد');
+                    else toast.error(res.message || 'حذف نشد');
+                    router.refresh();
+                  }
+                : undefined
+            }
           />
         ),
       }),
     );
     return defs;
-  }, [router]);
+  }, [router, writable]);
 
   const table = useReactTable({
     data: invoices,
@@ -430,9 +440,11 @@ export function InvoiceCrud({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openCreate}>ثبت فاکتور</Button>
-      </div>
+      {writable ? (
+        <div className="flex justify-end">
+          <Button onClick={openCreate}>ثبت فاکتور</Button>
+        </div>
+      ) : null}
       {invoices.length ? (
         <BasicTable table={table} isLoading={pending} labels={{ nothingToShow: 'موردی نیست' }} />
       ) : (
@@ -572,17 +584,19 @@ export function InvoiceCrud({
                 <span>جمع تعداد: {summaryTotals.count}</span>
                 <span>جمع مبلغ: {toman(summaryTotals.amount)}</span>
               </div>
-              <PaymentForm
-                personId={summary.personId}
-                invoiceId={summary.id}
-                total={summaryTotals.amount}
-                remaining={summaryTotals.amount}
-                checks={checksForPerson(summary.personId)}
-                onSaved={() => {
-                  setSummary(null);
-                  router.refresh();
-                }}
-              />
+              {writable ? (
+                <PaymentForm
+                  personId={summary.personId}
+                  invoiceId={summary.id}
+                  total={summaryTotals.amount}
+                  remaining={summaryTotals.amount}
+                  checks={checksForPerson(summary.personId)}
+                  onSaved={() => {
+                    setSummary(null);
+                    router.refresh();
+                  }}
+                />
+              ) : null}
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={() => setSummary(null)}>
                   بستن

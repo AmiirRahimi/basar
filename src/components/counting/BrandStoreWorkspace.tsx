@@ -20,6 +20,7 @@ import type { WorkspaceBrand, WorkspaceMember, WorkspaceStore } from '@/lib/type
 import { Button, EmptyState, Input, Modal, Select, toast } from '@/ui';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { useWorkspace } from './WorkspaceProvider';
+import { useWritable } from './useWritable';
 
 const selectLabels = {
   search: 'جستجو',
@@ -80,6 +81,7 @@ export function BrandStoreWorkspace() {
   const workspace = useWorkspace();
   const router = useRouter();
   const [pending, start] = useTransition();
+  const writable = useWritable();
   const isOwner = workspace?.storeRole === 'owner' || Boolean(workspace?.isPlatformAdmin);
   const brands = workspace?.brands || [];
   const stores = workspace?.stores || [];
@@ -129,8 +131,8 @@ export function BrandStoreWorkspace() {
       <StorePanel
         store={mine}
         brand={brands.find((brand) => brand._id === mine?._brandId)}
-        canInvite={workspace.storeRole === 'admin'}
-        canEdit={workspace.storeRole === 'admin'}
+        canInvite={writable && workspace.storeRole === 'admin'}
+        canEdit={writable && workspace.storeRole === 'admin'}
         pending={pending}
         invite={invite}
         setInvite={setInvite}
@@ -147,22 +149,24 @@ export function BrandStoreWorkspace() {
         <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
         <div className="mb-2 flex items-center justify-between px-1">
           <p className="text-xs font-medium text-gray-500">برندها</p>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            onClick={() => {
-              setBrandForm({
-                name: '',
-                description: '',
-                color: BRAND_COLORS[brands.length % BRAND_COLORS.length],
-                logo: '',
-              });
-              setBrandModal('create');
-            }}
-            aria-label="برند جدید"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          {writable ? (
+            <button
+              type="button"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              onClick={() => {
+                setBrandForm({
+                  name: '',
+                  description: '',
+                  color: BRAND_COLORS[brands.length % BRAND_COLORS.length],
+                  logo: '',
+                });
+                setBrandModal('create');
+              }}
+              aria-label="برند جدید"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
         {brands.length ? (
           <div className="space-y-1">
@@ -210,43 +214,45 @@ export function BrandStoreWorkspace() {
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setBrandForm({
-                      name: selectedBrand.name,
-                      description: selectedBrand.description || '',
-                      color: selectedBrand.color || BRAND_COLORS[0],
-                      logo: selectedBrand.logo || '',
-                    });
-                    setBrandModal('edit');
-                  }}
-                >
-                  ویرایش برند
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setStoreForm({ name: '', address: '', phonenumbers: '', city: '' });
-                    setStoreModal(true);
-                  }}
-                >
-                  <Plus className="ml-1 h-4 w-4" />
-                  فروشگاه
-                </Button>
-                {brands.length > 1 ? (
+              {writable ? (
+                <div className="flex flex-wrap gap-2">
                   <Button
-                    variant="danger"
+                    variant="outline"
                     size="sm"
-                    disabled={pending}
-                    onClick={() => run(() => deleteBrand(selectedBrand._id), 'برند حذف شد')}
+                    onClick={() => {
+                      setBrandForm({
+                        name: selectedBrand.name,
+                        description: selectedBrand.description || '',
+                        color: selectedBrand.color || BRAND_COLORS[0],
+                        logo: selectedBrand.logo || '',
+                      });
+                      setBrandModal('edit');
+                    }}
                   >
-                    حذف
+                    ویرایش برند
                   </Button>
-                ) : null}
-              </div>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setStoreForm({ name: '', address: '', phonenumbers: '', city: '' });
+                      setStoreModal(true);
+                    }}
+                  >
+                    <Plus className="ml-1 h-4 w-4" />
+                    فروشگاه
+                  </Button>
+                  {brands.length > 1 ? (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => run(() => deleteBrand(selectedBrand._id), 'برند حذف شد')}
+                    >
+                      حذف
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </section>
 
@@ -299,8 +305,8 @@ export function BrandStoreWorkspace() {
               key={selectedStore._id}
               store={selectedStore}
               brand={selectedBrand}
-              canInvite
-              canEdit
+              canInvite={writable}
+              canEdit={writable}
               pending={pending}
               invite={invite}
               setInvite={setInvite}
@@ -311,7 +317,7 @@ export function BrandStoreWorkspace() {
               onRole={(id, role) => run(() => updateStoreMember(id, { role }))}
               onRemove={(id) => run(() => removeStoreMember(id), 'حذف شد')}
               onDelete={
-                brandStores.length > 1
+                writable && brandStores.length > 1
                   ? () => run(() => deleteStore(selectedStore._id), 'فروشگاه حذف شد')
                   : undefined
               }
@@ -505,17 +511,23 @@ function StorePanel({
                       {member.status === 'pending' ? ' · در انتظار ورود' : ''}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Select
-                      value={member.role}
-                      onChange={(v) => onRole(member._id, String(v) as StoreStaffRole)}
-                      options={roleOptions}
-                      labels={selectLabels}
-                    />
-                    <Button size="sm" variant="danger" disabled={pending} onClick={() => onRemove(member._id)}>
-                      حذف
-                    </Button>
-                  </div>
+                  {canEdit ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Select
+                        value={member.role}
+                        onChange={(v) => onRole(member._id, String(v) as StoreStaffRole)}
+                        options={roleOptions}
+                        labels={selectLabels}
+                      />
+                      <Button size="sm" variant="danger" disabled={pending} onClick={() => onRemove(member._id)}>
+                        حذف
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-500">
+                      {STORE_STAFF_ROLES[member.role] || member.role}
+                    </span>
+                  )}
                 </div>
               ))
             ) : (

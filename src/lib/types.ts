@@ -107,6 +107,28 @@ export type Workspace = {
   activeStoreId: string;
   storeRole: StoreRole;
   isPlatformAdmin: boolean;
+  subscriptionActive: boolean;
+  subscription?: {
+    active?: boolean;
+    remainingDays: number;
+    planId?: string;
+    planName?: string;
+    billingCycle?: 'month' | 'year';
+    startDate?: string;
+    endDate?: string;
+    maxBrands?: number;
+    maxStores?: number;
+    allowPartners?: boolean;
+  };
+  purchases?: {
+    _id: string;
+    planName?: string;
+    billingCycle?: string;
+    price?: number;
+    startDate?: string;
+    endDate?: string;
+    active?: boolean;
+  }[];
   contextChanged?: boolean;
 };
 

@@ -12,26 +12,10 @@ import {
   ensureOwnerWorkspace,
   resolveLoginContext,
 } from './workspace';
+import { buyPlan, remainingDays } from './subscription';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
-}
-
-async function remainingDays(userId: string) {
-  const sub = await M().UserSubscription.findOne({ _userId: userId, endDate: { $gte: new Date() } }).sort({ endDate: -1 }).lean();
-  if (!sub) return 0;
-  return Math.max(0, Math.ceil((new Date(sub.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-}
-
-async function ensureSubscription(userId: string) {
-  const active = await M().UserSubscription.countDocuments({ _userId: userId, endDate: { $gte: new Date() } });
-  if (active) return;
-  await M().UserSubscription.create({
-    _userId: userId,
-    subscriptionType: 1,
-    startDate: new Date(),
-    endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-  });
 }
 
 export async function checkPhone(phonenumber: string): Promise<ActionResult> {
@@ -106,7 +90,6 @@ export async function loginWithOtp(form: {
   await ensureOwnerWorkspace(userId, user.fullName, phonenumber);
   const context = await resolveLoginContext(userId, phonenumber);
   if (!context) return fail('فروشگاهی برای ورود پیدا نشد');
-  await ensureSubscription(userId);
   const session: Session = {
     _id: userId,
     phonenumber: String(user.phonenumber),
@@ -169,25 +152,12 @@ export async function updateProfile(payload: Record<string, unknown>): Promise<A
 }
 
 export async function activateSubscription(payload: Record<string, unknown>): Promise<ActionResult> {
-  const { requireSession } = await import('./session');
-  await db();
-  const auth = await requireSession();
-  if ('error' in auth) return auth.error;
-  const type = Number(payload.subscriptionType || 1);
-  const day = 24 * 60 * 60 * 1000;
-  let end = Date.now() + 30 * day;
-  if (type === 3) end = Date.now() + 12 * 30 * day;
-  if (type === 1) {
-    const usedFree = await M().UserSubscription.countDocuments({ _userId: auth.session._id, subscriptionType: 1 });
-    if (usedFree > 0) return fail('اشتراک رایگان قبلاً استفاده شده');
-  }
-  await M().UserSubscription.create({
-    _userId: new mongoose.Types.ObjectId(auth.session._id),
-    subscriptionType: type,
-    startDate: new Date(),
-    endDate: new Date(end),
-  });
-  return ok({ remainingDaysOfSubscription: await remainingDays(auth.session._id) }, 'اشتراک فعال شد');
+  const { withWorkspace } = await import('./workspace');
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const planId = String(payload.planId || 'starter');
+  const cycle = payload.billingCycle === 'year' ? 'year' : 'month';
+  return buyPlan(access.session, planId, cycle);
 }
 
 export async function listUsers(page = 1, skip = 50): Promise<ActionResult> {

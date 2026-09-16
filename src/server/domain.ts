@@ -52,7 +52,11 @@ async function withSession() {
 }
 
 function denyWrite(session: Session, resource: string) {
-  if (!canWriteResource(session.storeRole, resource, session.isPlatformAdmin)) {
+  if (session.isPlatformAdmin) return null;
+  if (session.subscriptionActive === false) {
+    return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
+  }
+  if (!canWriteResource(session.storeRole, resource, session.isPlatformAdmin, session.subscriptionActive !== false)) {
     return fail('اجازه این کار را ندارید', 403);
   }
   return null;

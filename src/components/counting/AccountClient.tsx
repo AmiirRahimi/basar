@@ -8,6 +8,7 @@ import { displayName, faDate, toman } from '@/lib/format';
 import { personRoleLabel } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { PaymentForm } from './PaymentForm';
+import { useWritable } from './useWritable';
 import { checkAvailableForPayment, checkAvailableToTransfer } from '@/lib/checks';
 import type { FieldOption } from '@/lib/types';
 
@@ -44,6 +45,7 @@ export function AccountClient({
   checks: any[];
 }) {
   const router = useRouter();
+  const writable = useWritable();
   const [person, setPerson] = useState('');
   const [invoiceId, setInvoiceId] = useState(ALL_INVOICES);
   const [account, setAccount] = useState<any>(null);
@@ -157,20 +159,22 @@ export function AccountClient({
             <p className="mt-1 text-xs text-gray-500">پیش‌فرض مانده کل است. اگر بخواهید، یک فاکتور را برای همین پرداخت انتخاب کنید.</p>
           </div>
         ) : null}
-        <div className="mt-4">
-          <PaymentForm
-            personId={person}
-            invoiceId={payable || invoiceId === ALL_INVOICES ? undefined : invoiceId}
-            total={payTotal}
-            remaining={payRemaining}
-            checks={checkOptions}
-            payable={payable}
-            onSaved={() => {
-              if (person) load(person);
-              router.refresh();
-            }}
-          />
-        </div>
+        {writable ? (
+          <div className="mt-4">
+            <PaymentForm
+              personId={person}
+              invoiceId={payable || invoiceId === ALL_INVOICES ? undefined : invoiceId}
+              total={payTotal}
+              remaining={payRemaining}
+              checks={checkOptions}
+              payable={payable}
+              onSaved={() => {
+                if (person) load(person);
+                router.refresh();
+              }}
+            />
+          </div>
+        ) : null}
       </FormCard>
       <FormCard>
         <h3 className="mb-3 font-medium">{payable ? 'اقلام بدهی' : 'فاکتورها'}</h3>

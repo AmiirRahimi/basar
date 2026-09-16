@@ -35,8 +35,14 @@ export function canAccessMenu(role: StoreRole, menuId: string, isPlatformAdmin =
   return allowed.includes(role);
 }
 
-export function canWriteResource(role: StoreRole, resource: string, isPlatformAdmin = false) {
+export function canWriteResource(
+  role: StoreRole,
+  resource: string,
+  isPlatformAdmin = false,
+  subscriptionActive = true,
+) {
   if (isPlatformAdmin) return true;
+  if (!subscriptionActive) return false;
   const allowed = RESOURCE_WRITE_ROLES[resource];
   if (!allowed) return role === 'owner' || role === 'admin';
   return allowed.includes(role);

@@ -21,6 +21,7 @@ import {
 import { displayName, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { RowActions } from './RowActions';
+import { useWritable } from './useWritable';
 import type { Check, FieldOption } from '@/lib/types';
 
 const selectLabels = {
@@ -50,6 +51,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
   const [status, setStatus] = useState<'pending' | 'passed' | 'failed'>('pending');
   const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
+  const writable = useWritable();
 
   const transferable = useMemo(
     () =>
@@ -107,27 +109,29 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
         cell: (info) => (info.getValue() ? 'بله' : 'خیر'),
       }),
     ];
-    defs.push(
-      helper.display({
-        id: 'actions',
-        header: 'عملیات',
-        size: 112,
-        cell: ({ row }) => (
-          <RowActions
-            onEdit={() => openEdit(row.original)}
-            onDelete={async () => {
-              const res = await deleteResource('check', row.original._id);
-              if (redirectIfUnauthorized(res)) return;
-              if (res.ok) toast.success(res.message || 'حذف شد');
-              else toast.error(res.message || 'حذف نشد');
-              router.refresh();
-            }}
-          />
-        ),
-      }),
-    );
+    if (writable) {
+      defs.push(
+        helper.display({
+          id: 'actions',
+          header: 'عملیات',
+          size: 112,
+          cell: ({ row }) => (
+            <RowActions
+              onEdit={() => openEdit(row.original)}
+              onDelete={async () => {
+                const res = await deleteResource('check', row.original._id);
+                if (redirectIfUnauthorized(res)) return;
+                if (res.ok) toast.success(res.message || 'حذف شد');
+                else toast.error(res.message || 'حذف نشد');
+                router.refresh();
+              }}
+            />
+          ),
+        }),
+      );
+    }
     return defs;
-  }, [router]);
+  }, [router, writable]);
 
   const table = useReactTable({
     data: checks,
@@ -214,16 +218,18 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button
-          onClick={() => {
-            resetForm();
-            setOpen(true);
-          }}
-        >
-          ثبت چک
-        </Button>
-      </div>
+      {writable ? (
+        <div className="flex justify-end">
+          <Button
+            onClick={() => {
+              resetForm();
+              setOpen(true);
+            }}
+          >
+            ثبت چک
+          </Button>
+        </div>
+      ) : null}
       {checks.length ? (
         <BasicTable table={table} isLoading={pending} labels={{ nothingToShow: 'موردی نیست' }} />
       ) : (

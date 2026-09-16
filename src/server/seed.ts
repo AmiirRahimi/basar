@@ -115,7 +115,19 @@ async function seedStoreDemo(storeId: unknown, brandId: unknown, userId: unknown
   if (userId && !(await m.UserSubscription.countDocuments({ _userId: userId }))) {
     await m.UserSubscription.create({
       _userId: userId,
-      subscriptionType: 1,
+      planId: 'starter',
+      billingCycle: 'month',
+      subscriptionType: 2,
+      price: 100_000,
+      startDate: daysAgo(50),
+      endDate: daysAgo(20),
+    });
+    await m.UserSubscription.create({
+      _userId: userId,
+      planId: 'starter',
+      billingCycle: 'month',
+      subscriptionType: 2,
+      price: 100_000,
       startDate: daysAgo(20),
       endDate: new Date(Date.now() + 70 * 24 * 60 * 60 * 1000),
     });
@@ -135,7 +147,10 @@ async function seedStoreDemo(storeId: unknown, brandId: unknown, userId: unknown
   if (!(await m.UserSubscription.countDocuments({ _userId: staff._id }))) {
     await m.UserSubscription.create({
       _userId: staff._id,
+      planId: 'brands',
+      billingCycle: 'year',
       subscriptionType: 3,
+      price: 3_840_000,
       startDate: daysAgo(40),
       endDate: new Date(Date.now() + 300 * 24 * 60 * 60 * 1000),
     });

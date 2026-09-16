@@ -9,6 +9,7 @@ import { faNumber } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Partner, WorkspaceBrand, WorkspaceStore } from '@/lib/types';
 import { Button, Input, Modal, MultiSelect, toast } from '@/ui';
+import { useWritable } from './useWritable';
 
 const selectLabels = {
   search: 'جستجو',
@@ -44,9 +45,10 @@ export function PartnersPanel({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const writable = useWritable();
   const [modal, setModal] = useState<'create' | Partner | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const canManage = Boolean(canManageBrand || canManageStore);
+  const canManage = Boolean((canManageBrand || canManageStore) && writable);
 
   const storePartners = useMemo(
     () =>
@@ -112,6 +114,7 @@ export function PartnersPanel({
   }
 
   function canEdit(row: Partner) {
+    if (!writable) return false;
     if (canManageBrand) return true;
     if (!canManageStore || !selectedStore) return false;
     if (row.allStores || (row._brandIds || []).length) return false;
