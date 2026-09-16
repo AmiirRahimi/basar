@@ -271,6 +271,7 @@ export class FileModel {
 export const fileModels = {
   User: new FileModel('users'),
   UserSubscription: new FileModel('usersubscriptions'),
+  DiscountCode: new FileModel('discountcodes'),
   OTP: new FileModel('otps'),
   Brand: new FileModel('brands'),
   Store: new FileModel('stores'),

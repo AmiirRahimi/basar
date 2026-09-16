@@ -29,6 +29,7 @@ export const RESOURCE_WRITE_ROLES: Record<string, StoreRole[]> = {
 };
 
 export function canAccessMenu(role: StoreRole, menuId: string, isPlatformAdmin = false) {
+  if (menuId === 'admin') return isPlatformAdmin;
   if (isPlatformAdmin) return true;
   const allowed = MENU_ACCESS[menuId];
   if (!allowed) return role === 'owner';

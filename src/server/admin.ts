@@ -1,0 +1,181 @@
+import { db, dbEngine, serialize } from './db';
+import { fileModels } from './file-db';
+import * as mongo from './models';
+import { fail, ok, type ActionResult } from './result';
+import { snapshotFromRow } from './subscription';
+import type { Session } from './session';
+import { withWorkspace } from './workspace';
+
+function M() {
+  return dbEngine() === 'file' ? fileModels : mongo;
+}
+
+function normalizeCode(value: unknown) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+}
+
+function monthsBetween(start?: string | Date, end?: string | Date) {
+  const from = start ? new Date(start).getTime() : NaN;
+  const to = end ? new Date(end).getTime() : NaN;
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return 0;
+  return (to - from) / (1000 * 60 * 60 * 24 * 30);
+}
+
+export async function requirePlatformAdmin(): Promise<{ session: Session } | { error: ActionResult }> {
+  const access = await withWorkspace();
+  if ('error' in access) return { error: access.error };
+  if (!access.session.isPlatformAdmin) {
+    return { error: fail('فقط ادمین اصلی به این بخش دسترسی دارد', 403) };
+  }
+  return { session: access.session };
+}
+
+export async function getAdminOverview(): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  await db();
+  const [users, subscriptions, codes] = await Promise.all([
+    M().User.find().lean(),
+    M().UserSubscription.find().sort({ startDate: -1 }).lean(),
+    M().DiscountCode.find().sort({ timeStamp: -1 }).lean(),
+  ]);
+  const byUser = new Map<string, any[]>();
+  for (const row of subscriptions) {
+    const id = String(row._userId || '');
+    const list = byUser.get(id) || [];
+    list.push(row);
+    byUser.set(id, list);
+  }
+  const userRows = users.map((user: any) => {
+    const id = String(user._id);
+    const rows = byUser.get(id) || [];
+    const snaps = rows.map((row) => snapshotFromRow(row));
+    const active = snaps.find((row) => row.active);
+    const totalMonths = rows.reduce((sum: number, row: any) => sum + monthsBetween(row.startDate, row.endDate), 0);
+    return {
+      _id: id,
+      fullName: user.fullName || '',
+      phonenumber: String(user.phonenumber || ''),
+      city: user.city || '',
+      loggedIn: Boolean(user.refreshToken),
+      purchaseCount: rows.length,
+      totalMonths: Math.round(totalMonths * 10) / 10,
+      active: Boolean(active),
+      remainingDays: active?.remainingDays || 0,
+      planName: active?.planName || '',
+      endDate: active?.endDate || '',
+    };
+  });
+  const purchases = subscriptions.map((row: any) => {
+    const snap = snapshotFromRow(row);
+    const user = users.find((item: any) => String(item._id) === String(row._userId));
+    return {
+      _id: String(row._id),
+      userId: String(row._userId || ''),
+      fullName: user?.fullName || '',
+      phonenumber: user?.phonenumber || '',
+      planName: snap.planName,
+      billingCycle: snap.billingCycle,
+      price: Number(row.price || 0),
+      originalPrice: Number(row.originalPrice || row.price || 0),
+      discountCode: row.discountCode || '',
+      startDate: row.startDate,
+      endDate: row.endDate,
+      active: snap.active,
+    };
+  });
+  return ok(
+    serialize({
+      users: userRows,
+      purchases,
+      codes: codes.map((row: any) => ({
+        _id: String(row._id),
+        code: row.code,
+        percent: Number(row.percent || 0),
+        maxUses: Number(row.maxUses || 0),
+        usedCount: Number(row.usedCount || 0),
+        expiresAt: row.expiresAt || '',
+        active: row.active !== false,
+        note: row.note || '',
+      })),
+      stats: {
+        users: userRows.length,
+        loggedIn: userRows.filter((row) => row.loggedIn).length,
+        active: userRows.filter((row) => row.active).length,
+        purchases: purchases.length,
+      },
+    }),
+  );
+}
+
+export async function createDiscountCode(payload: Record<string, unknown>): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  await db();
+  const code = normalizeCode(payload.code);
+  const percent = Number(payload.percent || 0);
+  if (!code) return fail('کد تخفیف لازم است');
+  if (percent <= 0 || percent > 100) return fail('درصد تخفیف باید بین ۱ و ۱۰۰ باشد');
+  const exists = await M().DiscountCode.findOne({ code }).lean();
+  if (exists) return fail('این کد قبلاً ثبت شده');
+  const created = await M().DiscountCode.create({
+    code,
+    percent,
+    maxUses: Math.max(0, Number(payload.maxUses || 0)),
+    usedCount: 0,
+    expiresAt: payload.expiresAt ? new Date(String(payload.expiresAt)) : null,
+    active: payload.active === false ? false : true,
+    note: String(payload.note || '').trim(),
+  });
+  return ok(serialize(created.toObject ? created.toObject() : created), 'کد تخفیف ثبت شد');
+}
+
+export async function updateDiscountCode(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  await db();
+  const next: Record<string, unknown> = {};
+  if (payload.percent != null) {
+    const percent = Number(payload.percent);
+    if (percent <= 0 || percent > 100) return fail('درصد تخفیف باید بین ۱ و ۱۰۰ باشد');
+    next.percent = percent;
+  }
+  if (payload.maxUses != null) next.maxUses = Math.max(0, Number(payload.maxUses || 0));
+  if (payload.active != null) next.active = Boolean(payload.active);
+  if (payload.note != null) next.note = String(payload.note || '').trim();
+  if (payload.expiresAt !== undefined) next.expiresAt = payload.expiresAt ? new Date(String(payload.expiresAt)) : null;
+  const updated = await M().DiscountCode.findByIdAndUpdate(id, next);
+  if (!updated) return fail('کد پیدا نشد', 404);
+  return ok(null, 'ذخیره شد');
+}
+
+export async function deleteDiscountCode(id: string): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  await db();
+  await M().DiscountCode.findByIdAndDelete(id);
+  return ok(null, 'حذف شد');
+}
+
+export async function consumeDiscountCode(code: string, price: number) {
+  const normalized = normalizeCode(code);
+  if (!normalized) {
+    return { ok: true as const, price, originalPrice: price, code: '' };
+  }
+  const row = await M().DiscountCode.findOne({ code: normalized }).lean();
+  if (!row || row.active === false) return { ok: false as const, message: 'کد تخفیف معتبر نیست' };
+  if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) {
+    return { ok: false as const, message: 'مهلت این کد تمام شده است' };
+  }
+  const maxUses = Number(row.maxUses || 0);
+  const usedCount = Number(row.usedCount || 0);
+  if (maxUses > 0 && usedCount >= maxUses) {
+    return { ok: false as const, message: 'ظرفیت استفاده از این کد تمام شده است' };
+  }
+  const percent = Math.min(100, Math.max(0, Number(row.percent || 0)));
+  const next = Math.round(price * (1 - percent / 100));
+  return { ok: true as const, price: Math.max(0, next), originalPrice: price, code: normalized, id: String(row._id) };
+}

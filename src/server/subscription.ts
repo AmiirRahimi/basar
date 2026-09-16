@@ -121,7 +121,12 @@ export async function listPurchases(userId: string) {
   });
 }
 
-export async function buyPlan(session: Session, planId: string, cycle: BillingCycle): Promise<ActionResult> {
+export async function buyPlan(
+  session: Session,
+  planId: string,
+  cycle: BillingCycle,
+  discountCode = '',
+): Promise<ActionResult> {
   await db();
   if (session.storeRole && session.storeRole !== 'owner' && !session.isPlatformAdmin) {
     return fail('فقط صاحب برند می‌تواند اشتراک بخرد', 403);
@@ -133,22 +138,32 @@ export async function buyPlan(session: Session, planId: string, cycle: BillingCy
   const startMs = current.active && current.endDate ? Math.max(now, new Date(current.endDate).getTime()) : now;
   const startDate = new Date(startMs);
   const endDate = new Date(startMs + cycleDays(cycle) * 24 * 60 * 60 * 1000);
-  const price = planPrice(plan, cycle);
+  const originalPrice = planPrice(plan, cycle);
+  const { consumeDiscountCode } = await import('./admin');
+  const discounted = await consumeDiscountCode(discountCode, originalPrice);
+  if (!discounted.ok) return fail(discounted.message);
   const created = await M().UserSubscription.create({
     _userId: oid(session._id),
     planId: plan.id,
     billingCycle: cycle,
     subscriptionType: cycle === 'year' ? 3 : 2,
-    price,
+    price: discounted.price,
+    originalPrice,
+    discountCode: discounted.code,
     startDate,
     endDate,
   });
+  if (discounted.id) {
+    const row = await M().DiscountCode.findById(discounted.id).lean();
+    await M().DiscountCode.updateOne({ _id: oid(discounted.id) }, { usedCount: Number(row?.usedCount || 0) + 1 });
+  }
   return ok(
     serialize({
       remainingDaysOfSubscription: snapshotFromRow(created.toObject ? created.toObject() : created).remainingDays,
       planId: plan.id,
       billingCycle: cycle,
       endDate,
+      price: discounted.price,
     }),
     current.active ? 'اشتراک تمدید شد' : 'اشتراک فعال شد',
   );

@@ -38,9 +38,8 @@ const menuSections = [
     name: 'ادمین',
     icon: Shield,
     menuItems: [
-      { name: 'کاربران', href: '/counting/admin/users' },
+      { name: 'کاربران و اشتراک', href: '/counting/admin/users' },
       { name: 'لیست‌های کمکی', href: '/counting/admin/dropdowns' },
-      { name: 'تغییرات', href: '/counting/admin/change' },
     ],
   },
 ];

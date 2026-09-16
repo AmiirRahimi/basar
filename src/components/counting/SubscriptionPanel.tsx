@@ -14,7 +14,7 @@ import {
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Workspace } from '@/lib/types';
-import { Button, toast } from '@/ui';
+import { Button, Input, toast } from '@/ui';
 
 export function SubscriptionPanel({
   subscription,
@@ -25,6 +25,7 @@ export function SubscriptionPanel({
 }) {
   const router = useRouter();
   const [cycle, setCycle] = useState<BillingCycle>('month');
+  const [discountCode, setDiscountCode] = useState('');
   const [pending, start] = useTransition();
   const remainingDays = Number(subscription?.remainingDays || 0);
   const active = Boolean(subscription?.active ?? remainingDays > 0);
@@ -33,7 +34,11 @@ export function SubscriptionPanel({
 
   function buy(planId: string) {
     start(async () => {
-      const res = await activateSubscription({ planId, billingCycle: cycle });
+      const res = await activateSubscription({
+        planId,
+        billingCycle: cycle,
+        discountCode: discountCode.trim(),
+      });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
         toast.success(res.message || 'اشتراک فعال شد');
@@ -121,6 +126,13 @@ export function SubscriptionPanel({
                 سالانه
               </button>
             </div>
+          </div>
+          <div className="max-w-sm">
+            <Input
+              label="کد تخفیف (اختیاری)"
+              value={discountCode}
+              onChange={(e) => setDiscountCode(e.target.value)}
+            />
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {SUBSCRIPTION_PLANS.map((plan) => {

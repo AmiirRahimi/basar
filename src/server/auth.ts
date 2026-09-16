@@ -18,11 +18,32 @@ function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
 }
 
+function isAdminPhone(phonenumber: string) {
+  const admin = (process.env.ADMIN_PHONENUMBER || '').trim();
+  return Boolean(admin) && phonenumber === admin;
+}
+
+async function adminPasswordMatches(password: string) {
+  const stored = (process.env.ADMIN_PASSWORD || '').trim().replace(/^["']|["']$/g, '').replace(/\\\$/g, '$');
+  if (!stored) return false;
+  if (stored.startsWith('$argon2')) {
+    try {
+      return await argon2.verify(stored, password);
+    } catch {
+      return false;
+    }
+  }
+  return stored === password;
+}
+
 export async function checkPhone(phonenumber: string): Promise<ActionResult> {
   try {
     await db();
     const user = await M().User.findOne({ phonenumber });
-    return ok({ exists: Boolean(user) }, user ? 'کاربر موجود است' : '');
+    return ok(
+      { exists: Boolean(user), requireAdminPassword: isAdminPhone(phonenumber) },
+      user ? 'کاربر موجود است' : '',
+    );
   } catch (error) {
     return fail(error instanceof Error ? error.message : 'اتصال به پایگاه داده برقرار نشد', 500);
   }
@@ -77,10 +98,9 @@ export async function loginWithOtp(form: {
   });
   if (!valid) return fail('کد تایید معتبر نیست');
 
-  if (phonenumber === process.env.ADMIN_PHONENUMBER) {
+  if (isAdminPhone(phonenumber)) {
     if (!password) return fail('رمز ادمین لازم است');
-    const hash = process.env.ADMIN_PASSWORD;
-    if (!hash || !(await argon2.verify(hash, password))) return fail('رمز نادرست است');
+    if (!(await adminPasswordMatches(password))) return fail('رمز نادرست است');
   }
 
   let user = await M().User.findOne({ phonenumber });
@@ -157,14 +177,14 @@ export async function activateSubscription(payload: Record<string, unknown>): Pr
   if ('error' in access) return access.error;
   const planId = String(payload.planId || 'starter');
   const cycle = payload.billingCycle === 'year' ? 'year' : 'month';
-  return buyPlan(access.session, planId, cycle);
+  return buyPlan(access.session, planId, cycle, String(payload.discountCode || ''));
 }
 
 export async function listUsers(page = 1, skip = 50): Promise<ActionResult> {
+  const { requirePlatformAdmin } = await import('./admin');
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
   await db();
-  const { requireSession } = await import('./session');
-  const auth = await requireSession();
-  if ('error' in auth) return auth.error;
   const users = await M().User.find()
     .select('-password -refreshToken')
     .skip((page - 1) * skip)

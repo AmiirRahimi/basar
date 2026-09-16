@@ -26,10 +26,25 @@ const UserSubscriptionSchema = new Schema(
     billingCycle: { type: String, default: 'month' },
     subscriptionType: { type: Number, required: true },
     price: { type: Number, default: 0 },
+    discountCode: { type: String, default: '' },
+    originalPrice: { type: Number, default: 0 },
     startDate: { type: Date, required: true, default: Date.now },
     endDate: { type: Date, required: true },
   },
   { collection: 'usersubscriptions' },
+);
+
+const DiscountCodeSchema = new Schema(
+  {
+    code: { type: String, required: true, unique: true, index: true },
+    percent: { type: Number, required: true },
+    maxUses: { type: Number, default: 0 },
+    usedCount: { type: Number, default: 0 },
+    expiresAt: { type: Date, default: null },
+    active: { type: Boolean, default: true },
+    note: { type: String, default: '' },
+  },
+  { collection: 'discountcodes' },
 );
 
 const OTPSchema = new Schema(
@@ -355,6 +370,7 @@ const AttachmentSchema = new Schema(
 
 export const User = modelOf<any>('User', UserSchema);
 export const UserSubscription = modelOf<any>('UserSubscription', UserSubscriptionSchema);
+export const DiscountCode = modelOf<any>('DiscountCode', DiscountCodeSchema);
 export const OTP = modelOf<any>('OTP', OTPSchema);
 export const Brand = modelOf<any>('Brand', BrandSchema);
 export const Store = modelOf<any>('Store', StoreSchema);

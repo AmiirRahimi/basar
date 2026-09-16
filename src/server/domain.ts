@@ -51,8 +51,13 @@ async function withSession() {
   return withWorkspace();
 }
 
+const PLATFORM_WRITE = new Set(['color', 'size', 'cloth-kind', 'cloth-style', 'permision', 'change']);
+
 function denyWrite(session: Session, resource: string) {
   if (session.isPlatformAdmin) return null;
+  if (PLATFORM_WRITE.has(resource)) {
+    return fail('فقط ادمین اصلی می‌تواند این بخش را ویرایش کند', 403);
+  }
   if (session.subscriptionActive === false) {
     return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
   }
@@ -548,9 +553,7 @@ export async function deleteResource(resource: string, id: string): Promise<Acti
   const auth = await withSession();
   if ('error' in auth) return auth.error;
   const denied = denyWrite(auth.session, resource === 'customer-cart' ? 'customer-cart' : resource);
-  if (denied && resource !== 'color' && resource !== 'size' && resource !== 'cloth-kind' && resource !== 'cloth-style' && resource !== 'permision') {
-    return denied;
-  }
+  if (denied) return denied;
   if (resource === 'color' || resource === 'size' || resource === 'cloth-kind' || resource === 'cloth-style' || resource === 'permision') {
     const cfg = lookups()[resource];
     await cfg.model.findByIdAndDelete(id);

@@ -15,6 +15,7 @@ export function CountingLogin() {
   const [phonenumber, setPhonenumber] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
+  const [requireAdminPassword, setRequireAdminPassword] = useState(false);
   const [pending, start] = useTransition();
 
   return (
@@ -37,7 +38,13 @@ export function CountingLogin() {
                 return;
               }
               setPhonenumber(phone);
-              await checkPhone(phone);
+              const check = await checkPhone(phone);
+              const admin = Boolean(
+                check.ok && check.data && typeof check.data === 'object' && 'requireAdminPassword' in check.data
+                  ? (check.data as { requireAdminPassword?: boolean }).requireAdminPassword
+                  : false,
+              );
+              setRequireAdminPassword(admin);
               const otp = await sendOtp(phone);
               if (otp.ok) {
                 toast.success(otp.message || 'کد ارسال شد');
@@ -47,10 +54,14 @@ export function CountingLogin() {
               }
               return;
             }
+            if (requireAdminPassword && !password.trim()) {
+              toast.error('رمز ادمین لازم است');
+              return;
+            }
             const res = await loginWithOtp({
               phonenumber: phone,
               code: toEnDigits(code),
-              password: password || undefined,
+              password: requireAdminPassword ? toEnDigits(password) : undefined,
             });
             if (res.ok) router.push('/counting/dashboard');
             else toast.error(res.message || 'ورود ناموفق');
@@ -72,12 +83,14 @@ export function CountingLogin() {
               onChange={(e) => setCode(toEnDigits(e.target.value))}
               dir="ltr"
             />
-            <Input
-              label="رمز ادمین (اختیاری)"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            {requireAdminPassword ? (
+              <Input
+                label="رمز ادمین"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            ) : null}
           </>
         ) : null}
         <Button type="submit" fullWidth disabled={pending}>
