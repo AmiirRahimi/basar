@@ -72,6 +72,18 @@ const BrandSchema = new Schema(
   { collection: 'brands' },
 );
 
+const WarehouseSchema = new Schema(
+  {
+    _id: { type: String, required: true },
+    name: { type: String, default: '' },
+    address: { type: String, default: '' },
+    city: { type: Schema.Types.Mixed, default: '' },
+    phonenumbers: { type: [String], default: [] },
+    landlines: { type: [String], default: [] },
+  },
+  { _id: false },
+);
+
 const StoreSchema = new Schema(
   {
     _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
@@ -79,6 +91,9 @@ const StoreSchema = new Schema(
     name: { type: String, default: 'فروشگاه اصلی' },
     address: { type: String, default: '' },
     phonenumbers: { type: String, default: '' },
+    phones: { type: [String], default: [] },
+    landlines: { type: [String], default: [] },
+    warehouses: { type: [WarehouseSchema], default: [] },
     city: { type: Schema.Types.Mixed, default: '' },
     isMain: { type: Boolean, required: true, default: false },
     timeStamp: { type: Date, required: true, default: Date.now },
@@ -91,6 +106,7 @@ const StoreMemberSchema = new Schema(
   {
     _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', required: true, index: true },
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true, index: true },
+    _warehouseId: { type: String, default: '' },
     phonenumber: { type: String, required: true, index: true },
     _userId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     fullName: { type: String, default: '' },
@@ -400,6 +416,7 @@ export const Attachment = modelOf<any>('Attachment', AttachmentSchema);
 export const PERSON_POPULATE = personSelect;
 
 export const CLOTH_POPULATE = [
+  { path: '_storeId', select: '_id name' },
   { path: '_tailor', select: personSelect },
   { path: '_wash', select: personSelect },
   { path: '_type' },

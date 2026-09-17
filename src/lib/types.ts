@@ -51,12 +51,24 @@ export type Brand = {
   _userId?: string;
 };
 
+export type StoreWarehouse = {
+  _id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  phonenumbers?: string[];
+  landlines?: string[];
+};
+
 export type StoreRecord = {
   _id: string;
   _brandId?: string | Brand;
   name?: string;
   address?: string;
   phonenumbers?: string;
+  phones?: string[];
+  landlines?: string[];
+  warehouses?: StoreWarehouse[];
   city?: string | number;
   isMain?: boolean;
 };
@@ -65,6 +77,7 @@ export type StoreMember = {
   _id: string;
   _brandId?: string;
   _storeId?: string;
+  _warehouseId?: string;
   phonenumber: string;
   fullName?: string;
   role: StoreStaffRole;

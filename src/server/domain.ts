@@ -24,7 +24,7 @@ import { parseImageList } from '@/lib/shop-cart';
 import { fail, ok, type ActionResult } from './result';
 import type { PublicOrderSummary } from '@/lib/types';
 import type { Session } from './session';
-import { withWorkspace } from './workspace';
+import { withWorkspace, accessibleStores } from './workspace';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -234,10 +234,31 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
   return next;
 }
 
-function applyClothAvailability(session: Session, body: Record<string, unknown>) {
+async function applyClothAvailability(
+  session: Session,
+  body: Record<string, unknown>,
+  requestedStoreId?: string,
+  required = true,
+) {
+  const wanted = String(requestedStoreId || '');
+  if (!wanted && !required) {
+    delete body._storeId;
+    delete body._brandId;
+    delete body._storeIds;
+    body.sellInAllStores = false;
+    return body;
+  }
+  const { stores } = await accessibleStores(session._id, session.phonenumber);
+  const store =
+    stores.find((row: any) => String(row._id) === wanted) ||
+    stores.find((row: any) => String(row._id) === String(session._storeId)) ||
+    stores[0];
+  const storeId = store?._id || session._storeId;
+  const brandId = store?._brandId || session._brandId;
   body.sellInAllStores = false;
-  body._brandId = oid(session._brandId);
-  body._storeIds = [oid(session._storeId)];
+  body._storeId = oid(storeId);
+  body._brandId = oid(brandId);
+  body._storeIds = [oid(storeId)];
   return body;
 }
 
@@ -437,9 +458,10 @@ export async function createResource(resource: string, payload: unknown): Promis
 
   const cfg = lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
+  const requestedStoreId = String(body._storeId || '');
   let next = preparePayload(auth.session, resource, body);
   if (resource === 'cloth') {
-    next = applyClothAvailability(auth.session, next);
+    next = await applyClothAvailability(auth.session, next, requestedStoreId);
     const inventoried = applyClothInventory(next);
     if (!inventoried.ok) return inventoried;
     next = inventoried.data || next;
@@ -521,10 +543,11 @@ export async function updateResource(resource: string, id: string, payload: unkn
     Object.assign(raw, sold.data?.[0] || {});
   }
 
+  const requestedStoreId = String(raw._storeId || '');
   let body = preparePayload(auth.session, resource, raw);
   delete body._storeId;
   if (resource === 'cloth') {
-    body = applyClothAvailability(auth.session, body);
+    body = await applyClothAvailability(auth.session, body, requestedStoreId, false);
     const inventoried = applyClothInventory(body);
     if (!inventoried.ok) return inventoried;
     body = inventoried.data || body;

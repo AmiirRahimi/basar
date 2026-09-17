@@ -8,6 +8,7 @@ import {
   sharePercentTotal,
 } from '@/lib/partners';
 import type { Workspace, WorkspaceBrand, WorkspaceStore } from '@/lib/types';
+import { asStringList, normalizeStoreContacts, storePhones } from '@/lib/store-contacts';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
@@ -256,10 +257,39 @@ function memberView(row: any) {
     _id: String(row._id),
     _brandId: idOf(row._brandId),
     _storeId: idOf(row._storeId),
+    _warehouseId: String(row._warehouseId || ''),
     phonenumber: String(row.phonenumber),
     fullName: row.fullName || '',
     role: row.role as StoreStaffRole,
     status: row.status as 'pending' | 'active',
+  };
+}
+
+function storeView(store: any, members: ReturnType<typeof memberView>[] = []) {
+  const phones = storePhones(store);
+  const landlines = asStringList(store.landlines);
+  const warehouses = Array.isArray(store.warehouses)
+    ? store.warehouses.map((row: any) => ({
+        _id: String(row._id),
+        name: row.name || 'انبار',
+        address: row.address || '',
+        city: row.city ?? '',
+        phonenumbers: asStringList(row.phonenumbers ?? row.phones),
+        landlines: asStringList(row.landlines),
+      }))
+    : [];
+  return {
+    _id: String(store._id),
+    _brandId: idOf(store._brandId),
+    name: store.name || 'فروشگاه',
+    address: store.address || '',
+    phonenumbers: phones.join('، ') || store.phonenumbers || '',
+    phones,
+    landlines,
+    warehouses,
+    city: store.city ?? '',
+    isMain: Boolean(store.isMain),
+    members,
   };
 }
 
@@ -290,16 +320,9 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
     membersByStore.set(key, list);
   }
 
-  const workspaceStores: WorkspaceStore[] = stores.map((store: any) => ({
-    _id: String(store._id),
-    _brandId: idOf(store._brandId),
-    name: store.name || 'فروشگاه',
-    address: store.address || '',
-    phonenumbers: store.phonenumbers || '',
-    city: store.city ?? '',
-    isMain: Boolean(store.isMain),
-    members: membersByStore.get(String(store._id)) || [],
-  }));
+  const workspaceStores: WorkspaceStore[] = stores.map((store: any) =>
+    storeView(store, membersByStore.get(String(store._id)) || []),
+  );
 
   const memberBrandIds = [...new Set(workspaceStores.map((s) => s._brandId).filter(Boolean))];
   const extraBrands = memberBrandIds.length
@@ -517,15 +540,16 @@ export async function createStore(payload: Record<string, unknown>): Promise<Act
   if ('error' in owned) return owned.error;
   const name = String(payload.name || '').trim();
   if (!name) return fail('نام فروشگاه الزامی است');
+  const contacts = normalizeStoreContacts(payload);
   const store = await M().Store.create({
     _brandId: oid(brandId),
     _userId: oid(access.session._id),
     name,
     address: String(payload.address || ''),
-    phonenumbers: String(payload.phonenumbers || ''),
     city: payload.city ?? '',
     isMain: Boolean(payload.isMain),
     isDeleted: false,
+    ...contacts,
   });
   return ok(serialize(store.toObject ? store.toObject() : store), 'فروشگاه اضافه شد');
 }
@@ -541,8 +565,16 @@ export async function updateStore(id: string, payload: Record<string, unknown>):
   const adminHere = access.session.storeRole === 'admin' && access.session._storeId === String(store._id);
   if (!owned && !adminHere && !access.session.isPlatformAdmin) return fail('اجازه ویرایش این فروشگاه را ندارید', 403);
   const next: Record<string, unknown> = {};
-  for (const key of ['name', 'address', 'phonenumbers', 'city'] as const) {
+  for (const key of ['name', 'address', 'city'] as const) {
     if (payload[key] != null) next[key] = payload[key];
+  }
+  if (payload.phones != null || payload.phonenumbers != null || payload.landlines != null || payload.warehouses != null) {
+    Object.assign(next, normalizeStoreContacts({
+      phones: payload.phones ?? payload.phonenumbers ?? store.phones,
+      phonenumbers: payload.phonenumbers ?? store.phonenumbers,
+      landlines: payload.landlines ?? store.landlines,
+      warehouses: payload.warehouses ?? store.warehouses,
+    }));
   }
   const updated = await M().Store.findOneAndUpdate({ _id: oid(id) }, next, { new: true });
   return ok(serialize(updated?.toObject ? updated.toObject() : updated), 'فروشگاه ویرایش شد');
@@ -580,12 +612,20 @@ export async function inviteStoreMember(payload: Record<string, unknown>): Promi
   if (phonenumber === access.session.phonenumber) return fail('نمی‌توانید خودتان را دعوت کنید');
   const role = String(payload.role || '') as StoreStaffRole;
   if (!['admin', 'seller', 'other'].includes(role)) return fail('نقش نامعتبر است');
+  const warehouseId = String(payload._warehouseId || '');
+  if (warehouseId) {
+    const warehouses = Array.isArray(store.warehouses) ? store.warehouses : [];
+    if (!warehouses.some((row: any) => String(row._id) === warehouseId)) {
+      return fail('انبار انتخاب‌شده در این فروشگاه نیست');
+    }
+  }
   const existing = await M().StoreMember.findOne({ _storeId: store._id, phonenumber, isDeleted: false }).lean();
   if (existing) return fail('این شماره قبلاً به فروشگاه اضافه شده است');
   const user = await M().User.findOne({ phonenumber }).lean();
   const member = await M().StoreMember.create({
     _brandId: store._brandId,
     _storeId: store._id,
+    _warehouseId: warehouseId,
     phonenumber,
     _userId: user?._id || null,
     fullName: String(payload.fullName || user?.fullName || ''),
@@ -614,6 +654,17 @@ export async function updateStoreMember(id: string, payload: Record<string, unkn
     next.role = role;
   }
   if (payload.fullName != null) next.fullName = String(payload.fullName);
+  if (payload._warehouseId != null) {
+    const warehouseId = String(payload._warehouseId || '');
+    if (warehouseId) {
+      const store = await M().Store.findOne({ _id: member._storeId, isDeleted: false }).lean();
+      const warehouses = Array.isArray(store?.warehouses) ? store.warehouses : [];
+      if (!warehouses.some((row: any) => String(row._id) === warehouseId)) {
+        return fail('انبار انتخاب‌شده در این فروشگاه نیست');
+      }
+    }
+    next._warehouseId = warehouseId;
+  }
   const updated = await M().StoreMember.findOneAndUpdate({ _id: oid(id) }, next, { new: true });
   return ok(serialize(updated?.toObject ? updated.toObject() : updated), 'همکار ویرایش شد');
 }

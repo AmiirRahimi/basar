@@ -40,6 +40,14 @@ export default async function ClothesPage() {
       packSummary: formatPacksFa(stock.packs),
     };
   });
+  const data = workspace.data;
+  const storeOptions = (data?.stores || []).map((store) => {
+    const brand = (data?.brands || []).find((row) => row._id === store._brandId);
+    return {
+      value: store._id,
+      label: brand?.name ? `${store.name || 'فروشگاه'} — ${brand.name}` : store.name || 'فروشگاه',
+    };
+  });
   const allowWrite = canWriteResource(workspace.data?.storeRole || 'owner', 'cloth', workspace.data?.isPlatformAdmin);
   return (
     <CountingShell title="البسه" error={errorMessage(res)}>
@@ -48,8 +56,10 @@ export default async function ClothesPage() {
         title="لباس"
         rows={rows}
         allowWrite={allowWrite}
+        defaults={{ _storeId: data?.activeStoreId || '' }}
         columns={[
           { header: 'کد', accessor: 'code' },
+          { header: 'فروشگاه', accessor: '_storeId', format: 'name' },
           { header: 'بسته‌ها', accessor: 'packSummary' },
           { header: 'تعداد', accessor: 'count' },
           { header: 'نوع', accessor: '_type', format: 'name' },
@@ -67,6 +77,7 @@ export default async function ClothesPage() {
           { header: 'قیمت', accessor: 'unitPrice', format: 'toman' },
         ]}
         fields={[
+          { name: '_storeId', label: 'فروشگاه', type: 'relation', options: storeOptions, required: true },
           { name: 'code', label: 'کد', required: true },
           { name: 'packs', label: 'موجودی بسته‌ها', type: 'packs', required: true },
           { name: '_type', label: 'نوع', type: 'relation', options: kinds, required: true },
