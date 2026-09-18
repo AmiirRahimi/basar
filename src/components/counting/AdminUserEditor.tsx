@@ -76,8 +76,18 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
     setForm((current) => (current ? { ...current, [key]: value } : current));
   }
 
-  function save(remainingDays = form?.remainingDays) {
+  function save(endSubscription = false) {
     if (!user || !form) return;
+    const remainingRaw = String(form.remainingDays ?? '').trim();
+    if (!endSubscription && remainingRaw === '') {
+      toast.error('روز مانده را وارد کنید');
+      return;
+    }
+    const remainingDays = endSubscription ? 0 : Number(remainingRaw);
+    if (!Number.isFinite(remainingDays) || remainingDays < 0) {
+      toast.error('روز مانده نامعتبر است');
+      return;
+    }
     start(async () => {
       const res = await saveAdminUser(user._id, {
         fullName: form.fullName,
@@ -87,7 +97,7 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
         address: form.address,
         planId: form.planId,
         billingCycle: form.billingCycle,
-        remainingDays: Number(remainingDays || 0),
+        remainingDays,
         price: Number(form.price || 0),
       });
       if (redirectIfUnauthorized(res)) return;
@@ -174,14 +184,14 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
           </section>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button variant="danger" disabled={pending || !user.active} onClick={() => save('0')}>
+            <Button variant="danger" disabled={pending || !user.active} onClick={() => save(true)}>
               پایان اشتراک
             </Button>
             <div className="flex gap-2">
               <Button variant="outline" disabled={pending} onClick={onClose}>
                 انصراف
               </Button>
-              <Button disabled={pending} onClick={() => save()}>
+              <Button disabled={pending} onClick={() => save(false)}>
                 ذخیره
               </Button>
             </div>

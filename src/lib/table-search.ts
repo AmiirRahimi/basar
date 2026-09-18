@@ -94,7 +94,8 @@ export function matchesTableSearch(
 ) {
   const needle = normalizeSearch(query);
   if (!needle) return true;
-  if (fields?.length) {
+  if (Array.isArray(fields)) {
+    if (!fields.length) return false;
     const haystack = fields
       .map((key) => fieldSearchText((row || {}) as Record<string, any>, key, resource))
       .join(' ');
@@ -117,8 +118,9 @@ export function encodeListQuery(input: {
   }
   const q = String(input.q || '').trim().slice(0, MAX_QUERY_LEN);
   if (q) params.set('q', q);
-  const fields = parseFieldList(input.fields);
-  if (fields.length) params.set('fields', fields.join(','));
+  if (input.fields !== undefined) {
+    params.set('fields', parseFieldList(input.fields).join(','));
+  }
   if (input.sort && SORT_KEY_RE.test(input.sort)) {
     params.set('sort', input.sort);
     if (input.dir === 'desc') params.set('dir', 'desc');
@@ -144,7 +146,7 @@ export function parseListQuery(extra = '') {
     q: String(params.get('q') || '').trim().slice(0, MAX_QUERY_LEN),
     sort: SORT_KEY_RE.test(sortRaw) ? sortRaw : '',
     dir: params.get('dir') === 'desc' ? ('desc' as const) : ('asc' as const),
-    fields: parseFieldList(params.get('fields')),
+    fields: params.has('fields') ? parseFieldList(params.get('fields')) : undefined,
   };
 }
 

@@ -306,7 +306,7 @@ function UserTable({
           row.loggedIn ? 'وارد شده' : 'خارج',
           row.active ? row.planName || 'فعال' : 'ندارد',
           row.planId,
-          cycleLabel(row.billingCycle),
+          row.billingCycle ? cycleLabel(row.billingCycle) : '',
           row.address,
           row.email,
           faNumber(row.remainingDays),

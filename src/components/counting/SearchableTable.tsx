@@ -106,6 +106,7 @@ function mergeLayout(stored: StoredLayout | null, allIds: string[], fallbackVisi
 
 function searchPlaceholder(options: ColumnOption[], selected: string[] | null) {
   if (!selected || selected.length === options.length) return 'جستجو در همه فیلدها';
+  if (!selected.length) return 'فیلدی برای جستجو انتخاب نشده';
   const labels = selected
     .map((id) => options.find((option) => option.value === id)?.label || id)
     .filter(Boolean);
@@ -125,12 +126,11 @@ function SearchFieldPicker({
 }) {
   const ids = options.map((option) => option.value);
   const searchingAll = !selected || selected.length === ids.length;
-  const current = searchingAll ? ids : selected || ids;
+  const current = searchingAll ? ids : selected || [];
   const count = searchingAll ? ids.length : current.length;
 
   function toggle(id: string) {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-    if (!next.length) return;
     onChange(next.length === ids.length ? null : next);
   }
 
@@ -156,11 +156,11 @@ function SearchFieldPicker({
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-64 p-3" dir="rtl">
         <p className="mb-2 text-sm font-medium text-gray-800">جستجو در کدام فیلدها؟</p>
-        <p className="mb-3 text-xs text-gray-500">پیش‌فرض همه فیلدهاست. می‌توانید فقط بعضی را انتخاب کنید.</p>
+        <p className="mb-3 text-xs text-gray-500">پیش‌فرض همه فیلدهاست. برداشتن تیک همه، همه فیلدها را از انتخاب خارج می‌کند.</p>
         <div className="mb-2">
           <Checkbox
             checked={searchingAll}
-            onChange={() => onChange(null)}
+            onChange={() => onChange(searchingAll ? [] : null)}
             label="همه فیلدها"
           />
         </div>
@@ -220,8 +220,8 @@ export function SearchableTable<T>({
   const idsKey = ids.join('|');
   const serverMode = Boolean(resource);
   const searchingAll = !searchFields || searchFields.length === pickerIds.length;
-  const activeSearchFields = searchingAll ? undefined : searchFields || undefined;
-  const searchFieldsKey = activeSearchFields?.join(',') || '';
+  const activeSearchFields = searchingAll ? undefined : searchFields || [];
+  const searchFieldsKey = searchingAll ? '*' : activeSearchFields.join(',');
 
   useEffect(() => {
     setLayout(
