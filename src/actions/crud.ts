@@ -48,7 +48,7 @@ export async function deleteResource(resource: string, id: string) {
   return remove(resource, id);
 }
 
-export async function listClothes(page = 1, skip = 50) {
+export async function listClothes(page = 1, skip = 200) {
   return listByName('cloth', page, skip);
 }
 
@@ -68,23 +68,23 @@ export async function loadPublicOrders(ids: string[]) {
   return getPublicOrderSummaries(ids);
 }
 
-export async function listPeople(page = 1, skip = 100) {
+export async function listPeople(page = 1, skip = 200) {
   return listByName('person', page, skip);
 }
 
-export async function listInvoices(page = 1, skip = 50, filter = '{}') {
+export async function listInvoices(page = 1, skip = 200, filter = '{}') {
   return listByName('invoice', page, skip, `filter=${encodeURIComponent(filter)}`);
 }
 
-export async function listChecks(page = 1, skip = 50) {
+export async function listChecks(page = 1, skip = 200) {
   return listByName('check', page, skip);
 }
 
-export async function listFabric(page = 1, skip = 50) {
+export async function listFabric(page = 1, skip = 200) {
   return listByName('fabric', page, skip);
 }
 
-export async function listReturned(page = 1, skip = 50) {
+export async function listReturned(page = 1, skip = 200) {
   return listByName('returned', page, skip);
 }
 

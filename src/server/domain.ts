@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { fabricLotTotal, fabricUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
 import {
   addPacks,
+  formatPacksFa,
   itemsToPacks,
   mergePacks,
   packsFromCloth,
@@ -14,6 +15,13 @@ import {
   validatePacksEditor,
   type ClothPack,
 } from '@/lib/packs';
+import {
+  compareSortValues,
+  matchesTableSearch,
+  parseListQuery,
+  sortColumnValue,
+  tableRowSearchExtra,
+} from '@/lib/table-search';
 import { DEFAULT_MOQ, isPayablePersonRole, personRoleLabel, PHONE_RE } from '@/lib/constants';
 import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
 import { canAccessMenu, canReadResource, canWriteResource } from '@/lib/roles';
@@ -26,7 +34,7 @@ import { fail, failDb, ok, type ActionResult } from './result';
 import type { PublicOrderSummary } from '@/lib/types';
 import type { Session } from './session';
 import { withWorkspace, accessibleStores } from './workspace';
-import { clampPage } from './paging';
+import { clampPage, MAX_LIST_SCAN } from './paging';
 import { clientIp, rateLimit } from './rate-limit';
 
 function M() {
@@ -218,17 +226,40 @@ function lookups() {
   } as Record<string, { model: any; populate?: any; sort?: string; global?: boolean }>;
 }
 
-function parseFilter(session: Session, extra = '') {
-  let filters: Record<string, unknown> = {};
-  if (extra.startsWith('filter=')) {
-    try {
-      const parsed = JSON.parse(decodeURIComponent(extra.slice(7)));
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) filters = parsed;
-    } catch {
-      filters = {};
-    }
+function parseListExtra(extra = '') {
+  return parseListQuery(extra);
+}
+
+function decorateListRow(resource: string, row: any) {
+  if (resource === 'invoice') return decorateInvoice(row);
+  if (resource === 'cloth') {
+    const stock = packsFromCloth(row);
+    return {
+      ...row,
+      unitPrice: clothUnitPrice(row),
+      count: totalItems(stock.packs) || Number(row.count || 0),
+      packSummary: formatPacksFa(stock.packs),
+    };
   }
-  return storeFilter(session, filters);
+  if (resource === 'fabric') {
+    return { ...row, totalPrice: fabricLotTotal(row) };
+  }
+  return row;
+}
+
+function defaultSortFromCfg(cfgSort?: string) {
+  if (!cfgSort) return { key: '', desc: false };
+  const desc = cfgSort.startsWith('-');
+  return { key: desc ? cfgSort.slice(1) : cfgSort, desc };
+}
+
+function sortListRows(resource: string, rows: any[], key: string, desc: boolean) {
+  if (!key) return rows;
+  return [...rows].sort((a, b) => {
+    const cmp = compareSortValues(sortColumnValue(a, key, resource), sortColumnValue(b, key, resource));
+    if (cmp !== 0) return desc ? -cmp : cmp;
+    return String(a?._id || '').localeCompare(String(b?._id || ''));
+  });
 }
 
 async function markUsedChecks(session: Session, rows: any[]) {
@@ -271,23 +302,29 @@ export async function listResource(resource: string, page = 1, skip = 50, extra 
     const cfg = lookups()[resource];
     if (!cfg) return fail('منبع ناشناخته');
     const paging = clampPage(page, skip);
+    const parsed = parseListExtra(extra);
     const filter = cfg.global
       ? {}
       : resource === 'cloth'
         ? clothVisibleFilter(auth.session)
-        : parseFilter(auth.session, extra);
+        : storeFilter(auth.session, parsed.filter);
     let q = cfg.model.find(filter);
     if (cfg.populate) q = q.populate(cfg.populate);
-    if (cfg.sort) q = q.sort(cfg.sort);
-    const rows = await q
-      .skip((paging.page - 1) * paging.skip)
-      .limit(paging.skip)
-      .lean();
-    const data = resource === 'invoice' ? (rows as any[]).map(decorateInvoice) : rows;
-    if (resource === 'check') {
-      return ok(serialize(await markUsedChecks(auth.session, data as any[])));
+    const scanned = await q.limit(MAX_LIST_SCAN).lean();
+    let rows = (scanned as any[]).map((row) => decorateListRow(resource, row));
+    if (parsed.q) {
+      rows = rows.filter((row) => matchesTableSearch(row, parsed.q, tableRowSearchExtra(resource, row)));
     }
-    return ok(serialize(data));
+    const fallback = defaultSortFromCfg(cfg.sort);
+    const sortKey = parsed.sort || fallback.key;
+    const desc = parsed.sort ? parsed.dir === 'desc' : fallback.desc;
+    rows = sortListRows(resource, rows, sortKey, desc);
+    const start = (paging.page - 1) * paging.skip;
+    rows = rows.slice(start, start + paging.skip);
+    if (resource === 'check') {
+      return ok(serialize(await markUsedChecks(auth.session, rows)));
+    }
+    return ok(serialize(rows));
   } catch {
     return failDb();
   }

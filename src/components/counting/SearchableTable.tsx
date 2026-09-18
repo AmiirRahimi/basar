@@ -4,16 +4,22 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
+  getSortedRowModel,
   type ColumnDef,
+  type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table';
 import { BasicTable, ColumnPickerPanel, EmptyState, Input, TableFilter } from '@/ui';
 import type { ColumnOption } from '@/ui';
-import { matchesTableSearch } from '@/lib/table-search';
+import { listResource } from '@/actions/crud';
+import { redirectIfUnauthorized } from '@/lib/session-client';
+import { encodeListQuery, matchesTableSearch } from '@/lib/table-search';
 
 const PINNED_COLUMN = 'actions';
 const DEFAULT_VISIBLE_COUNT = 6;
 const STORAGE_PREFIX = 'basar.table.';
+const SEARCH_DEBOUNCE_MS = 300;
+const DEFAULT_PAGE_SIZE = 200;
 
 const COLUMN_PICKER_LABELS = {
   title: 'ستون‌ها',
@@ -106,6 +112,8 @@ export function SearchableTable<T>({
   isLoading,
   emptyMessage = 'موردی نیست',
   defaultVisibleCount = DEFAULT_VISIBLE_COUNT,
+  resource,
+  pageSize = DEFAULT_PAGE_SIZE,
 }: {
   storageKey: string;
   data: T[];
@@ -115,6 +123,8 @@ export function SearchableTable<T>({
   isLoading?: boolean;
   emptyMessage?: string;
   defaultVisibleCount?: number;
+  resource?: string;
+  pageSize?: number;
 }) {
   const ids = useMemo(() => allColumnIds(columns), [columns]);
   const options = useMemo(() => pickerColumns(columns, defaultVisibleCount), [columns, defaultVisibleCount]);
@@ -124,9 +134,14 @@ export function SearchableTable<T>({
     [pickerIds, defaultVisibleCount],
   );
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [serverRows, setServerRows] = useState<T[]>(data);
+  const [fetching, setFetching] = useState(false);
   const [panel, setPanel] = useState<'columns' | null>(null);
   const [layout, setLayout] = useState<StoredLayout>({ order: ids, visible: fallbackVisible });
   const idsKey = ids.join('|');
+  const serverMode = Boolean(resource);
 
   useEffect(() => {
     setLayout(
@@ -141,10 +156,49 @@ export function SearchableTable<T>({
     );
   }, [storageKey, idsKey, defaultVisibleCount, ids]);
 
-  const filtered = useMemo(
-    () => data.filter((row) => matchesTableSearch(row, query, extraSearch?.(row) || '')),
-    [data, extraSearch, query],
-  );
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    if (!resource) {
+      setServerRows(data);
+      return;
+    }
+    const q = debouncedQuery.trim();
+    const sort = sorting[0];
+    if (!q && !sort) {
+      setServerRows(data);
+      setFetching(false);
+      return;
+    }
+    let cancelled = false;
+    setFetching(true);
+    const extra = encodeListQuery({
+      q,
+      sort: sort?.id,
+      dir: sort?.desc ? 'desc' : 'asc',
+    });
+    listResource(resource, 1, pageSize, extra)
+      .then((res) => {
+        if (cancelled) return;
+        if (redirectIfUnauthorized(res)) return;
+        if (res.ok && Array.isArray(res.data)) setServerRows(res.data as T[]);
+        setFetching(false);
+      })
+      .catch(() => {
+        if (!cancelled) setFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resource, debouncedQuery, sorting, data, pageSize]);
+
+  const tableData = useMemo(() => {
+    if (serverMode) return serverRows;
+    return data.filter((row) => matchesTableSearch(row, query, extraSearch?.(row) || ''));
+  }, [serverMode, serverRows, data, extraSearch, query]);
 
   const visibility = useMemo<VisibilityState>(() => {
     const next: VisibilityState = {};
@@ -155,13 +209,18 @@ export function SearchableTable<T>({
   }, [ids, layout.visible]);
 
   const table = useReactTable({
-    data: filtered,
+    data: tableData,
     columns,
     state: {
       columnVisibility: visibility,
       columnOrder: layout.order,
+      sorting,
     },
+    onSortingChange: setSorting,
+    manualSorting: serverMode,
+    enableSortingRemoval: true,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: serverMode ? undefined : getSortedRowModel(),
     getRowId,
   });
 
@@ -172,7 +231,15 @@ export function SearchableTable<T>({
     setPanel(null);
   }
 
-  if (!data.length) {
+  function clearQuery() {
+    setQuery('');
+    setDebouncedQuery('');
+  }
+
+  const hasActiveFilters = Boolean(query.trim()) || Boolean(sorting.length);
+  const showBareEmpty = !fetching && !isLoading && !tableData.length && !hasActiveFilters;
+
+  if (showBareEmpty) {
     return <EmptyState message={emptyMessage} />;
   }
 
@@ -204,9 +271,9 @@ export function SearchableTable<T>({
       />
       <BasicTable
         table={table}
-        isLoading={isLoading}
-        hasActiveFilters={Boolean(query.trim())}
-        onClearFilters={() => setQuery('')}
+        isLoading={Boolean(isLoading || fetching)}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearQuery}
         labels={{
           nothingToShow: emptyMessage,
           noResults: 'نتیجه‌ای برای این جستجو نیست',

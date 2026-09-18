@@ -292,6 +292,7 @@ function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (r
         id: 'actions',
         header: 'عملیات',
         enableHiding: false,
+        enableSorting: false,
         cell: ({ row }) => (
           <Button size="sm" variant="outline" onClick={() => onCreateCode(row.original)}>
             کد تخفیف
@@ -390,6 +391,7 @@ function CodeTable({
         id: 'actions',
         header: 'عملیات',
         enableHiding: false,
+        enableSorting: false,
         cell: ({ row }) => (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" disabled={pending} onClick={() => onToggle(row.original)}>

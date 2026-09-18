@@ -85,12 +85,12 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
         header: 'سررسید',
         cell: (info) => String(info.getValue() || '—'),
       }),
-      helper.display({
+      helper.accessor((row) => (row.direction === 'out' ? checkSourceLabel(row) : ''), {
         id: 'source',
         header: 'منبع',
         cell: ({ row }) => (row.original.direction === 'out' ? checkSourceLabel(row.original) : '—'),
       }),
-      helper.display({
+      helper.accessor((row) => checkStatus(row), {
         id: 'status',
         header: 'وضعیت',
         cell: ({ row }) => {
@@ -123,6 +123,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
           header: 'عملیات',
           size: 112,
           enableHiding: false,
+          enableSorting: false,
           cell: ({ row }) => (
             <RowActions
               onEdit={() => openEdit(row.original)}
@@ -242,6 +243,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
     <div className="space-y-4">
       <SearchableTable
         storageKey="check"
+        resource="check"
         data={checks}
         columns={tableColumns}
         getRowId={(row) => String(row._id)}

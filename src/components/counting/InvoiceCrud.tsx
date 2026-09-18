@@ -183,6 +183,7 @@ export function InvoiceCrud({
         header: 'عملیات',
         size: 176,
         enableHiding: false,
+        enableSorting: false,
         cell: ({ row }) => (
           <RowActions
             onEdit={writable ? () => openEdit(row.original) : undefined}
@@ -456,6 +457,7 @@ export function InvoiceCrud({
     <div className="space-y-4">
       <SearchableTable
         storageKey="invoice"
+        resource="invoice"
         data={invoices}
         columns={tableColumns}
         getRowId={(row) => String(row._id)}

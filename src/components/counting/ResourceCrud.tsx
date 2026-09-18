@@ -115,6 +115,7 @@ export function ResourceCrud({
         header: 'عملیات',
         size: 112,
         enableHiding: false,
+        enableSorting: false,
         cell: ({ row }) =>
           writable ? (
             <RowActions
@@ -281,6 +282,7 @@ export function ResourceCrud({
       ) : null}
       <SearchableTable
         storageKey={resource}
+        resource={resource}
         data={rows}
         columns={tableColumns}
         getRowId={(row) => String(row._id)}
