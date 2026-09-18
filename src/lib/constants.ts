@@ -1,8 +1,9 @@
 export const ACCESS_COOKIE = 'basar_access';
 export const REFRESH_COOKIE = 'basar_refresh';
 export const CART_COOKIE = 'basar_wholesale_cart';
-/** Access and refresh cookies both last this long. */
+/** Refresh cookie lifetime. Access tokens are much shorter. */
 export const SESSION_DAYS = 7;
+export const ACCESS_TOKEN_MINUTES = 15;
 export const SESSION_EXPIRED_PARAM = 'expired';
 
 export const PERSON_ROLES: Record<string, string> = {

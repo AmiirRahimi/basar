@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import mongoose from 'mongoose';
 import { fabricLotTotal, fabricUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
 import {
@@ -15,16 +16,18 @@ import {
 } from '@/lib/packs';
 import { DEFAULT_MOQ, isPayablePersonRole, personRoleLabel, PHONE_RE } from '@/lib/constants';
 import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
-import { canWriteResource } from '@/lib/roles';
+import { canAccessMenu, canReadResource, canWriteResource } from '@/lib/roles';
 import { allocateIncome, partnersForStore } from '@/lib/partners';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
 import { parseImageList } from '@/lib/shop-cart';
-import { fail, ok, type ActionResult } from './result';
+import { fail, failDb, ok, type ActionResult } from './result';
 import type { PublicOrderSummary } from '@/lib/types';
 import type { Session } from './session';
 import { withWorkspace, accessibleStores } from './workspace';
+import { clampPage } from './paging';
+import { clientIp, rateLimit } from './rate-limit';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -36,8 +39,99 @@ function oid(value: unknown) {
   return mongoose.Types.ObjectId.isValid(s) ? new mongoose.Types.ObjectId(s) : value;
 }
 
+const FILTER_KEYS = new Set([
+  '_id',
+  '_client',
+  '_owner',
+  '_mercer',
+  '_tailor',
+  '_returnedPerson',
+  '_type',
+  '_wash',
+  'role',
+  'isSent',
+  'direction',
+  'code',
+]);
+
+const RESOURCE_FIELDS: Record<string, string[]> = {
+  person: ['fullName', 'phoneNumber', 'address', 'city', 'role', 'sewingFee'],
+  cloth: [
+    '_type',
+    '_style',
+    '_size',
+    '_color',
+    '_tailor',
+    '_producedFrom',
+    '_boughtFrom',
+    '_wash',
+    '_partner',
+    '_storeId',
+    '_storeIds',
+    'amountUsed',
+    'boughtFee',
+    'tailorFee',
+    'washFee',
+    'code',
+    'count',
+    'packSize',
+    'packs',
+    'description',
+    'wholesalePrice',
+    'minOrderQty',
+    'published',
+    'images',
+  ],
+  invoice: ['_client', 'receiverAddress', 'isSent'],
+  'customer-cart': ['_invoice', '_cloth', 'count', 'packs', 'price'],
+  check: [
+    '_owner',
+    '_sourceCheck',
+    'direction',
+    'dueDate',
+    'amount',
+    'serialNumber',
+    'sayadiNumber',
+    'status',
+    'isCashed',
+    'isReturned',
+    'isTransferred',
+  ],
+  fabric: ['_mercer', '_tailor', 'amount', 'priceForUnit', 'priceForShipingForUnit', 'discount'],
+  returned: ['_returnedPerson', 'description'],
+  color: ['name'],
+  size: ['name', '_clothKind'],
+  'cloth-kind': ['name'],
+  'cloth-style': ['name', '_clothKind'],
+};
+
+function sanitizeFilter(filters: Record<string, unknown>) {
+  const next: Record<string, unknown> = {};
+  if (!filters || typeof filters !== 'object' || Array.isArray(filters)) return next;
+  for (const [key, value] of Object.entries(filters)) {
+    if (!FILTER_KEYS.has(key) || key.startsWith('$')) continue;
+    if (value && typeof value === 'object') continue;
+    next[key] = key.startsWith('_') || key === '_id' ? oid(value) : value;
+  }
+  return next;
+}
+
 function storeFilter(session: Session, extra: Record<string, unknown> = {}) {
-  return { _storeId: oid(session._storeId), isDeleted: false, ...extra };
+  return { ...sanitizeFilter(extra), _storeId: oid(session._storeId), isDeleted: false };
+}
+
+function publicOrderToken() {
+  return randomBytes(24).toString('base64url');
+}
+
+function pickAllowed(resource: string, payload: Record<string, unknown>) {
+  const allowed = RESOURCE_FIELDS[resource];
+  if (!allowed) return {};
+  const next: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (payload[key] !== undefined) next[key] = payload[key];
+  }
+  return next;
 }
 
 function clothVisibleFilter(session: Session) {
@@ -53,15 +147,32 @@ async function withSession() {
 
 const PLATFORM_WRITE = new Set(['color', 'size', 'cloth-kind', 'cloth-style', 'permision', 'change']);
 
+function denyRead(session: Session, resource: string) {
+  if (!canReadResource(session.storeRole, resource, session.isPlatformAdmin)) {
+    return fail('اجازه این کار را ندارید', 403);
+  }
+  return null;
+}
+
+function denyMenu(session: Session, menuId: string) {
+  if (!canAccessMenu(session.storeRole, menuId, session.isPlatformAdmin)) {
+    return fail('اجازه این کار را ندارید', 403);
+  }
+  return null;
+}
+
 function denyWrite(session: Session, resource: string) {
+  const read = denyRead(session, resource);
+  if (read) return read;
   if (session.isPlatformAdmin) return null;
   if (PLATFORM_WRITE.has(resource)) {
     return fail('فقط ادمین اصلی می‌تواند این بخش را ویرایش کند', 403);
   }
-  if (session.subscriptionActive === false) {
+  const subscriptionActive = session.subscriptionActive !== false;
+  if (!subscriptionActive) {
     return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
   }
-  if (!canWriteResource(session.storeRole, resource, session.isPlatformAdmin, session.subscriptionActive !== false)) {
+  if (!canWriteResource(session.storeRole, resource, session.isPlatformAdmin, subscriptionActive)) {
     return fail('اجازه این کار را ندارید', 403);
   }
   return null;
@@ -111,14 +222,12 @@ function parseFilter(session: Session, extra = '') {
   let filters: Record<string, unknown> = {};
   if (extra.startsWith('filter=')) {
     try {
-      filters = JSON.parse(decodeURIComponent(extra.slice(7)));
+      const parsed = JSON.parse(decodeURIComponent(extra.slice(7)));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) filters = parsed;
     } catch {
       filters = {};
     }
   }
-  Object.keys(filters).forEach((key) => {
-    if (key.startsWith('_')) filters[key] = oid(filters[key]);
-  });
   return storeFilter(session, filters);
 }
 
@@ -157,8 +266,11 @@ export async function listResource(resource: string, page = 1, skip = 50, extra 
   try {
     const auth = await withSession();
     if ('error' in auth) return auth.error;
+    const denied = denyRead(auth.session, resource);
+    if (denied) return denied;
     const cfg = lookups()[resource];
     if (!cfg) return fail('منبع ناشناخته');
+    const paging = clampPage(page, skip);
     const filter = cfg.global
       ? {}
       : resource === 'cloth'
@@ -168,24 +280,28 @@ export async function listResource(resource: string, page = 1, skip = 50, extra 
     if (cfg.populate) q = q.populate(cfg.populate);
     if (cfg.sort) q = q.sort(cfg.sort);
     const rows = await q
-      .skip((page - 1) * skip)
-      .limit(skip)
+      .skip((paging.page - 1) * paging.skip)
+      .limit(paging.skip)
       .lean();
     const data = resource === 'invoice' ? (rows as any[]).map(decorateInvoice) : rows;
     if (resource === 'check') {
       return ok(serialize(await markUsedChecks(auth.session, data as any[])));
     }
     return ok(serialize(data));
-  } catch (error) {
-    return fail(error instanceof Error ? error.message : 'خطای پایگاه داده', 500);
+  } catch {
+    return failDb();
   }
 }
 
 export async function getResource(resource: string, id: string): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyRead(auth.session, resource === 'customer-cart' ? 'customer-cart' : resource);
+  if (denied) return denied;
   if (resource === 'customer-cart') {
-    const lines = await M().CustomerCart.find({ _invoice: oid(id), isDeleted: false })
+    const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: id })).lean();
+    if (!invoice) return fail('پیدا نشد', 404);
+    const lines = await M().CustomerCart.find(storeFilter(auth.session, { _invoice: oid(id) }))
       .populate('_cloth')
       .lean();
     return ok(serialize(lines));
@@ -214,7 +330,7 @@ function convertIdList(value: unknown) {
 }
 
 function preparePayload(session: Session, resource: string, payload: Record<string, unknown>) {
-  const next = { ...payload };
+  const next = pickAllowed(resource, payload);
   Object.keys(next).forEach((key) => {
     if (!key.startsWith('_')) return;
     if (key === '_storeIds') {
@@ -229,7 +345,7 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
   if (!cfg?.global) {
     next._storeId = oid(session._storeId);
     if (session._brandId) next._brandId = oid(session._brandId);
-    if (next.isDeleted == null) next.isDeleted = false;
+    next.isDeleted = false;
   }
   return next;
 }
@@ -300,11 +416,11 @@ function linePacks(item: any, packSize: number): ClothPack[] {
   return itemsToPacks(Number(item?.count || 0), packSize);
 }
 
-async function applyClothCost(body: Record<string, unknown>) {
+async function applyClothCost(session: Session, body: Record<string, unknown>) {
   const fabricId = body._producedFrom;
   const amountUsed = Number(body.amountUsed || 0);
   if (!fabricId || !amountUsed) return body;
-  const fabric = await M().Fabric.findOne({ _id: fabricId, isDeleted: false }).lean();
+  const fabric = await M().Fabric.findOne(storeFilter(session, { _id: fabricId })).lean();
   if (!fabric) return body;
   body.boughtFee = amountUsed * fabricUnitCost(fabric);
   return body;
@@ -429,9 +545,11 @@ export async function createResource(resource: string, payload: unknown): Promis
     while (await M().Invoice.exists({ invoiceNumber })) {
       invoiceNumber = Math.floor(10000 + Math.random() * 9000);
     }
-    const created = await M().Invoice.create(
-      preparePayload(auth.session, resource, { ...body, items: undefined, invoiceNumber }),
-    );
+    const created = await M().Invoice.create({
+      ...preparePayload(auth.session, resource, { ...body, items: undefined }),
+      invoiceNumber,
+      publicToken: publicOrderToken(),
+    });
     if (soldItems.length) {
       await M().CustomerCart.insertMany(
         soldItems.map((item: any) => ({
@@ -465,7 +583,7 @@ export async function createResource(resource: string, payload: unknown): Promis
     const inventoried = applyClothInventory(next);
     if (!inventoried.ok) return inventoried;
     next = inventoried.data || next;
-    next = await applyClothCost(next);
+    next = await applyClothCost(auth.session, next);
   }
   if (resource === 'check') {
     const checked = await applyCheckPayload(auth.session, next, true);
@@ -502,7 +620,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
     const updated = await M().Invoice.findOneAndUpdate(filter, body, { new: true });
     if (!updated) return fail('پیدا نشد', 404);
     if (items) {
-      const previous = await M().CustomerCart.find({ _invoice: oid(id), isDeleted: false }).lean();
+      const previous = await M().CustomerCart.find(storeFilter(auth.session, { _invoice: oid(id) })).lean();
       await restoreItems(previous);
       const sold = await sellItems(auth.session, items.filter((item: any) => item && item._cloth));
       if (!sold.ok) {
@@ -510,7 +628,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
         return sold;
       }
       await M().CustomerCart.updateMany(
-        { _invoice: oid(id), _storeId: oid(auth.session._storeId) },
+        storeFilter(auth.session, { _invoice: oid(id) }),
         { isDeleted: true },
       );
       const validItems = sold.data || [];
@@ -551,7 +669,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
     const inventoried = applyClothInventory(body);
     if (!inventoried.ok) return inventoried;
     body = inventoried.data || body;
-    body = await applyClothCost(body);
+    body = await applyClothCost(auth.session, body);
   }
   if (resource === 'check') {
     const checked = await applyCheckPayload(auth.session, body, false);
@@ -582,22 +700,31 @@ export async function deleteResource(resource: string, id: string): Promise<Acti
     await cfg.model.findByIdAndDelete(id);
     return ok(null, 'حذف شد');
   }
+  if (resource === 'invoice') {
+    const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: id })).lean();
+    if (!invoice) return fail('پیدا نشد', 404);
+    const lines = await M().CustomerCart.find(storeFilter(auth.session, { _invoice: oid(id) })).lean();
+    const updated = await M().Invoice.findOneAndUpdate(storeFilter(auth.session, { _id: id }), { isDeleted: true }, { new: true });
+    if (!updated) return fail('پیدا نشد', 404);
+    await restoreItems(lines);
+    await M().CustomerCart.updateMany(storeFilter(auth.session, { _invoice: oid(id) }), { isDeleted: true });
+    return ok(null, 'حذف شد');
+  }
   if (resource === 'customer-cart') {
-    const line = await M().CustomerCart.findOne({ _id: id, _storeId: oid(auth.session._storeId) }).lean();
+    const line = await M().CustomerCart.findOne(storeFilter(auth.session, { _id: id })).lean();
     if (line && !line.isDeleted) await restoreItems([line]);
   }
-  if (resource === 'invoice') {
-    const lines = await M().CustomerCart.find({ _invoice: oid(id), isDeleted: false }).lean();
-    await restoreItems(lines);
+  if (resource === 'returned') {
+    const returned = await M().Returned.findOneAndUpdate(storeFilter(auth.session, { _id: id }), { isDeleted: true });
+    if (!returned) return fail('پیدا نشد', 404);
+    await M().ReturnedItems.updateMany({ _returned: oid(id) }, { isDeleted: true });
+    return ok(null, 'حذف شد');
   }
   const cfg = resource === 'customer-cart' ? { model: M().CustomerCart } : lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
   const filter = resource === 'cloth' ? { _id: id, ...clothVisibleFilter(auth.session) } : { _id: id, _storeId: oid(auth.session._storeId) };
-  await cfg.model.findOneAndUpdate(filter, { isDeleted: true });
-  if (resource === 'invoice') {
-    await M().CustomerCart.updateMany({ _invoice: oid(id), _storeId: oid(auth.session._storeId) }, { isDeleted: true });
-  }
-  if (resource === 'returned') {
+  const updated = await cfg.model.findOneAndUpdate(filter, { isDeleted: true });
+  if (resource === 'returned' && updated) {
     await M().ReturnedItems.updateMany({ _returned: oid(id) }, { isDeleted: true });
   }
   return ok(null, 'حذف شد');
@@ -608,11 +735,10 @@ const PUBLIC_CLOTH_POPULATE = [
   { path: '_style' },
   { path: '_color' },
   { path: '_size', select: '_id name' },
-  { path: '_producedFrom' },
 ];
 
 const PUBLIC_CLOTH_SELECT =
-  '_id code count packSize packs description wholesalePrice minOrderQty images _type _style _size _color _producedFrom amountUsed boughtFee tailorFee _storeId';
+  '_id code count packSize packs description wholesalePrice minOrderQty images _type _style _size _color _storeId';
 
 export async function listPublicClothes(): Promise<ActionResult> {
   await db();
@@ -654,7 +780,7 @@ async function sellPublicPacks(items: any[]): Promise<ActionResult<any[]>> {
       _cloth: id,
       packs: taken,
       count: pieces,
-      price: Number(item.price || cloth.wholesalePrice || clothUnitPrice(cloth)),
+      price: Number(cloth.wholesalePrice || clothUnitPrice(cloth)),
       _storeId: storeIdOf(cloth),
     });
     needed.set(id, addPacks(needed.get(id) || [], taken));
@@ -706,7 +832,11 @@ export async function placeWholesaleOrder(input: {
   const address = String(input.address || '').trim();
   if (!fullName || !phone || !address) return fail('نام، موبایل و آدرس را کامل کنید');
   if (!PHONE_RE.test(phone)) return fail('شماره موبایل معتبر نیست');
-  const items = Array.isArray(input.items) ? input.items.filter((item) => item?.productId) : [];
+  const ip = await clientIp();
+  if (!rateLimit(`checkout:ip:${ip}`, 5, 10 * 60 * 1000) || !rateLimit(`checkout:phone:${phone}`, 5, 10 * 60 * 1000)) {
+    return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
+  }
+  const items = Array.isArray(input.items) ? input.items.filter((item) => item?.productId).slice(0, 20) : [];
   if (!items.length) return fail('سبد خالی است');
 
   const grouped = new Map<string, any[]>();
@@ -720,7 +850,6 @@ export async function placeWholesaleOrder(input: {
       _cloth: item.productId,
       packs: item.packs,
       count: item.count,
-      price: item.price,
     });
     grouped.set(storeId, bucket);
   }
@@ -752,6 +881,7 @@ export async function placeWholesaleOrder(input: {
         _client: oid(clientId),
         receiverAddress: address,
         invoiceNumber,
+        publicToken: publicOrderToken(),
         isSent: false,
         isDeleted: false,
       });
@@ -773,8 +903,8 @@ export async function placeWholesaleOrder(input: {
         .lean();
       invoices.push(summarizePublicInvoice(created, lines));
     }
-  } catch (error) {
-    return fail(error instanceof Error ? error.message : 'ثبت سفارش ناموفق بود', 500);
+  } catch {
+    return failDb();
   }
   return ok(serialize({ invoices }), 'سفارش عمده ثبت شد');
 }
@@ -801,22 +931,25 @@ function summarizePublicInvoice(invoice: any, lines: any[]): PublicOrderSummary 
     };
   });
   return {
-    id: String(invoice._id),
+    id: String(invoice.publicToken || invoice._id),
     invoiceNumber: invoice.invoiceNumber,
     total: mapped.reduce((sum, line) => sum + line.total, 0),
     lines: mapped,
   };
 }
 
-export async function getPublicOrderSummaries(ids: string[]): Promise<ActionResult> {
+export async function getPublicOrderSummaries(tokens: string[]): Promise<ActionResult> {
   await db();
-  const unique = [...new Set(ids.map((id) => String(id || '')).filter(Boolean))].slice(0, 8);
+  const unique = [...new Set(tokens.map((token) => String(token || '').trim()).filter((token) => token.length >= 16 && token.length <= 128))].slice(
+    0,
+    8,
+  );
   if (!unique.length) return fail('سفارش پیدا نشد', 404);
   const invoices: PublicOrderSummary[] = [];
-  for (const id of unique) {
-    const invoice = await (M().Invoice.findOne({ _id: oid(id), isDeleted: false }) as any).lean();
+  for (const token of unique) {
+    const invoice = await (M().Invoice.findOne({ publicToken: token, isDeleted: false }) as any).lean();
     if (!invoice) continue;
-    const lines = await (M().CustomerCart.find({ _invoice: oid(id), isDeleted: false }) as any)
+    const lines = await (M().CustomerCart.find({ _invoice: invoice._id, isDeleted: false }) as any)
       .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
       .lean();
     invoices.push(summarizePublicInvoice(invoice, lines));
@@ -844,12 +977,15 @@ export async function addStoreBranch(payload: unknown, _main = false): Promise<A
 export async function listPayments(id: string, type = '2', page = 1, skip = 20): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
-  const filter = type === '1' ? { _invoice: oid(id), isDeleted: false } : { _person: oid(id), isDeleted: false };
-  const rows = await M().Payment.find(filter)
+  const denied = denyRead(auth.session, 'payment');
+  if (denied) return denied;
+  const paging = clampPage(page, skip);
+  const extra = type === '1' ? { _invoice: oid(id) } : { _person: oid(id) };
+  const rows = await M().Payment.find(storeFilter(auth.session, extra))
     .populate({ path: '_check', populate: { path: '_owner' } })
     .populate(type === '1' ? '_invoice' : '_person')
-    .skip((page - 1) * skip)
-    .limit(skip)
+    .skip((paging.page - 1) * paging.skip)
+    .limit(paging.skip)
     .lean();
   return ok(serialize(rows));
 }
@@ -935,6 +1071,12 @@ export async function createPayment(info: unknown): Promise<ActionResult> {
   const created: any[] = [];
   for (const item of items as any[]) {
     if (!item?._person) return fail('شخص الزامی است');
+    const person = await M().Person.findOne(storeFilter(auth.session, { _id: item._person })).lean();
+    if (!person) return fail('شخص پیدا نشد', 404);
+    if (item._invoice) {
+      const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: item._invoice })).lean();
+      if (!invoice) return fail('فاکتور پیدا نشد', 404);
+    }
     const cash = Number(item.cashAmount ?? item.cash ?? 0);
     const discount = Number(item.discount || 0);
     const creditAmount = Number(item.creditAmount || 0);
@@ -965,12 +1107,29 @@ export async function createPayment(info: unknown): Promise<ActionResult> {
   return ok(serialize(created[0] || null), 'پرداخت ثبت شد');
 }
 
+async function entityInStore(session: Session, id: string) {
+  const filter = storeFilter(session, { _id: id });
+  const [invoice, person, cloth, check, fabric, returned] = await Promise.all([
+    M().Invoice.findOne(filter).select('_id').lean(),
+    M().Person.findOne(filter).select('_id').lean(),
+    M().Cloth.findOne({ _id: oid(id), ...clothVisibleFilter(session) }).select('_id').lean(),
+    M().Check.findOne(filter).select('_id').lean(),
+    M().Fabric.findOne(filter).select('_id').lean(),
+    M().Returned.findOne(filter).select('_id').lean(),
+  ]);
+  return Boolean(invoice || person || cloth || check || fabric || returned);
+}
+
 export async function addReturnedItem(payload: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
   const denied = denyWrite(auth.session, 'returned');
   if (denied) return denied;
   const body = payload as Record<string, unknown>;
+  const returned = await M().Returned.findOne(storeFilter(auth.session, { _id: body._returned })).lean();
+  if (!returned) return fail('برگشتی پیدا نشد', 404);
+  const cloth = await M().Cloth.findOne({ _id: oid(body._cloth), ...clothVisibleFilter(auth.session) }).lean();
+  if (!cloth) return fail('لباس پیدا نشد', 404);
   const created = await M().ReturnedItems.create({
     _returned: oid(body._returned),
     _cloth: oid(body._cloth),
@@ -983,6 +1142,7 @@ export async function addReturnedItem(payload: unknown): Promise<ActionResult> {
 export async function listAttachments(id: string): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  if (!(await entityInStore(auth.session, id))) return fail('پیدا نشد', 404);
   const rows = await M().Attachment.find({ entityId: oid(id) }).lean();
   return ok(serialize(rows));
 }
@@ -990,6 +1150,9 @@ export async function listAttachments(id: string): Promise<ActionResult> {
 export async function deleteAttachment(id: string): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const row = await M().Attachment.findById(id).lean();
+  if (!row) return fail('پیدا نشد', 404);
+  if (!(await entityInStore(auth.session, String(row.entityId || '')))) return fail('اجازه این کار را ندارید', 403);
   await M().Attachment.findByIdAndDelete(id);
   return ok(null, 'حذف شد');
 }
@@ -1006,6 +1169,8 @@ export async function listUserPermisions(): Promise<ActionResult> {
 export async function clothCounts(id: string, type: string): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyMenu(auth.session, 'account');
+  if (denied) return denied;
   if (type === '3') {
     const fabrics = await M().Fabric.find(storeFilter(auth.session, { _mercer: oid(id) })).lean();
     return ok(serialize(fabrics));
@@ -1079,6 +1244,8 @@ function salesForPersianKey(invoices: any[], totals: Record<string, number>, mat
 export async function dashboardStats(): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyMenu(auth.session, 'dashboard');
+  if (denied) return denied;
   const filter = storeFilter(auth.session);
   const [invoices, payments, checks, people, totals] = await Promise.all([
     M().Invoice.find(filter).populate('_client', '_id fullName').lean(),
@@ -1194,6 +1361,8 @@ async function partnerYearShares(session: Session, invoices: any[], yearKey: str
 export async function personAccount(personId: string): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyMenu(auth.session, 'account');
+  if (denied) return denied;
   const person = await M().Person.findOne(storeFilter(auth.session, { _id: personId })).lean();
   if (!person) return fail('شخص پیدا نشد', 404);
   const role = String(person.role || '1');
@@ -1310,13 +1479,15 @@ async function vendorItems(session: Session, personId: string, role: string) {
 export async function invoiceBalance(invoiceId: string): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
+  const denied = denyRead(auth.session, 'invoice');
+  if (denied) return denied;
   const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: invoiceId }))
     .populate('_client', '_id fullName')
     .lean();
   if (!invoice) return fail('فاکتور پیدا نشد', 404);
   const [lines, payments] = await Promise.all([
-    M().CustomerCart.find({ _invoice: oid(invoiceId), isDeleted: false }).lean(),
-    M().Payment.find({ _invoice: oid(invoiceId), isDeleted: false }).populate('_check').lean(),
+    M().CustomerCart.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).lean(),
+    M().Payment.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).populate('_check').lean(),
   ]);
   const total = lines.reduce((sum: number, line: any) => sum + Number(line.count || 0) * Number(line.price || 0), 0);
   const paid = payments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);

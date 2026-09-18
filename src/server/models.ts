@@ -249,6 +249,7 @@ const InvoiceSchema = new Schema(
     _client: { type: Schema.Types.ObjectId, ref: 'Person', required: true },
     receiverAddress: String,
     invoiceNumber: { type: Number, required: true, unique: true },
+    publicToken: { type: String, index: true, sparse: true },
     isSent: { type: Boolean, required: true, default: false },
     timeStamp: { type: Date, default: Date.now },
     isDeleted: { type: Boolean, default: false },

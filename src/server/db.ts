@@ -24,19 +24,25 @@ export async function db() {
   if (!cache.promise) {
     cache.promise = (async () => {
       const uri = envUri();
-      if (uri) {
-        try {
-          const conn = await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
-          cache.engine = 'mongo';
-          cache.conn = conn;
-          return conn;
-        } catch {
-          console.warn('[basar] Mongo unreachable, using local file database (.data/basar.json)');
-        }
+      const production = process.env.NODE_ENV === 'production';
+      if (!uri) {
+        if (production) throw new Error('MONGODB_URI must be set');
+        cache.engine = 'file';
+        cache.conn = null;
+        return 'file' as const;
       }
-      cache.engine = 'file';
-      cache.conn = null;
-      return 'file' as const;
+      try {
+        const conn = await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
+        cache.engine = 'mongo';
+        cache.conn = conn;
+        return conn;
+      } catch (error) {
+        if (production) throw error;
+        console.warn('[basar] Mongo unreachable, using local file database (.data/basar.json)');
+        cache.engine = 'file';
+        cache.conn = null;
+        return 'file' as const;
+      }
     })();
   }
   await cache.promise;

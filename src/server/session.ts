@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
-import { ACCESS_COOKIE, REFRESH_COOKIE, SESSION_DAYS, type StoreRole } from '@/lib/constants';
+import { ACCESS_COOKIE, ACCESS_TOKEN_MINUTES, REFRESH_COOKIE, SESSION_DAYS, type StoreRole } from '@/lib/constants';
 import { db } from './db';
 import { failAuth, type ActionResult } from './result';
 
@@ -14,13 +14,34 @@ export type Session = {
   subscriptionActive?: boolean;
 };
 
-const COOKIE_MAX_AGE = SESSION_DAYS * 24 * 60 * 60;
+const ACCESS_MAX_AGE = ACCESS_TOKEN_MINUTES * 60;
+const REFRESH_MAX_AGE = SESSION_DAYS * 24 * 60 * 60;
+
+function requiredSecret(name: 'JWT_ACCESS_SECRET' | 'JWT_REFRESH_SECRET') {
+  const value = (process.env[name] || '').trim();
+  if (value) return value;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(`${name} must be set`);
+  }
+  console.warn(`[basar] ${name} is missing; using a development fallback`);
+  return name === 'JWT_ACCESS_SECRET' ? 'dev-access-secret' : 'dev-refresh-secret';
+}
 
 function accessSecret() {
-  return process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
+  return requiredSecret('JWT_ACCESS_SECRET');
 }
 function refreshSecret() {
-  return process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
+  return requiredSecret('JWT_REFRESH_SECRET');
+}
+
+function cookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge,
+    secure: process.env.NODE_ENV === 'production',
+  };
 }
 
 export function signTokens(session: Session, sub = 'otp') {
@@ -32,9 +53,8 @@ export function signTokens(session: Session, sub = 'otp') {
     _brandId: session._brandId,
     storeRole: session.storeRole,
   };
-  const expiresIn = `${SESSION_DAYS}d`;
-  const accessToken = jwt.sign(payload, accessSecret(), { expiresIn });
-  const refreshToken = jwt.sign(payload, refreshSecret(), { expiresIn });
+  const accessToken = jwt.sign(payload, accessSecret(), { expiresIn: `${ACCESS_TOKEN_MINUTES}m` });
+  const refreshToken = jwt.sign(payload, refreshSecret(), { expiresIn: `${SESSION_DAYS}d` });
   return { accessToken, refreshToken };
 }
 
@@ -47,9 +67,8 @@ export async function setAuthCookies(tokens: {
   const jar = await cookies();
   const access = tokens.accessToken || tokens.access || '';
   const refresh = tokens.refreshToken || tokens.refresh || '';
-  const cookie = { httpOnly: true, sameSite: 'lax' as const, path: '/', maxAge: COOKIE_MAX_AGE };
-  if (access) jar.set(ACCESS_COOKIE, access, cookie);
-  if (refresh) jar.set(REFRESH_COOKIE, refresh, cookie);
+  if (access) jar.set(ACCESS_COOKIE, access, cookieOptions(ACCESS_MAX_AGE));
+  if (refresh) jar.set(REFRESH_COOKIE, refresh, cookieOptions(REFRESH_MAX_AGE));
 }
 
 export async function clearAuthCookies() {
@@ -60,7 +79,7 @@ export async function clearAuthCookies() {
 
 function readPayload(token: string, secret: string): Session | null {
   try {
-    const p = jwt.verify(token, secret) as jwt.JwtPayload;
+    const p = jwt.verify(token, secret, { algorithms: ['HS256'] }) as jwt.JwtPayload;
     if (!p._id || !p.phonenumber) return null;
     const role = p.storeRole === 'admin' || p.storeRole === 'seller' || p.storeRole === 'other' ? p.storeRole : 'owner';
     return {
@@ -83,10 +102,7 @@ async function userForRefresh(session: Session, refresh: string) {
   const user = await models.User.findOne({ _id: session._id }).lean();
   if (!user) return null;
   const stored = user.refreshToken ? String(user.refreshToken) : '';
-  if (stored && stored !== refresh) return null;
-  if (!stored) {
-    await models.User.updateOne({ _id: session._id }, { refreshToken: refresh });
-  }
+  if (!stored || stored !== refresh) return null;
   return user;
 }
 

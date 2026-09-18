@@ -26,7 +26,7 @@ export function clothToProduct(cloth: Cloth): CatalogProduct {
     description: cloth.description || 'موجودی انبار بازار — فروش فقط به‌صورت عمده و با بسته.',
     category: type.name || 'پوشاک',
     style: style.name,
-    wholesalePrice: cloth.wholesalePrice && cloth.wholesalePrice > 0 ? cloth.wholesalePrice : clothUnitPrice(cloth),
+    wholesalePrice: Number(cloth.wholesalePrice || 0) > 0 ? Number(cloth.wholesalePrice) : clothUnitPrice(cloth),
     minOrderQty: Number(cloth.minOrderQty || DEFAULT_MOQ),
     count: totalItems(stock.packs) || Number(cloth.count || 0),
     image: images[0] || FALLBACK_IMAGE,

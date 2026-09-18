@@ -12,7 +12,7 @@ import { asStringList, normalizeStoreContacts, storePhones } from '@/lib/store-c
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
-import { fail, failAuth, ok, type ActionResult } from './result';
+import { fail, failAuth, failDb, ok, type ActionResult } from './result';
 import { requireSession, setAuthCookies, signTokens, type Session } from './session';
 import { listPurchases, subscriptionForSession } from './subscription';
 
@@ -231,9 +231,9 @@ export async function resolveLoginContext(userId: string, phonenumber: string, p
 export async function withWorkspace() {
   try {
     await db();
-  } catch (error) {
+  } catch {
     return {
-      error: fail(error instanceof Error ? error.message : 'اتصال به پایگاه داده برقرار نشد', 500) as ActionResult,
+      error: failDb() as ActionResult,
     };
   }
   const auth = await requireSession();

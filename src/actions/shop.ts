@@ -51,7 +51,12 @@ export async function getCartItems(catalog?: CatalogProduct[]): Promise<Wholesal
 }
 
 export async function saveCart(items: WholesaleCartItem[]) {
-  (await cookies()).set(CART_COOKIE, JSON.stringify(items), { path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 14 });
+  (await cookies()).set(CART_COOKIE, JSON.stringify(items.slice(0, 20)), {
+    path: '/',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 14,
+    secure: process.env.NODE_ENV === 'production',
+  });
 }
 
 async function persistCart(items: WholesaleCartItem[]) {
@@ -82,7 +87,9 @@ export async function setCartPacks(productId: string, packs: ClothPack[], takenO
     takenOrder: takenOrder.length ? takenOrder : packsToOrder(merged, product.packSize),
   };
   if (line) Object.assign(line, nextLine);
-  else items.push(nextLine);
+  else if (items.length >= 20) {
+    return { ok: false, message: 'سبد پر است', items };
+  } else items.push(nextLine);
   const saved = await persistCart(items);
   return { ok: true, message: 'سبد بسته‌ها به‌روز شد', items: saved };
 }
@@ -100,9 +107,9 @@ export async function checkoutWholesale(input: { fullName: string; phone: string
     .map((line) => {
       const product = catalog.find((row) => row.id === line.productId);
       if (!product) return null;
-      return { productId: product.id, packs: line.packs, price: product.wholesalePrice };
+      return { productId: product.id, packs: line.packs };
     })
-    .filter(Boolean) as Array<{ productId: string; packs: ClothPack[]; price: number }>;
+    .filter(Boolean) as Array<{ productId: string; packs: ClothPack[] }>;
   const result = await placePublicWholesaleOrder({
     fullName: input.fullName,
     phone: input.phone,

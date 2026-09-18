@@ -16,3 +16,7 @@ export function fail(message: string, status = 400): ActionResult<null> {
 export function failAuth(message = 'وارد شوید') {
   return fail(message, 401);
 }
+
+export function failDb() {
+  return fail('عملیات ناموفق بود', 500);
+}

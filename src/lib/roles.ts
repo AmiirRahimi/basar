@@ -49,6 +49,29 @@ export function canWriteResource(
   return allowed.includes(role);
 }
 
+const RESOURCE_READ_MENU: Record<string, string> = {
+  invoice: 'invoice',
+  'customer-cart': 'invoice',
+  person: 'person',
+  cloth: 'cloth',
+  check: 'check',
+  fabric: 'fabric',
+  returned: 'returned',
+  payment: 'account',
+  change: 'admin',
+  permision: 'admin',
+};
+
+const LOOKUP_RESOURCES = new Set(['color', 'size', 'cloth-kind', 'cloth-style']);
+
+export function canReadResource(role: StoreRole, resource: string, isPlatformAdmin = false) {
+  if (isPlatformAdmin) return true;
+  if (LOOKUP_RESOURCES.has(resource)) return true;
+  const menu = RESOURCE_READ_MENU[resource];
+  if (!menu) return role === 'owner' || role === 'admin';
+  return canAccessMenu(role, menu, isPlatformAdmin);
+}
+
 export function pathMenuId(pathname: string) {
   if (pathname.startsWith('/counting/admin')) return 'admin';
   if (pathname.startsWith('/counting/invoices')) return 'invoice';

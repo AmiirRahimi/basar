@@ -1,11 +1,10 @@
+import { randomInt } from 'node:crypto';
 import argon2 from 'argon2';
-import mongoose from 'mongoose';
 import { db, dbEngine, serialize } from './db';
 import * as mongo from './models';
 import { fileModels } from './file-db';
-import { fail, ok, type ActionResult } from './result';
+import { fail, failDb, ok, type ActionResult } from './result';
 import { clearAuthCookies, setAuthCookies, signTokens, type Session } from './session';
-
 import { PHONE_RE } from '@/lib/constants';
 import {
   activateMemberships,
@@ -13,6 +12,8 @@ import {
   resolveLoginContext,
 } from './workspace';
 import { buyPlan, remainingDays } from './subscription';
+import { clampPage } from './paging';
+import { clientIp, rateLimit } from './rate-limit';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -33,20 +34,14 @@ async function adminPasswordMatches(password: string) {
       return false;
     }
   }
+  if (process.env.NODE_ENV === 'production') return false;
+  console.warn('[basar] ADMIN_PASSWORD is plaintext; hash it with argon2 before production');
   return stored === password;
 }
 
 export async function checkPhone(phonenumber: string): Promise<ActionResult> {
-  try {
-    await db();
-    const user = await M().User.findOne({ phonenumber });
-    return ok(
-      { exists: Boolean(user), requireAdminPassword: isAdminPhone(phonenumber) },
-      user ? 'کاربر موجود است' : '',
-    );
-  } catch (error) {
-    return fail(error instanceof Error ? error.message : 'اتصال به پایگاه داده برقرار نشد', 500);
-  }
+  if (!phonenumber || !PHONE_RE.test(phonenumber)) return fail('شماره موبایل معتبر نیست');
+  return ok(null, 'ادامه دهید');
 }
 
 export async function sendOtp(phonenumber: string): Promise<ActionResult> {
@@ -55,7 +50,12 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
     if (!phonenumber || !PHONE_RE.test(phonenumber)) {
       return fail('شماره موبایل معتبر نیست');
     }
-    const code = String(Math.floor(Math.random() * 90000) + 10000);
+    const ip = await clientIp();
+    if (!rateLimit(`otp:send:phone:${phonenumber}`, 3, 10 * 60 * 1000) || !rateLimit(`otp:send:ip:${ip}`, 10, 10 * 60 * 1000)) {
+      return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
+    }
+    const code = String(randomInt(100000, 1000000));
+    const hashed = await argon2.hash(code);
     if (process.env.NODE_ENV === 'production' && process.env.MELLI_PAYAMAK_TOKEN) {
       try {
         await fetch(`${process.env.MELLI_PAYAMAK_BASE_URL}${process.env.MELLI_PAYAMAK_PATH}${process.env.MELLI_PAYAMAK_TOKEN}`, {
@@ -64,19 +64,35 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
           body: JSON.stringify({ to: phonenumber }),
         });
       } catch {
-        await M().OTP.create({ receptor: phonenumber, code, type: 1, isUsed: false });
         return fail('ارسال پیامک ناموفق بود');
       }
     }
-    await M().OTP.create({ receptor: phonenumber, code, type: 1, isUsed: false });
+    await M().OTP.create({ receptor: phonenumber, code: hashed, type: 1, isUsed: false });
     if (process.env.NODE_ENV !== 'production') {
       console.info('[OTP]', phonenumber, code);
-      return ok({ devCode: code }, `کد آزمایشی: ${code}`);
+      return ok(null, `کد آزمایشی: ${code}`);
     }
     return ok(null, 'کد ارسال شد');
-  } catch (error) {
-    return fail(error instanceof Error ? error.message : 'اتصال به پایگاه داده برقرار نشد', 500);
+  } catch {
+    return failDb();
   }
+}
+
+async function findValidOtp(phonenumber: string, code: string) {
+  const threshold = new Date(Date.now() - 120000);
+  const rows = await M()
+    .OTP.find({ receptor: phonenumber, isUsed: false, timeStamp: { $gt: threshold } })
+    .sort({ timeStamp: -1 })
+    .limit(5)
+    .lean();
+  for (const row of rows) {
+    try {
+      if (await argon2.verify(String(row.code), code)) return String(row._id);
+    } catch {
+      /* try next row */
+    }
+  }
+  return null;
 }
 
 export async function loginWithOtp(form: {
@@ -86,44 +102,43 @@ export async function loginWithOtp(form: {
 }): Promise<ActionResult> {
   try {
     await db();
-  const { phonenumber, code, password } = form;
-  if (!phonenumber || !code) return fail('شماره و کد الزامی است');
+    const { phonenumber, code, password } = form;
+    if (!phonenumber || !PHONE_RE.test(phonenumber) || !code) return fail('شماره و کد الزامی است');
+    const ip = await clientIp();
+    if (!rateLimit(`otp:login:phone:${phonenumber}`, 8, 10 * 60 * 1000) || !rateLimit(`otp:login:ip:${ip}`, 20, 10 * 60 * 1000)) {
+      return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
+    }
 
-  const threshold = new Date(Date.now() - 120000);
-  const valid = await M().OTP.countDocuments({
-    receptor: phonenumber,
-    code: String(code),
-    isUsed: false,
-    timeStamp: { $gt: threshold },
-  });
-  if (!valid) return fail('کد تایید معتبر نیست');
+    const otpId = await findValidOtp(phonenumber, String(code));
+    if (!otpId) return fail('کد تایید معتبر نیست');
 
-  if (isAdminPhone(phonenumber)) {
-    if (!password) return fail('رمز ادمین لازم است');
-    if (!(await adminPasswordMatches(password))) return fail('رمز نادرست است');
-  }
+    if (isAdminPhone(phonenumber)) {
+      if (!password) return fail('رمز ادمین لازم است');
+      if (!(await adminPasswordMatches(password))) return fail('رمز نادرست است');
+    }
 
-  let user = await M().User.findOne({ phonenumber });
-  if (!user) user = await M().User.create({ phonenumber });
-  const userId = String(user._id);
-  await activateMemberships(userId, phonenumber);
-  await ensureOwnerWorkspace(userId, user.fullName, phonenumber);
-  const context = await resolveLoginContext(userId, phonenumber);
-  if (!context) return fail('فروشگاهی برای ورود پیدا نشد');
-  const session: Session = {
-    _id: userId,
-    phonenumber: String(user.phonenumber),
-    _storeId: context._storeId,
-    _brandId: context._brandId,
-    storeRole: context.storeRole,
-  };
-  const tokens = signTokens(session, code);
-  await M().User.updateOne({ _id: String(user._id) }, { refreshToken: tokens.refreshToken });
-  await M().OTP.updateOne({ code: String(code), receptor: phonenumber }, { isUsed: true });
-  await setAuthCookies(tokens);
-  return ok(tokens, 'ورود موفق');
-  } catch (error) {
-    return fail(error instanceof Error ? error.message : 'اتصال به پایگاه داده برقرار نشد', 500);
+    await M().OTP.updateOne({ _id: otpId }, { isUsed: true });
+
+    let user = await M().User.findOne({ phonenumber });
+    if (!user) user = await M().User.create({ phonenumber });
+    const userId = String(user._id);
+    await activateMemberships(userId, phonenumber);
+    await ensureOwnerWorkspace(userId, user.fullName, phonenumber);
+    const context = await resolveLoginContext(userId, phonenumber);
+    if (!context) return fail('فروشگاهی برای ورود پیدا نشد');
+    const session: Session = {
+      _id: userId,
+      phonenumber: String(user.phonenumber),
+      _storeId: context._storeId,
+      _brandId: context._brandId,
+      storeRole: context.storeRole,
+    };
+    const tokens = signTokens(session);
+    await M().User.updateOne({ _id: String(user._id) }, { refreshToken: tokens.refreshToken });
+    await setAuthCookies(tokens);
+    return ok(null, 'ورود موفق');
+  } catch {
+    return failDb();
   }
 }
 
@@ -185,10 +200,11 @@ export async function listUsers(page = 1, skip = 50): Promise<ActionResult> {
   const access = await requirePlatformAdmin();
   if ('error' in access) return access.error;
   await db();
+  const paging = clampPage(page, skip);
   const users = await M().User.find()
     .select('-password -refreshToken')
-    .skip((page - 1) * skip)
-    .limit(skip)
+    .skip((paging.page - 1) * paging.skip)
+    .limit(paging.skip)
     .lean();
   return ok(serialize(users));
 }

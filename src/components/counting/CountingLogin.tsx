@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, SignInShell, toast } from '@/ui';
-import { checkPhone, loginWithOtp, sendOtp } from '@/actions/auth';
+import { loginWithOtp, sendOtp } from '@/actions/auth';
 
 function toEnDigits(value: string) {
   return value.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/\s/g, '');
@@ -38,13 +38,6 @@ export function CountingLogin() {
                 return;
               }
               setPhonenumber(phone);
-              const check = await checkPhone(phone);
-              const admin = Boolean(
-                check.ok && check.data && typeof check.data === 'object' && 'requireAdminPassword' in check.data
-                  ? (check.data as { requireAdminPassword?: boolean }).requireAdminPassword
-                  : false,
-              );
-              setRequireAdminPassword(admin);
               const otp = await sendOtp(phone);
               if (otp.ok) {
                 toast.success(otp.message || 'کد ارسال شد');
@@ -61,10 +54,18 @@ export function CountingLogin() {
             const res = await loginWithOtp({
               phonenumber: phone,
               code: toEnDigits(code),
-              password: requireAdminPassword ? toEnDigits(password) : undefined,
+              password: password.trim() ? password : undefined,
             });
-            if (res.ok) router.push('/counting/dashboard');
-            else toast.error(res.message || 'ورود ناموفق');
+            if (res.ok) {
+              router.push('/counting/dashboard');
+              return;
+            }
+            if (res.message === 'رمز ادمین لازم است') {
+              setRequireAdminPassword(true);
+              toast.error(res.message);
+              return;
+            }
+            toast.error(res.message || 'ورود ناموفق');
           });
         }}
       >
