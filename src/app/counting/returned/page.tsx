@@ -1,28 +1,19 @@
 import { CountingShell } from '@/components/counting/CountingShell';
-import { listReturned } from '@/actions/crud';
+import { ReturnedClient } from '@/components/counting/ReturnedClient';
 import { personOptions } from '@/actions/options';
-import { CrudPage } from '@/components/counting/CrudPage';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
+import { listPeople } from '@/actions/crud';
 
 export default async function ReturnedPage() {
-  const [res, people] = await Promise.all([listReturned(), personOptions('1')]);
-  guardSession(res);
-  const rows = Array.isArray(res.data) ? res.data : [];
+  const [people, peopleRes] = await Promise.all([personOptions('1'), listPeople()]);
+  guardSession(peopleRes);
   return (
-    <CountingShell title="برگشتی" error={errorMessage(res)}>
-      <CrudPage
-        resource="returned"
-        title="برگشتی"
-        rows={rows}
-        columns={[
-          { header: 'شخص', accessor: '_returnedPerson', format: 'name' },
-          { header: 'تاریخ', accessor: 'timeStamp', format: 'date' },
-        ]}
-        fields={[
-          { name: '_returnedPerson', label: 'شخص', type: 'relation', options: people, required: true },
-          { name: 'description', label: 'توضیحات', type: 'textarea' },
-        ]}
-      />
+    <CountingShell
+      title="برگشتی"
+      description="لباس خریده‌شده را انتخاب کنید و با قیمت خرید یا قیمت دیگر دریافت کنید؛ مبلغ به حساب مشتری بستانکار می‌شود"
+      error={errorMessage(peopleRes)}
+    >
+      <ReturnedClient people={people} />
     </CountingShell>
   );
 }

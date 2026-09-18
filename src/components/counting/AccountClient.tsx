@@ -138,13 +138,25 @@ export function AccountClient({
               <>
                 <p>جمع فاکتورها: {toman(account.purchaseTotal)}</p>
                 <p>جمع پرداخت‌ها (نقد، چک، تخفیف): {toman(account.paidTotal)}</p>
-                <p className="text-base font-semibold">باید بپردازد: {toman(account.remaining)}</p>
-                {selectedInvoice ? (
-                  <p className="text-gray-600">
-                    مانده فاکتور {selectedInvoice.invoiceNumber || '—'}: {toman(selectedInvoice.remaining)}
-                  </p>
+                {Number(account.returnTotal || 0) > 0 ? (
+                  <p>برگشتی (بستانکار مشتری): {toman(account.returnTotal)}</p>
+                ) : null}
+                {Number(account.creditToCustomer || 0) > 0 ? (
+                  <>
+                    <p className="text-base font-semibold">شما به این مشتری بدهکارید: {toman(account.creditToCustomer)}</p>
+                    <p className="text-xs text-gray-500">مبلغ برگشتی از بدهی فاکتورها بیشتر است.</p>
+                  </>
                 ) : (
-                  <p className="text-xs text-gray-500">این مبلغ برابر جمع فاکتورها منهای جمع پرداخت‌های همین شخص است.</p>
+                  <>
+                    <p className="text-base font-semibold">باید بپردازد: {toman(account.remaining)}</p>
+                    {selectedInvoice ? (
+                      <p className="text-gray-600">
+                        مانده فاکتور {selectedInvoice.invoiceNumber || '—'}: {toman(selectedInvoice.remaining)}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500">این مبلغ برابر جمع فاکتورها منهای پرداخت‌ها و برگشتی‌هاست.</p>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -204,8 +216,12 @@ export function AccountClient({
                 <dd className="text-sm font-semibold">{toman(account?.paidTotal ?? paymentCounts.paidTotal)}</dd>
               </div>
               <div className="rounded-xl bg-gray-50 px-3 py-2">
-                <dt className="text-[11px] text-gray-500">{payable ? 'باید بپردازید' : 'باید بپردازد'}</dt>
-                <dd className="text-sm font-semibold">{toman(account?.remaining)}</dd>
+                <dt className="text-[11px] text-gray-500">
+                  {payable ? 'باید بپردازید' : Number(account?.creditToCustomer || 0) > 0 ? 'بستانکار مشتری' : 'باید بپردازد'}
+                </dt>
+                <dd className="text-sm font-semibold">
+                  {toman(Number(account?.creditToCustomer || 0) > 0 ? account?.creditToCustomer : account?.remaining)}
+                </dd>
               </div>
             </dl>
             <p className="mt-3 text-xs text-teal-800">مشاهده پرداخت‌ها روی فاکتورها</p>

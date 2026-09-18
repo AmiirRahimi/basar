@@ -25,6 +25,8 @@ export function PersonPaymentsView({
     person?: unknown;
     remaining?: number;
     paidTotal?: number;
+    returnTotal?: number;
+    creditToCustomer?: number;
     invoices?: AccountInvoice[];
     payments?: AccountPayment[];
   };
@@ -99,9 +101,19 @@ export function PersonPaymentsView({
             <dd className="text-base font-semibold">{toman(account.paidTotal ?? counts.paidTotal)}</dd>
           </div>
           <div className="rounded-xl bg-gray-50 px-3 py-2">
-            <dt className="text-[11px] text-gray-500">{payable ? 'باید بپردازید' : 'باید بپردازد'}</dt>
-            <dd className="text-base font-semibold">{toman(account.remaining)}</dd>
+            <dt className="text-[11px] text-gray-500">
+              {payable ? 'باید بپردازید' : Number(account.creditToCustomer || 0) > 0 ? 'بستانکار مشتری' : 'باید بپردازد'}
+            </dt>
+            <dd className="text-base font-semibold">
+              {toman(Number(account.creditToCustomer || 0) > 0 ? account.creditToCustomer : account.remaining)}
+            </dd>
           </div>
+          {Number(account.returnTotal || 0) > 0 ? (
+            <div className="rounded-xl bg-gray-50 px-3 py-2 sm:col-span-2">
+              <dt className="text-[11px] text-gray-500">برگشتی</dt>
+              <dd className="text-base font-semibold">{toman(account.returnTotal)}</dd>
+            </div>
+          ) : null}
         </dl>
       </section>
       {selectedInvoice ? (

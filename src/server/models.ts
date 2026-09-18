@@ -331,9 +331,13 @@ const ReturnedSchema = new Schema(
 
 const ReturnedItemsSchema = new Schema(
   {
+    _storeId: { type: Schema.Types.ObjectId, ref: 'Store' },
     _returned: { type: Schema.Types.ObjectId, ref: 'Returned', index: true },
+    _invoice: { type: Schema.Types.ObjectId, ref: 'Invoice' },
     _cloth: { type: Schema.Types.ObjectId, ref: 'Cloth', required: true },
     count: { type: Number, required: true },
+    price: Number,
+    boughtPrice: Number,
     isDeleted: { type: Boolean, required: true, default: false },
   },
   { collection: 'returneditems' },

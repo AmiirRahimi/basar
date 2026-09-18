@@ -715,8 +715,13 @@ export async function deleteResource(resource: string, id: string): Promise<Acti
     if (line && !line.isDeleted) await restoreItems([line]);
   }
   if (resource === 'returned') {
-    const returned = await M().Returned.findOneAndUpdate(storeFilter(auth.session, { _id: id }), { isDeleted: true });
+    const returned = await M().Returned.findOne(storeFilter(auth.session, { _id: id })).lean();
     if (!returned) return fail('پیدا نشد', 404);
+    const items = await M().ReturnedItems.find({ _returned: oid(id), isDeleted: false }).lean();
+    for (const item of items as any[]) {
+      await changeStock(item._cloth, -Number(item.count || 0));
+    }
+    await M().Returned.findOneAndUpdate(storeFilter(auth.session, { _id: id }), { isDeleted: true });
     await M().ReturnedItems.updateMany({ _returned: oid(id) }, { isDeleted: true });
     return ok(null, 'حذف شد');
   }
@@ -1120,23 +1125,230 @@ async function entityInStore(session: Session, id: string) {
   return Boolean(invoice || person || cloth || check || fabric || returned);
 }
 
+function returnItemAmount(row: { count?: number; price?: number; boughtPrice?: number }) {
+  return Number(row.count || 0) * Number(row.price ?? row.boughtPrice ?? 0);
+}
+
+function purchaseKey(invoiceId: unknown, clothId: unknown) {
+  return `${relationKey(invoiceId)}:${relationKey(clothId)}`;
+}
+
+async function loadPersonReturnItems(session: Session, personId: string) {
+  const headers = await M().Returned.find(storeFilter(session, { _returnedPerson: oid(personId) })).lean();
+  if (!headers.length) return [] as any[];
+  return M().ReturnedItems.find({
+    _returned: { $in: (headers as any[]).map((row) => oid(row._id)) },
+    isDeleted: false,
+  })
+    .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
+    .populate('_invoice', '_id invoiceNumber timeStamp')
+    .lean();
+}
+
+function returnTotalsByInvoice(items: any[]) {
+  const map = new Map<string, number>();
+  for (const row of items) {
+    const id = relationKey(row._invoice);
+    if (!id) continue;
+    map.set(id, (map.get(id) || 0) + returnItemAmount(row));
+  }
+  return map;
+}
+
 export async function addReturnedItem(payload: unknown): Promise<ActionResult> {
+  const body = payload as Record<string, unknown>;
+  if (body._person || body.personId) return receiveReturnedCloth(payload);
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  const denied = denyWrite(auth.session, 'returned');
+  if (denied) return denied;
+  const returned = await M().Returned.findOne(storeFilter(auth.session, { _id: body._returned })).lean();
+  if (!returned) return fail('برگشتی پیدا نشد', 404);
+  const cloth = await M().Cloth.findOne({ _id: oid(body._cloth), ...clothVisibleFilter(auth.session) }).lean();
+  if (!cloth) return fail('لباس پیدا نشد', 404);
+  const count = Math.trunc(Number(body.count || 1));
+  if (count < 1) return fail('تعداد برگشتی را وارد کنید');
+  const created = await M().ReturnedItems.create({
+    _storeId: oid(auth.session._storeId),
+    _returned: oid(body._returned),
+    _invoice: body._invoice ? oid(body._invoice) : undefined,
+    _cloth: oid(body._cloth),
+    count,
+    price: Number(body.price ?? body.boughtPrice ?? 0),
+    boughtPrice: Number(body.boughtPrice ?? body.price ?? 0),
+    isDeleted: false,
+  });
+  await changeStock(body._cloth, count);
+  return ok(serialize(created.toObject()), 'ثبت شد');
+}
+
+export async function personReturns(personId: string): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  const denied = denyMenu(auth.session, 'returned');
+  if (denied) return denied;
+  const person = await M().Person.findOne(storeFilter(auth.session, { _id: personId })).lean();
+  if (!person) return fail('شخص پیدا نشد', 404);
+  const invoices = await M().Invoice.find(storeFilter(auth.session, { _client: oid(personId) })).lean();
+  const invoiceIds = (invoices as any[]).map((row) => oid(row._id));
+  const lines = invoiceIds.length
+    ? await M()
+        .CustomerCart.find({
+          _storeId: oid(auth.session._storeId),
+          isDeleted: false,
+          _invoice: { $in: invoiceIds },
+        })
+        .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
+        .lean()
+    : [];
+  const returnItems = await loadPersonReturnItems(auth.session, personId);
+  const returnedCount = new Map<string, number>();
+  for (const row of returnItems as any[]) {
+    const key = purchaseKey(row._invoice, row._cloth);
+    returnedCount.set(key, (returnedCount.get(key) || 0) + Number(row.count || 0));
+  }
+  const grouped = new Map<
+    string,
+    { invoiceId: string; invoiceNumber?: string | number; clothId: string; label: string; boughtCount: number; boughtAmount: number }
+  >();
+  for (const line of lines as any[]) {
+    const invoiceId = relationKey(line._invoice);
+    const clothId = relationKey(line._cloth);
+    if (!invoiceId || !clothId) continue;
+    const key = purchaseKey(invoiceId, clothId);
+    const invoice = (invoices as any[]).find((row) => relationKey(row._id) === invoiceId);
+    const current = grouped.get(key) || {
+      invoiceId,
+      invoiceNumber: invoice?.invoiceNumber,
+      clothId,
+      label: clothDisplayName(line._cloth),
+      boughtCount: 0,
+      boughtAmount: 0,
+    };
+    const count = Number(line.count || 0);
+    current.boughtCount += count;
+    current.boughtAmount += count * Number(line.price || 0);
+    grouped.set(key, current);
+  }
+  const returnable = [...grouped.entries()]
+    .map(([key, row]) => {
+      const already = returnedCount.get(key) || 0;
+      const remainingCount = Math.max(0, row.boughtCount - already);
+      const boughtPrice = row.boughtCount > 0 ? row.boughtAmount / row.boughtCount : 0;
+      return {
+        key,
+        invoiceId: row.invoiceId,
+        invoiceNumber: row.invoiceNumber,
+        clothId: row.clothId,
+        label: row.label,
+        boughtCount: row.boughtCount,
+        returnedCount: already,
+        remainingCount,
+        boughtPrice,
+      };
+    })
+    .filter((row) => row.remainingCount > 0)
+    .sort((a, b) => a.label.localeCompare(b.label, 'fa'));
+  const headers = await M().Returned.find(storeFilter(auth.session, { _returnedPerson: oid(personId) }))
+    .sort('-timeStamp')
+    .lean();
+  const itemsByHeader = new Map<string, any[]>();
+  for (const item of returnItems as any[]) {
+    const id = relationKey(item._returned);
+    const list = itemsByHeader.get(id) || [];
+    list.push(item);
+    itemsByHeader.set(id, list);
+  }
+  const receipts = (headers as any[]).map((header) => {
+    const items = (itemsByHeader.get(relationKey(header._id)) || []).map((item) => ({
+      _id: item._id,
+      count: Number(item.count || 0),
+      price: Number(item.price ?? item.boughtPrice ?? 0),
+      boughtPrice: Number(item.boughtPrice ?? item.price ?? 0),
+      amount: returnItemAmount(item),
+      label: clothDisplayName(item._cloth),
+      invoiceNumber: item._invoice && typeof item._invoice === 'object' ? item._invoice.invoiceNumber : undefined,
+    }));
+    return {
+      _id: header._id,
+      timeStamp: header.timeStamp,
+      description: header.description || '',
+      amount: items.reduce((sum: number, row: { amount: number }) => sum + row.amount, 0),
+      items,
+    };
+  });
+  const returnTotal = receipts.reduce((sum: number, row: { amount: number }) => sum + row.amount, 0);
+  return ok(
+    serialize({
+      person,
+      returnable,
+      receipts,
+      returnTotal,
+    }),
+  );
+}
+
+export async function receiveReturnedCloth(payload: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
   const denied = denyWrite(auth.session, 'returned');
   if (denied) return denied;
   const body = payload as Record<string, unknown>;
-  const returned = await M().Returned.findOne(storeFilter(auth.session, { _id: body._returned })).lean();
-  if (!returned) return fail('برگشتی پیدا نشد', 404);
-  const cloth = await M().Cloth.findOne({ _id: oid(body._cloth), ...clothVisibleFilter(auth.session) }).lean();
+  const personId = String(body.personId || body._person || '');
+  const invoiceId = String(body.invoiceId || body._invoice || '');
+  const clothId = String(body.clothId || body._cloth || '');
+  const count = Math.trunc(Number(body.count || 0));
+  if (!personId) return fail('شخص را انتخاب کنید');
+  if (!invoiceId) return fail('فاکتور لباس برگشتی را انتخاب کنید');
+  if (!clothId) return fail('لباس برگشتی را انتخاب کنید');
+  if (count < 1) return fail('تعداد برگشتی را وارد کنید');
+  const person = await M().Person.findOne(storeFilter(auth.session, { _id: personId })).lean();
+  if (!person) return fail('شخص پیدا نشد', 404);
+  const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: invoiceId, _client: oid(personId) })).lean();
+  if (!invoice) return fail('این فاکتور برای این شخص نیست', 404);
+  const cloth = await M().Cloth.findOne({ _id: oid(clothId), isDeleted: false }).lean();
   if (!cloth) return fail('لباس پیدا نشد', 404);
-  const created = await M().ReturnedItems.create({
-    _returned: oid(body._returned),
-    _cloth: oid(body._cloth),
-    count: Number(body.count || 1),
+  const lines = await M()
+    .CustomerCart.find({
+      _storeId: oid(auth.session._storeId),
+      isDeleted: false,
+      _invoice: oid(invoiceId),
+      _cloth: oid(clothId),
+    })
+    .lean();
+  const boughtCount = (lines as any[]).reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const boughtAmount = (lines as any[]).reduce((sum, row) => sum + Number(row.count || 0) * Number(row.price || 0), 0);
+  if (!boughtCount) return fail('این لباس در فاکتور این شخص نیست');
+  const boughtPrice = boughtAmount / boughtCount;
+  const previous = await M().ReturnedItems.find({
+    _invoice: oid(invoiceId),
+    _cloth: oid(clothId),
+    isDeleted: false,
+  }).lean();
+  const already = (previous as any[]).reduce((sum, row) => sum + Number(row.count || 0), 0);
+  if (count > Math.max(0, boughtCount - already)) return fail('تعداد برگشتی بیشتر از خرید این فاکتور است');
+  const useBought = Boolean(body.useBoughtPrice);
+  const price = useBought ? boughtPrice : Number(body.price);
+  if (!Number.isFinite(price) || price < 0) return fail('قیمت دریافت را وارد کنید');
+  const stock = await changeStock(clothId, count);
+  if (!stock.ok) return stock;
+  const header = await M().Returned.create({
+    _storeId: oid(auth.session._storeId),
+    _returnedPerson: oid(personId),
+    description: String(body.description || '').trim() || `برگشت ${count} عدد از فاکتور ${invoice.invoiceNumber || ''}`,
+    isDeleted: false,
   });
-  await changeStock(body._cloth, Number(body.count || 1));
-  return ok(serialize(created.toObject()), 'ثبت شد');
+  const created = await M().ReturnedItems.create({
+    _storeId: oid(auth.session._storeId),
+    _returned: header._id,
+    _invoice: oid(invoiceId),
+    _cloth: oid(clothId),
+    count,
+    price,
+    boughtPrice,
+    isDeleted: false,
+  });
+  return ok(serialize(created.toObject ? created.toObject() : created), 'لباس دریافت شد و به حساب مشتری بستانکار شد');
 }
 
 export async function listAttachments(id: string): Promise<ActionResult> {
@@ -1422,27 +1634,33 @@ export async function personAccount(personId: string): Promise<ActionResult> {
     );
   }
 
-  const [invoices, totals] = await Promise.all([
+  const [invoices, totals, returnItems] = await Promise.all([
     M().Invoice.find(storeFilter(auth.session, { _client: oid(personId) })).lean(),
     cartTotalsMap(auth.session),
+    loadPersonReturnItems(auth.session, personId),
   ]);
+  const returnTotal = (returnItems as any[]).reduce((sum, row) => sum + returnItemAmount(row), 0);
+  const returnByInvoice = returnTotalsByInvoice(returnItems);
   const invoiceRows = invoices
     .map((invoice: any) => {
       const total = totals[relationKey(invoice._id)] || 0;
       const related = payments.filter((row: any) => relationKey(row._invoice) === relationKey(invoice._id));
       const paid = related.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
+      const returned = returnByInvoice.get(relationKey(invoice._id)) || 0;
       return {
         _id: invoice._id,
         invoiceNumber: invoice.invoiceNumber,
         timeStamp: invoice.timeStamp,
         total,
         paid,
-        remaining: Math.max(0, total - paid),
+        returnTotal: returned,
+        remaining: Math.max(0, total - paid - returned),
         ...paymentMethodCounts(related),
       };
     })
     .sort((a: any, b: any) => new Date(b.timeStamp).getTime() - new Date(a.timeStamp).getTime());
   const purchaseTotal = invoiceRows.reduce((sum, row) => sum + row.total, 0);
+  const net = purchaseTotal - paidTotal - returnTotal;
   return ok(
     serialize({
       person,
@@ -1455,7 +1673,9 @@ export async function personAccount(personId: string): Promise<ActionResult> {
       purchaseTotal,
       owedTotal: purchaseTotal,
       paidTotal,
-      remaining: Math.max(0, purchaseTotal - paidTotal),
+      returnTotal,
+      remaining: Math.max(0, net),
+      creditToCustomer: Math.max(0, -net),
     }),
   );
 }
@@ -1516,20 +1736,23 @@ export async function invoiceBalance(invoiceId: string): Promise<ActionResult> {
     .populate('_client', '_id fullName')
     .lean();
   if (!invoice) return fail('فاکتور پیدا نشد', 404);
-  const [lines, payments] = await Promise.all([
+  const [lines, payments, returnItems] = await Promise.all([
     M().CustomerCart.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).lean(),
     withPaymentChecks(
       await M().Payment.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).populate('_check').lean(),
     ),
+    M().ReturnedItems.find({ _invoice: oid(invoiceId), isDeleted: false }).lean(),
   ]);
   const total = lines.reduce((sum: number, line: any) => sum + Number(line.count || 0) * Number(line.price || 0), 0);
   const paid = payments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
+  const returned = (returnItems as any[]).reduce((sum, row) => sum + returnItemAmount(row), 0);
   return ok(
     serialize({
       invoice,
       total,
       paid,
-      remaining: Math.max(0, total - paid),
+      returnTotal: returned,
+      remaining: Math.max(0, total - paid - returned),
       payments,
     }),
   );

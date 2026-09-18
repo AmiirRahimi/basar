@@ -687,15 +687,23 @@ async function seedStoreDemo(storeId: unknown, brandId: unknown, userId: unknown
 
   await m.ReturnedItems.insertMany([
     {
+      _storeId: storeId,
       _returned: returned._id,
+      _invoice: invoices[0]._id,
       _cloth: chinoCloth._id,
       count: 4,
+      price: 720000,
+      boughtPrice: 720000,
       isDeleted: false,
     },
     {
+      _storeId: storeId,
       _returned: returned._id,
+      _invoice: invoices[0]._id,
       _cloth: jeanCloth._id,
       count: 1,
+      price: 890000,
+      boughtPrice: 890000,
       isDeleted: false,
     },
   ]);

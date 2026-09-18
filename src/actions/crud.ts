@@ -21,7 +21,9 @@ import {
   listResource as listByName,
   listUserPermisions,
   personAccount,
+  personReturns,
   placeWholesaleOrder,
+  receiveReturnedCloth as receiveCloth,
   updateResource as update,
 } from '@/server/domain';
 import { listUsers as usersDb } from '@/server/auth';
@@ -164,6 +166,14 @@ export async function getClothCounts(id: string, type: string) {
 
 export async function addReturnedLine(payload: unknown) {
   return addReturnedItem(payload);
+}
+
+export async function getPersonReturns(personId: string) {
+  return personReturns(personId);
+}
+
+export async function receiveReturnedCloth(payload: unknown) {
+  return receiveCloth(payload);
 }
 
 export async function getAttachments(id: string) {

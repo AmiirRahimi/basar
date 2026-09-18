@@ -28,6 +28,7 @@ export type AccountInvoice = {
   timeStamp?: string;
   total: number;
   paid: number;
+  returnTotal?: number;
   remaining: number;
   paymentCount?: number;
   cashCount?: number;

@@ -71,9 +71,15 @@ export function InvoiceSettleCard({
           <dt className="text-[11px] text-gray-500">پرداخت‌شده</dt>
           <dd className="font-medium">{toman(row.paid)}</dd>
         </div>
+        {Number(row.returnTotal || 0) > 0 ? (
+          <div className="col-span-2 rounded-xl bg-white/80 px-3 py-2">
+            <dt className="text-[11px] text-gray-500">برگشتی</dt>
+            <dd className="font-medium">{toman(row.returnTotal)}</dd>
+          </div>
+        ) : null}
       </dl>
       <div className="mt-3">
-        <PaidBar paid={row.paid} total={row.total} />
+        <PaidBar paid={Number(row.paid || 0) + Number(row.returnTotal || 0)} total={row.total} />
       </div>
       {counts.length ? <p className="mt-2 text-xs text-gray-600">{counts.join(' · ')}</p> : null}
       {!settled ? (

@@ -32,6 +32,8 @@ export default async function PersonPaymentsPage({
             person: account.person,
             remaining: Number(account.remaining || 0),
             paidTotal: Number(account.paidTotal || 0),
+            returnTotal: Number(account.returnTotal || 0),
+            creditToCustomer: Number(account.creditToCustomer || 0),
             invoices: Array.isArray(account.invoices) ? (account.invoices as AccountInvoice[]) : [],
             payments: Array.isArray(account.payments) ? (account.payments as AccountPayment[]) : [],
           }}
