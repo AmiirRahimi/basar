@@ -1,18 +1,11 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  createColumnHelper,
-  type ColumnDef,
-} from '@tanstack/react-table';
+import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
 import { Banknote, Minus, Plus, Printer } from 'lucide-react';
 import {
-  BasicTable,
   Button,
-  EmptyState,
   FormCard,
   IconButton,
   Input,
@@ -48,6 +41,7 @@ import {
 } from '@/lib/packs';
 import type { Check, FieldOption, Invoice } from '@/lib/types';
 import { InvoicePackStepper } from './InvoicePackStepper';
+import { SearchableTable } from './SearchableTable';
 
 type DraftItem = {
   key: string;
@@ -187,6 +181,7 @@ export function InvoiceCrud({
         id: 'actions',
         header: 'عملیات',
         size: 176,
+        enableHiding: false,
         cell: ({ row }) => (
           <RowActions
             onEdit={writable ? () => openEdit(row.original) : undefined}
@@ -224,12 +219,24 @@ export function InvoiceCrud({
     return defs;
   }, [router, writable]);
 
-  const table = useReactTable({
-    data: invoices,
-    columns: tableColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getRowId: (row) => String(row._id),
-  });
+  function extraSearch(row: Invoice) {
+    const store = row._storeId;
+    const storeName =
+      row.storeName || (store && typeof store === 'object' ? String(store.name || '') : '');
+    const brand =
+      row.brandName ||
+      (store && typeof store === 'object' && store._brandId && typeof store._brandId === 'object'
+        ? String(store._brandId.name || '')
+        : '');
+    return [
+      displayName(row._client),
+      faDate(row.timeStamp),
+      row.isSent ? 'ارسال شده' : 'پیش‌نویس',
+      storeName,
+      brand,
+      row.receiverAddress,
+    ].join(' ');
+  }
 
   function resetForm() {
     setEditing(null);
@@ -445,11 +452,15 @@ export function InvoiceCrud({
           <Button onClick={openCreate}>ثبت فاکتور</Button>
         </div>
       ) : null}
-      {invoices.length ? (
-        <BasicTable table={table} isLoading={pending} labels={{ nothingToShow: 'موردی نیست' }} />
-      ) : (
-        <EmptyState message="هنوز فاکتور ثبت نشده" />
-      )}
+      <SearchableTable
+        storageKey="invoice"
+        data={invoices}
+        columns={tableColumns}
+        getRowId={(row) => String(row._id)}
+        extraSearch={extraSearch}
+        isLoading={pending}
+        emptyMessage="هنوز فاکتور ثبت نشده"
+      />
 
       <Modal isOpen={open} onClose={() => setOpen(false)} size="xl">
         <FormCard>

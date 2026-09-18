@@ -1,13 +1,8 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  createColumnHelper,
-  type ColumnDef,
-} from '@tanstack/react-table';
-import { BasicTable, Button, Input, Modal, FormCard, EmptyState, Select, Textarea, toast } from '@/ui';
+import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
+import { Button, Input, Modal, FormCard, Select, Textarea, toast } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { RowActions } from './RowActions';
 
@@ -15,6 +10,7 @@ import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { ClothPacksEditor } from './ClothPacksEditor';
+import { SearchableTable } from './SearchableTable';
 import { useWritable } from './useWritable';
 import {
   encodePacksEditorValue,
@@ -98,6 +94,7 @@ export function ResourceCrud({
         id: 'actions',
         header: 'عملیات',
         size: 112,
+        enableHiding: false,
         cell: ({ row }) =>
           writable ? (
             <RowActions
@@ -136,12 +133,18 @@ export function ResourceCrud({
     return defs;
   }, [writable, columns, fields, resource, reload]);
 
-  const table = useReactTable({
-    data: rows,
-    columns: tableColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getRowId: (row) => String(row._id),
-  });
+  function extraSearch(row: Record<string, any>) {
+    return columns
+      .map((col) => {
+        const value = row[col.accessor];
+        if (col.format === 'name') return displayName(value);
+        if (col.format === 'toman') return value == null || value === '' ? '' : toman(value);
+        if (col.format === 'date') return faDate(value);
+        if (col.format === 'role') return PERSON_ROLES[String(row.role)] || String(row.role ?? '');
+        return String(value ?? '');
+      })
+      .join(' ');
+  }
 
   /** Options visible for a field, narrowed to the current value of its parent field.
    *  Options with no parent are unassigned and stay available everywhere. */
@@ -259,11 +262,15 @@ export function ResourceCrud({
         </Button>
       </div>
       ) : null}
-      {rows.length ? (
-        <BasicTable table={table} isLoading={pending} labels={{ nothingToShow: 'موردی نیست' }} />
-      ) : (
-        <EmptyState message={`هنوز ${title} ثبت نشده`} />
-      )}
+      <SearchableTable
+        storageKey={resource}
+        data={rows}
+        columns={tableColumns}
+        getRowId={(row) => String(row._id)}
+        extraSearch={extraSearch}
+        isLoading={pending}
+        emptyMessage={`هنوز ${title} ثبت نشده`}
+      />
       <Modal isOpen={open} onClose={() => setOpen(false)} size={fields.some((field) => field.type === 'packs') ? 'xl' : 'lg'}>
         <FormCard>
           <h3 className="mb-4 text-lg font-medium">{editing ? `ویرایش ${title}` : `ثبت ${title}`}</h3>

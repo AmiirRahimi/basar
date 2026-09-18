@@ -2,12 +2,14 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { createColumnHelper } from '@tanstack/react-table';
 import { BadgePercent, LogIn, Receipt, Ticket, UserX, Users } from 'lucide-react';
 import { createDiscountCode, deleteDiscountCode, updateDiscountCode } from '@/actions/admin';
 import { cycleLabel } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, Input, MultiSelect, toast } from '@/ui';
+import { SearchableTable } from './SearchableTable';
 
 const selectLabels = {
   search: 'جستجو',
@@ -268,82 +270,90 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (row: AdminUser) => void }) {
-  if (!rows.length) return <Empty message="کاربری در این فهرست نیست" />;
+  const helper = createColumnHelper<AdminUser>();
+  const columns = useMemo(
+    () => [
+      helper.accessor('fullName', { header: 'نام', cell: (info) => info.getValue() || '—' }),
+      helper.accessor('phonenumber', { header: 'موبایل', cell: (info) => <span dir="ltr">{info.getValue()}</span> }),
+      helper.accessor('loggedIn', { header: 'ورود', cell: (info) => (info.getValue() ? 'وارد شده' : 'خارج') }),
+      helper.accessor((row) => (row.active ? row.planName || 'فعال' : 'ندارد'), {
+        id: 'subscription',
+        header: 'اشتراک',
+      }),
+      helper.accessor('remainingDays', {
+        header: 'مانده',
+        cell: ({ row }) => (row.original.active ? `${faNumber(row.original.remainingDays)} روز` : '—'),
+      }),
+      helper.accessor('totalMonths', { header: 'جمع ماه', cell: (info) => faNumber(info.getValue()) }),
+      helper.accessor('city', { header: 'شهر', cell: (info) => info.getValue() || '—' }),
+      helper.accessor('purchaseCount', { header: 'تعداد خرید', cell: (info) => faNumber(info.getValue()) }),
+      helper.accessor('endDate', { header: 'پایان اشتراک', cell: (info) => faDate(info.getValue()) }),
+      helper.display({
+        id: 'actions',
+        header: 'عملیات',
+        enableHiding: false,
+        cell: ({ row }) => (
+          <Button size="sm" variant="outline" onClick={() => onCreateCode(row.original)}>
+            کد تخفیف
+          </Button>
+        ),
+      }),
+    ],
+    [onCreateCode],
+  );
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="p-3 text-right">نام</th>
-            <th className="p-3 text-right">موبایل</th>
-            <th className="p-3 text-right">ورود</th>
-            <th className="p-3 text-right">اشتراک</th>
-            <th className="p-3 text-right">مانده</th>
-            <th className="p-3 text-right">جمع ماه</th>
-            <th className="p-3 text-right">عملیات</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row._id} className="border-t">
-              <td className="p-3">{row.fullName || '—'}</td>
-              <td className="p-3" dir="ltr">
-                {row.phonenumber}
-              </td>
-              <td className="p-3">{row.loggedIn ? 'وارد شده' : 'خارج'}</td>
-              <td className="p-3">{row.active ? row.planName || 'فعال' : 'ندارد'}</td>
-              <td className="p-3">{row.active ? `${faNumber(row.remainingDays)} روز` : '—'}</td>
-              <td className="p-3">{faNumber(row.totalMonths)}</td>
-              <td className="p-3">
-                <Button size="sm" variant="outline" onClick={() => onCreateCode(row)}>
-                  کد تخفیف
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <SearchableTable
+      storageKey="admin-users"
+      data={rows}
+      columns={columns}
+      getRowId={(row) => String(row._id)}
+      extraSearch={(row) =>
+        [row.loggedIn ? 'وارد شده' : 'خارج', row.active ? row.planName || 'فعال' : 'ندارد', faNumber(row.remainingDays), faNumber(row.totalMonths)].join(' ')
+      }
+      emptyMessage="کاربری در این فهرست نیست"
+    />
   );
 }
 
 function PurchaseTable({ rows }: { rows: AdminPurchase[] }) {
-  if (!rows.length) return <Empty message="خریدی ثبت نشده" />;
+  const helper = createColumnHelper<AdminPurchase>();
+  const columns = useMemo(
+    () => [
+      helper.accessor('fullName', { header: 'کاربر', cell: (info) => info.getValue() || '—' }),
+      helper.accessor('planName', { header: 'طرح', cell: (info) => info.getValue() || '—' }),
+      helper.accessor('startDate', {
+        id: 'range',
+        header: 'بازه',
+        cell: ({ row }) => `${faDate(row.original.startDate)} تا ${faDate(row.original.endDate)}`,
+      }),
+      helper.accessor('price', { header: 'مبلغ', cell: (info) => toman(info.getValue()) }),
+      helper.accessor('active', { header: 'وضعیت', cell: (info) => (info.getValue() ? 'فعال' : 'تمام‌شده') }),
+      helper.accessor('phonenumber', { header: 'موبایل', cell: (info) => <span dir="ltr">{info.getValue() || '—'}</span> }),
+      helper.accessor('billingCycle', { header: 'دوره', cell: (info) => cycleLabel(info.getValue()) }),
+      helper.accessor('discountCode', { header: 'کد تخفیف', cell: (info) => info.getValue() || '—' }),
+      helper.accessor('originalPrice', { header: 'مبلغ اصلی', cell: (info) => toman(info.getValue()) }),
+    ],
+    [],
+  );
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="p-3 text-right">کاربر</th>
-            <th className="p-3 text-right">طرح</th>
-            <th className="p-3 text-right">بازه</th>
-            <th className="p-3 text-right">مبلغ</th>
-            <th className="p-3 text-right">وضعیت</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row._id} className="border-t">
-              <td className="p-3">
-                <p>{row.fullName || '—'}</p>
-                <p className="text-xs text-gray-500" dir="ltr">
-                  {row.phonenumber}
-                </p>
-              </td>
-              <td className="p-3">
-                {row.planName} · {cycleLabel(row.billingCycle)}
-                {row.discountCode ? <p className="text-xs text-teal-700">{row.discountCode}</p> : null}
-              </td>
-              <td className="p-3 text-xs">
-                {faDate(row.startDate)} تا {faDate(row.endDate)}
-              </td>
-              <td className="p-3">{toman(row.price)}</td>
-              <td className="p-3">{row.active ? 'فعال' : 'تمام‌شده'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <SearchableTable
+      storageKey="admin-purchases"
+      data={rows}
+      columns={columns}
+      getRowId={(row) => String(row._id)}
+      extraSearch={(row) =>
+        [
+          row.phonenumber,
+          cycleLabel(row.billingCycle),
+          row.discountCode,
+          toman(row.price),
+          row.active ? 'فعال' : 'تمام‌شده',
+          faDate(row.startDate),
+          faDate(row.endDate),
+        ].join(' ')
+      }
+      emptyMessage="خریدی ثبت نشده"
+    />
   );
 }
 
@@ -358,56 +368,57 @@ function CodeTable({
   onToggle: (row: AdminCode) => void;
   onDelete: (row: AdminCode) => void;
 }) {
-  if (!rows.length) return <Empty message="هنوز کد تخفیفی نیست" />;
-  return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="p-3 text-right">کد</th>
-            <th className="p-3 text-right">درصد</th>
-            <th className="p-3 text-right">کاربران</th>
-            <th className="p-3 text-right">استفاده</th>
-            <th className="p-3 text-right">وضعیت</th>
-            <th className="p-3 text-right">عملیات</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row._id} className="border-t">
-              <td className="p-3 font-medium">
-                {row.code}
-                {row.note ? <p className="text-xs font-normal text-gray-500">{row.note}</p> : null}
-              </td>
-              <td className="p-3">{faNumber(row.percent)}٪</td>
-              <td className="p-3 text-xs text-gray-600">
-                {row.users?.length
-                  ? row.users.map((user) => userOptionLabel(user)).join('، ')
-                  : 'همه'}
-              </td>
-              <td className="p-3">
-                {faNumber(row.usedCount)}
-                {row.maxUses ? ` / ${faNumber(row.maxUses)}` : ' / نامحدود'}
-              </td>
-              <td className="p-3">{row.active ? 'فعال' : 'غیرفعال'}</td>
-              <td className="p-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => onToggle(row)}>
-                    {row.active ? 'غیرفعال' : 'فعال'}
-                  </Button>
-                  <Button size="sm" variant="danger" disabled={pending} onClick={() => onDelete(row)}>
-                    حذف
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+  const helper = createColumnHelper<AdminCode>();
+  const columns = useMemo(
+    () => [
+      helper.accessor('code', { header: 'کد', cell: (info) => info.getValue() }),
+      helper.accessor('percent', { header: 'درصد', cell: (info) => `${faNumber(info.getValue())}٪` }),
+      helper.accessor((row) => row.users?.map((user) => userOptionLabel(user)).join('، ') || 'همه', {
+        id: 'users',
+        header: 'کاربران',
+      }),
+      helper.accessor('usedCount', {
+        header: 'استفاده',
+        cell: ({ row }) =>
+          `${faNumber(row.original.usedCount)}${row.original.maxUses ? ` / ${faNumber(row.original.maxUses)}` : ' / نامحدود'}`,
+      }),
+      helper.accessor('active', { header: 'وضعیت', cell: (info) => (info.getValue() ? 'فعال' : 'غیرفعال') }),
+      helper.accessor('note', { header: 'یادداشت', cell: (info) => info.getValue() || '—' }),
+      helper.accessor('expiresAt', { header: 'انقضا', cell: (info) => faDate(info.getValue()) }),
+      helper.accessor('maxUses', { header: 'سقف استفاده', cell: (info) => (info.getValue() ? faNumber(info.getValue()) : 'نامحدود') }),
+      helper.display({
+        id: 'actions',
+        header: 'عملیات',
+        enableHiding: false,
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => onToggle(row.original)}>
+              {row.original.active ? 'غیرفعال' : 'فعال'}
+            </Button>
+            <Button size="sm" variant="danger" disabled={pending} onClick={() => onDelete(row.original)}>
+              حذف
+            </Button>
+          </div>
+        ),
+      }),
+    ],
+    [onDelete, onToggle, pending],
   );
-}
-
-function Empty({ message }: { message: string }) {
-  return <p className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-sm text-gray-500">{message}</p>;
+  return (
+    <SearchableTable
+      storageKey="admin-codes"
+      data={rows}
+      columns={columns}
+      getRowId={(row) => String(row._id)}
+      extraSearch={(row) =>
+        [
+          row.note,
+          row.active ? 'فعال' : 'غیرفعال',
+          faNumber(row.percent),
+          row.users?.map((user) => userOptionLabel(user)).join(' ') || 'همه',
+        ].join(' ')
+      }
+      emptyMessage="هنوز کد تخفیفی نیست"
+    />
+  );
 }

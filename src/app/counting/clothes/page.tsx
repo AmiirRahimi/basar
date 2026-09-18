@@ -59,12 +59,13 @@ export default async function ClothesPage() {
         defaults={{ _storeId: data?.activeStoreId || '' }}
         columns={[
           { header: 'کد', accessor: 'code' },
-          { header: 'فروشگاه', accessor: '_storeId', format: 'name' },
-          { header: 'بسته‌ها', accessor: 'packSummary' },
-          { header: 'تعداد', accessor: 'count' },
           { header: 'نوع', accessor: '_type', format: 'name' },
           { header: 'مدل', accessor: '_style', format: 'name' },
           { header: 'سایز', accessor: '_size', format: 'name' },
+          { header: 'تعداد', accessor: 'count' },
+          { header: 'قیمت', accessor: 'unitPrice', format: 'toman' },
+          { header: 'فروشگاه', accessor: '_storeId', format: 'name' },
+          { header: 'بسته‌ها', accessor: 'packSummary' },
           { header: 'رنگ', accessor: '_color', format: 'name' },
           { header: 'پارچه', accessor: '_producedFrom', format: 'name' },
           { header: 'مصرف پارچه', accessor: 'amountUsed' },
@@ -74,7 +75,6 @@ export default async function ClothesPage() {
           { header: 'اجرت شست', accessor: 'washFee', format: 'toman' },
           { header: 'فروشنده', accessor: '_boughtFrom', format: 'name' },
           { header: 'شریک', accessor: '_partner', format: 'name' },
-          { header: 'قیمت', accessor: 'unitPrice', format: 'toman' },
         ]}
         fields={[
           { name: '_storeId', label: 'فروشگاه', type: 'relation', options: storeOptions, required: true },

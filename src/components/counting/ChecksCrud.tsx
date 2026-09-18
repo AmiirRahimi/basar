@@ -2,13 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  useReactTable,
-  getCoreRowModel,
-  createColumnHelper,
-  type ColumnDef,
-} from '@tanstack/react-table';
-import { BasicTable, Button, EmptyState, FormCard, Input, Modal, Select, toast } from '@/ui';
+import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
+import { Button, FormCard, Input, Modal, Select, toast } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import {
   CHECK_DIRECTIONS,
@@ -21,6 +16,7 @@ import {
 import { displayName, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { RowActions } from './RowActions';
+import { SearchableTable } from './SearchableTable';
 import { useWritable } from './useWritable';
 import type { Check, FieldOption } from '@/lib/types';
 
@@ -103,6 +99,16 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
           return <span className={color}>{CHECK_STATUSES[status]}</span>;
         },
       }),
+      helper.accessor((row) => row.serialNumber, {
+        id: 'serialNumber',
+        header: 'سریال',
+        cell: (info) => String(info.getValue() || '—'),
+      }),
+      helper.accessor((row) => row.sayadiNumber, {
+        id: 'sayadiNumber',
+        header: 'صیادی',
+        cell: (info) => String(info.getValue() || '—'),
+      }),
       helper.accessor((row) => row.isTransferred, {
         id: 'isTransferred',
         header: 'واگذار شده',
@@ -115,6 +121,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
           id: 'actions',
           header: 'عملیات',
           size: 112,
+          enableHiding: false,
           cell: ({ row }) => (
             <RowActions
               onEdit={() => openEdit(row.original)}
@@ -133,12 +140,17 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
     return defs;
   }, [router, writable]);
 
-  const table = useReactTable({
-    data: checks,
-    columns: tableColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getRowId: (row) => String(row._id),
-  });
+  function extraSearch(row: Check) {
+    const status = checkStatus(row);
+    return [
+      CHECK_DIRECTIONS[row.direction === 'out' ? 'out' : 'in'],
+      CHECK_STATUSES[status],
+      checkSourceLabel(row),
+      displayName(row._owner),
+      row.isTransferred ? 'بله واگذار شده' : 'خیر',
+      toman(row.amount),
+    ].join(' ');
+  }
 
   function resetForm() {
     setEditing(null);
@@ -230,11 +242,15 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
           </Button>
         </div>
       ) : null}
-      {checks.length ? (
-        <BasicTable table={table} isLoading={pending} labels={{ nothingToShow: 'موردی نیست' }} />
-      ) : (
-        <EmptyState message="هنوز چکی ثبت نشده" />
-      )}
+      <SearchableTable
+        storageKey="check"
+        data={checks}
+        columns={tableColumns}
+        getRowId={(row) => String(row._id)}
+        extraSearch={extraSearch}
+        isLoading={pending}
+        emptyMessage="هنوز چکی ثبت نشده"
+      />
       <Modal isOpen={open} onClose={() => setOpen(false)} size="lg">
         <FormCard>
           <h3 className="mb-4 text-lg font-medium">{editing ? 'ویرایش چک' : 'ثبت چک'}</h3>

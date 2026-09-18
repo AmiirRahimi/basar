@@ -28,8 +28,8 @@ export default async function FabricPage() {
           { header: 'متراژ', accessor: 'amount' },
           { header: 'فی', accessor: 'priceForUnit', format: 'toman' },
           { header: 'حمل', accessor: 'priceForShipingForUnit', format: 'toman' },
-          { header: 'تخفیف', accessor: 'discount', format: 'toman' },
           { header: 'مبلغ کل', accessor: 'totalPrice', format: 'toman' },
+          { header: 'تخفیف', accessor: 'discount', format: 'toman' },
         ]}
         fields={[
           { name: '_mercer', label: 'بنکدار', type: 'relation', options: mercers, required: true },
