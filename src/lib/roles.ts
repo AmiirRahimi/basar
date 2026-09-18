@@ -7,6 +7,7 @@ export const MENU_ACCESS: Record<string, StoreRole[]> = {
   invoice: ['owner', 'admin', 'seller'],
   person: ALL,
   cloth: ALL,
+  images: ['owner', 'admin'],
   check: ['owner', 'admin'],
   fabric: ['owner', 'admin', 'other'],
   account: ['owner', 'admin', 'seller'],
@@ -77,6 +78,7 @@ export function pathMenuId(pathname: string) {
   if (pathname.startsWith('/counting/invoices')) return 'invoice';
   if (pathname.startsWith('/counting/people')) return 'person';
   if (pathname.startsWith('/counting/clothes')) return 'cloth';
+  if (pathname.startsWith('/counting/images')) return 'images';
   if (pathname.startsWith('/counting/checks')) return 'check';
   if (pathname.startsWith('/counting/fabric')) return 'fabric';
   if (pathname.startsWith('/counting/account')) return 'account';

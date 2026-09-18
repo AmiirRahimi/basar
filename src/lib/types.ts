@@ -133,6 +133,8 @@ export type Workspace = {
     maxStores?: number;
     allowPartners?: boolean;
   };
+  imageTokens?: number;
+  imageTokensUnlimited?: boolean;
   purchases?: {
     _id: string;
     planName?: string;

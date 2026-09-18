@@ -25,6 +25,7 @@
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
     "framer-motion": "^12.23.12",
+    "jimp": "^0.22.12",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.511.0",
     "mongoose": "^9.10.0",

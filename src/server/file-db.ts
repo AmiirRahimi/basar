@@ -337,4 +337,6 @@ export const fileModels = {
   Permision: new FileModel('permisions'),
   UserPermision: new FileModel('userpermisions'),
   Attachment: new FileModel('attachments'),
+  ImageTokenPurchase: new FileModel('imagetokenpurchases'),
+  ImageEdit: new FileModel('imageedits'),
 };

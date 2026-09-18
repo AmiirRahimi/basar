@@ -15,6 +15,7 @@ const UserSchema = new Schema(
     address: { type: String, default: null },
     password: { type: String, default: null },
     refreshToken: { type: String, default: null },
+    imageTokens: { type: Number, default: 0 },
   },
   { collection: 'users' },
 );
@@ -375,6 +376,29 @@ const UserPermisionSchema = new Schema(
   { collection: 'userpermisions' },
 );
 
+const ImageTokenPurchaseSchema = new Schema(
+  {
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    packId: { type: String, required: true },
+    tokens: { type: Number, required: true },
+    price: { type: Number, required: true },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'imagetokenpurchases' },
+);
+
+const ImageEditSchema = new Schema(
+  {
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    _clothId: { type: Schema.Types.ObjectId, ref: 'Cloth', required: true, index: true },
+    styleId: { type: String, required: true },
+    sourceUrl: { type: String, required: true },
+    resultUrl: { type: String, required: true },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'imageedits' },
+);
+
 const AttachmentSchema = new Schema(
   {
     size: Number,
@@ -416,6 +440,8 @@ export const Change = modelOf<any>('Change', ChangeSchema);
 export const ChangedItems = modelOf<any>('ChangedItems', ChangedItemsSchema);
 export const Permision = modelOf<any>('Permision', PermisionSchema);
 export const UserPermision = modelOf<any>('UserPermision', UserPermisionSchema);
+export const ImageTokenPurchase = modelOf<any>('ImageTokenPurchase', ImageTokenPurchaseSchema);
+export const ImageEdit = modelOf<any>('ImageEdit', ImageEditSchema);
 export const Attachment = modelOf<any>('Attachment', AttachmentSchema);
 
 export const PERSON_POPULATE = personSelect;

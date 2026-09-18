@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { InfoRow, SectionCard } from '@/ui';
 import { AdminUserEditTrigger } from './AdminUserEditor';
+import { ClothImageStudio } from './ImageStudio';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
 import { PERSON_ROLES, personRoleLabel } from '@/lib/constants';
 import { cycleLabel } from '@/lib/plans';
@@ -311,6 +312,9 @@ export function RecordDetail({
                 </Link>
               ) : null}
               {resource === 'admin-user' ? <AdminUserEditTrigger user={raw} /> : null}
+              {resource === 'cloth' && images.length ? (
+                <ClothImageStudio clothId={String(row._id)} images={images} />
+              ) : null}
             </div>
           </div>
         </div>

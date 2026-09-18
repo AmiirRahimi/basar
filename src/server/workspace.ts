@@ -376,6 +376,13 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
   });
   const purchases =
     role === 'owner' || isAdmin ? await listPurchases(String(user._id)) : [];
+  const tokenOwnerId =
+    brands.find((brand) => brand._id === context._brandId)?._userId || String(user._id);
+  let imageTokens = Number(user.imageTokens || 0);
+  if (tokenOwnerId && tokenOwnerId !== String(user._id)) {
+    const tokenOwner = await M().User.findById(tokenOwnerId).select('imageTokens').lean();
+    imageTokens = Number(tokenOwner?.imageTokens || 0);
+  }
   return ok(
     serialize({
       user: {
@@ -392,6 +399,8 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       isPlatformAdmin: isAdmin,
       subscriptionActive: subscription.active,
       subscription,
+      imageTokens,
+      imageTokensUnlimited: isAdmin,
       purchases,
       contextChanged:
         context._storeId !== auth.session._storeId || context._brandId !== auth.session._brandId,
