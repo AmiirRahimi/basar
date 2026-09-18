@@ -1,7 +1,7 @@
 import { CountingShell } from '@/components/counting/CountingShell';
 import { listClothKinds, listClothStyles, listColors, listSizes } from '@/actions/crud';
 import { clothKindOptions } from '@/actions/options';
-import { CrudPage } from '@/components/counting/CrudPage';
+import { DropdownsBoard } from '@/components/counting/DropdownsBoard';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 
 export default async function DropdownsPage() {
@@ -14,59 +14,18 @@ export default async function DropdownsPage() {
   ]);
   guardSession(colors, sizes, kinds, styles);
   return (
-    <CountingShell title="لیست‌های کمکی" error={errorMessage(kinds)}>
-      <div className="grid gap-8">
-        <CrudPage
-          resource="cloth-kind"
-          title="نوع"
-          heading="نوع لباس"
-          headingDescription="فقط از این صفحه قابل ویرایش است؛ مثلاً شلوار جین و شلوار کتان."
-          headerAction="local"
-          rows={Array.isArray(kinds.data) ? kinds.data : []}
-          columns={[{ header: 'نام', accessor: 'name' }]}
-          fields={[{ name: 'name', label: 'نام', required: true }]}
-        />
-        <CrudPage
-          resource="cloth-style"
-          title="مدل"
-          heading="مدل لباس"
-          headingDescription="مدل‌های هر نوع؛ مثلاً برای شلوار جین: شلوار راسته و شلوار مام."
-          headerAction="local"
-          rows={Array.isArray(styles.data) ? styles.data : []}
-          columns={[
-            { header: 'نام', accessor: 'name' },
-            { header: 'نوع لباس', accessor: '_clothKind', format: 'name' },
-          ]}
-          fields={[
-            { name: 'name', label: 'نام', required: true },
-            { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
-          ]}
-        />
-        <CrudPage
-          resource="color"
-          title="رنگ"
-          heading="رنگ"
-          headerAction="local"
-          rows={Array.isArray(colors.data) ? colors.data : []}
-          columns={[{ header: 'نام', accessor: 'name' }]}
-          fields={[{ name: 'name', label: 'نام', required: true }]}
-        />
-        <CrudPage
-          resource="size"
-          title="سایز"
-          heading="سایز"
-          headerAction="local"
-          rows={Array.isArray(sizes.data) ? sizes.data : []}
-          columns={[
-            { header: 'نام', accessor: 'name' },
-            { header: 'نوع لباس', accessor: '_clothKind', format: 'name' },
-          ]}
-          fields={[
-            { name: 'name', label: 'نام', required: true },
-            { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
-          ]}
-        />
-      </div>
+    <CountingShell
+      title="لیست‌های کمکی"
+      description="نوع، مدل، رنگ و سایز لباس را از همین‌جا ببینید و اضافه کنید"
+      error={errorMessage(kinds)}
+    >
+      <DropdownsBoard
+        kinds={Array.isArray(kinds.data) ? kinds.data : []}
+        styles={Array.isArray(styles.data) ? styles.data : []}
+        colors={Array.isArray(colors.data) ? colors.data : []}
+        sizes={Array.isArray(sizes.data) ? sizes.data : []}
+        kindOptions={kindOptions}
+      />
     </CountingShell>
   );
 }
