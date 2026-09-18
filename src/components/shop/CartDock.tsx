@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ShoppingBag, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ShopPackPicker } from './ShopPackPicker';
 import { ShopButton } from './ShopUi';
 import { useShopCart } from './CartProvider';
@@ -56,6 +56,8 @@ function useOverDarkPoster() {
 export function CartDock() {
   const { totals, drawerOpen, setDrawerOpen, pending } = useShopCart();
   const { overDark, buttonRef } = useOverDarkPoster();
+  const panelRef = useRef<HTMLElement>(null);
+  const [panelPos, setPanelPos] = useState({ top: 0, left: 0 });
   const light = overDark;
 
   useEffect(() => {
@@ -71,6 +73,39 @@ export function CartDock() {
       document.body.style.overflow = previous;
     };
   }, [drawerOpen, setDrawerOpen]);
+
+  useLayoutEffect(() => {
+    if (!drawerOpen) return;
+
+    function place() {
+      const button = buttonRef.current;
+      const panel = panelRef.current;
+      if (!button || !panel) return;
+      const icon = button.getBoundingClientRect();
+      const gap = 12;
+      const pad = 12;
+      const width = panel.offsetWidth;
+      const height = panel.offsetHeight;
+      let left = icon.right + gap;
+      if (left + width > window.innerWidth - pad) {
+        left = Math.max(pad, icon.left - gap - width);
+      }
+      let top = icon.top + icon.height / 2 - height / 2;
+      top = Math.max(pad, Math.min(top, window.innerHeight - height - pad));
+      setPanelPos({ top, left });
+    }
+
+    place();
+    const frame = window.requestAnimationFrame(place);
+    const observer = new ResizeObserver(place);
+    if (panelRef.current) observer.observe(panelRef.current);
+    window.addEventListener('resize', place);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', place);
+    };
+  }, [buttonRef, drawerOpen]);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[80]">
@@ -117,15 +152,13 @@ export function CartDock() {
             />
             <motion.aside
               key="cart-panel"
+              ref={panelRef}
               dir="rtl"
-              className={cn(
-                'pointer-events-auto absolute z-20 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-shop-ink/10 bg-shop-paper text-shop-ink shadow-[0_18px_50px_rgba(16,28,48,0.35)]',
-                'left-3 top-20 w-[min(18.25rem,calc(100vw-1.5rem))] max-h-[min(20.5rem,50dvh)]',
-                'md:left-[5.2rem] md:top-20 md:w-[18.5rem] md:max-h-[min(22rem,52vh)]',
-              )}
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              style={{ top: panelPos.top, left: panelPos.left }}
+              className="pointer-events-auto absolute z-20 flex max-h-[min(20.5rem,50dvh)] min-h-0 w-[min(18.25rem,calc(100vw-5.5rem))] origin-left flex-col overflow-hidden rounded-2xl border border-shop-ink/10 bg-shop-paper text-shop-ink shadow-[0_18px_50px_rgba(16,28,48,0.35)] md:max-h-[min(22rem,52vh)] md:w-[18.5rem]"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
               transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.85 }}
             >
               <CartPopover />
