@@ -21,13 +21,13 @@ body {
 }
 
 [data-shop] {
-  --shop-ink: 11 29 42;
-  --shop-mill: 30 58 76;
-  --shop-saffron: 224 160 26;
-  --shop-bone: 246 240 230;
-  --shop-paper: 255 253 248;
-  --shop-madder: 142 58 58;
-  --shop-line: 196 122 58;
+  --shop-ink: 16 28 48;
+  --shop-mill: 36 52 86;
+  --shop-saffron: 196 148 64;
+  --shop-bone: 243 239 230;
+  --shop-paper: 252 250 245;
+  --shop-madder: 154 46 52;
+  --shop-line: 176 128 58;
   background: rgb(var(--shop-bone));
   color: rgb(var(--shop-ink));
   min-height: 100vh;

@@ -18,50 +18,44 @@ export function ProductCard({ product, featured = false }: { product: CatalogPro
   return (
     <article
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-[1.6rem] border border-shop-ink/10 bg-shop-paper shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl',
+        'group relative flex flex-col overflow-hidden rounded-2xl border border-shop-ink/10 bg-shop-paper shadow-[0_10px_30px_-18px_rgb(16_28_48_/_0.45)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-16px_rgb(16_28_48_/_0.5)]',
         featured && 'md:min-h-[28rem]',
       )}
     >
       <Link href={`/product/${product.id}`} className="relative block overflow-hidden">
         <div
-          className={cn('bg-cover bg-center transition duration-700 group-hover:scale-105', featured ? 'h-80' : 'h-72')}
+          className={cn('bg-cover bg-center transition duration-700 group-hover:scale-105', featured ? 'h-64 sm:h-80 md:h-[22rem]' : 'h-56 sm:h-72 md:h-80')}
           style={{ backgroundImage: `url(${product.image})` }}
         />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-shop-ink/55 via-transparent to-transparent" />
-        <div className="absolute left-3 top-3 flex max-w-[70%] flex-col items-start gap-1.5">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-shop-ink/70 via-shop-ink/10 to-transparent" />
+        <div className="absolute left-3 top-3 flex max-w-[72%] flex-col items-start gap-1.5">
           {product.newCollection ? (
-            <span className="rounded-full bg-shop-saffron px-2.5 py-1 text-[11px] font-medium tracking-wide text-shop-ink shadow-sm">
-              کالکشن جدید
-            </span>
+            <span className="rounded-full bg-shop-saffron px-2.5 py-1 text-[11px] font-medium text-shop-ink shadow-sm">کالکشن جدید</span>
           ) : null}
           {product.onSale && product.discountPercent ? (
-            <span className="rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-medium text-white shadow-sm">
+            <span className="rounded-full bg-shop-madder px-2.5 py-1 text-[11px] font-medium text-white shadow-sm">
               حراج {faNumber(product.discountPercent)}٪
             </span>
           ) : null}
         </div>
-        <span className="absolute right-3 top-3 rounded-full bg-shop-bone/90 px-2.5 py-1 text-[11px] tracking-wide text-shop-ink">
-          {product.category}
-        </span>
+        <span className="absolute right-3 top-3 rounded-full bg-shop-bone/92 px-2.5 py-1 text-[11px] text-shop-ink">{product.category}</span>
         {product.saleEndsAt ? (
           <div className="absolute bottom-3 left-3">
             <SaleCountdown endsAt={product.saleEndsAt} />
           </div>
         ) : null}
-        <span className="absolute bottom-3 right-3 rounded-md bg-shop-ink/80 px-2 py-1 font-mono text-[11px] text-shop-saffron">
-          کد {product.code}
-        </span>
+        <span className="absolute bottom-3 right-3 rounded-md bg-shop-ink/80 px-2 py-1 font-mono text-[11px] text-shop-saffron">کد {product.code}</span>
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-medium leading-snug">
+          <h3 className="text-lg font-medium leading-snug text-shop-ink">
             <Link href={`/product/${product.id}`}>{product.name}</Link>
           </h3>
           <div className="shrink-0 text-left">
             {product.onSale && product.listPrice && product.listPrice > product.wholesalePrice ? (
               <p className="text-[11px] text-shop-ink/40 line-through">{toman(product.listPrice)}</p>
             ) : null}
-            <p className="text-sm text-shop-saffron">{toman(product.wholesalePrice)}</p>
+            <p className="text-sm font-medium text-shop-saffron">{toman(product.wholesalePrice)}</p>
           </div>
         </div>
         <p className="text-xs text-shop-ink/55">
@@ -73,7 +67,7 @@ export function ProductCard({ product, featured = false }: { product: CatalogPro
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="text-sm text-shop-ink underline decoration-shop-saffron/70 underline-offset-4"
+            className="text-sm text-shop-ink underline decoration-shop-saffron/80 underline-offset-4"
           >
             {open ? 'بستن' : 'افزودن بسته'}
           </button>

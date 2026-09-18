@@ -26,7 +26,7 @@ export function clothToProduct(cloth: Cloth): CatalogProduct {
     id: cloth._id,
     code: String(cloth.code ?? cloth._id),
     name: [type.name, style.name].filter(Boolean).join(' ') || `لباس ${cloth.code ?? ''}`.trim(),
-    description: cloth.description || 'موجودی انبار بازار — فروش فقط به‌صورت عمده و با بسته.',
+    description: cloth.description || 'موجودی جین پوش — فروش عمده با بسته از حجره بازار بزرگ.',
     category: type.name || 'پوشاک',
     style: style.name,
     wholesalePrice: sale.salePrice,
@@ -87,8 +87,33 @@ export function filterCatalog(products: CatalogProduct[], filters: CatalogFilter
     if (minPrice > 0 && product.wholesalePrice < minPrice) return false;
     if (maxPrice > 0 && product.wholesalePrice > maxPrice) return false;
     if (filters.stock === 'in' && product.count < 1) return false;
+    if (filters.sale === '1' && !product.onSale) return false;
+    if (filters.new === '1' && !product.newCollection) return false;
     return true;
   });
+}
+
+export function newFromCatalog(products: CatalogProduct[]) {
+  return products.filter((product) => product.newCollection);
+}
+
+export function saleFromCatalog(products: CatalogProduct[]) {
+  return products.filter((product) => product.onSale);
+}
+
+export function colorsFromCatalog(products: CatalogProduct[]) {
+  const map = new Map<string, { id: string; name: string; image: string; count: number }>();
+  for (const product of products) {
+    const id = product.colorId || product.color;
+    if (!id || !product.color) continue;
+    const current = map.get(id);
+    if (current) {
+      current.count += 1;
+      continue;
+    }
+    map.set(id, { id, name: product.color, image: product.image, count: 1 });
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
 }
 
 export function collectionsFromCatalog(products: CatalogProduct[]) {

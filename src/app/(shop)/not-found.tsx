@@ -7,7 +7,7 @@ export default function ShopNotFound() {
       <h1 className="mt-2 text-4xl font-semibold">این مدل در انبار پیدا نشد</h1>
       <p className="mt-3 text-shop-ink/60">ممکن است موجودی تمام شده باشد یا پیوند قدیمی باشد.</p>
       <ShopButton href="/catalog" className="mt-8">
-        بازگشت به ایندکس
+        همه محصولات
       </ShopButton>
     </div>
   );

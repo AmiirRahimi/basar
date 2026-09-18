@@ -19,20 +19,24 @@ function useOverDarkPoster() {
 
   useEffect(() => {
     function measure() {
-      const hero = document.querySelector('[data-shop-hero]');
+      const zones = document.querySelectorAll('[data-shop-dark]');
       const button = buttonRef.current;
-      if (!hero || !button) {
+      if (!zones.length || !button) {
         setOverDark(false);
         return;
       }
-      const heroBox = hero.getBoundingClientRect();
       const cartBox = button.getBoundingClientRect();
-      const overlaps =
-        cartBox.bottom > heroBox.top + 8 &&
-        cartBox.top < heroBox.bottom - 8 &&
-        cartBox.right > heroBox.left &&
-        cartBox.left < heroBox.right;
-      setOverDark(overlaps);
+      setOverDark(
+        [...zones].some((zone) => {
+          const box = zone.getBoundingClientRect();
+          return (
+            cartBox.bottom > box.top &&
+            cartBox.top < box.bottom &&
+            cartBox.right > box.left &&
+            cartBox.left < box.right
+          );
+        }),
+      );
     }
 
     measure();
@@ -52,7 +56,7 @@ function useOverDarkPoster() {
 export function CartDock() {
   const { totals, drawerOpen, setDrawerOpen, pending } = useShopCart();
   const { overDark, buttonRef } = useOverDarkPoster();
-  const light = overDark && !drawerOpen;
+  const light = overDark;
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -70,7 +74,7 @@ export function CartDock() {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50">
-      <div className="absolute left-3 top-1/2 -translate-y-1/2">
+      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 md:bottom-auto md:top-1/2 md:-translate-y-1/2">
         <motion.button
           ref={buttonRef}
           type="button"
@@ -79,10 +83,10 @@ export function CartDock() {
           whileTap={{ scale: 0.9, y: 2 }}
           transition={{ type: 'spring', stiffness: 520, damping: 22, mass: 0.7 }}
           className={cn(
-            'pointer-events-auto flex w-[4.35rem] flex-col items-center gap-2 rounded-[1.5rem] px-2 py-3 shadow-2xl',
+            'pointer-events-auto flex w-14 flex-col items-center gap-1 rounded-2xl px-2 py-2.5 shadow-2xl md:w-[4.35rem] md:gap-2 md:rounded-[1.5rem] md:py-3',
             'origin-center will-change-transform transition-[background-color,color,border-color,box-shadow] duration-500 ease-out',
             light
-              ? 'border border-white/50 bg-white/90 text-shop-ink backdrop-blur-md hover:shadow-[0_12px_40px_rgba(255,255,255,0.28)]'
+              ? 'border border-shop-saffron/50 bg-shop-paper text-shop-ink shadow-[0_12px_32px_rgba(0,0,0,0.28)]'
               : 'border border-white/10 bg-shop-ink text-shop-bone hover:border-shop-saffron/50',
             drawerOpen && 'ring-2 ring-shop-saffron/80',
           )}
@@ -90,7 +94,7 @@ export function CartDock() {
           aria-expanded={drawerOpen}
         >
           <ShoppingBag className={cn('h-5 w-5 transition-colors duration-500', light ? 'text-shop-ink' : 'text-shop-saffron')} />
-          <span className="text-lg font-semibold leading-none">{faNumber(totals.packs)}</span>
+          <span className="text-base font-semibold leading-none md:text-lg">{faNumber(totals.packs)}</span>
           <span className={cn('max-w-full truncate text-[10px] leading-tight transition-colors duration-500', light ? 'text-shop-ink/70' : 'text-shop-saffron')}>
             {pending ? '...' : compactToman(totals.amount)}
           </span>
@@ -114,12 +118,15 @@ export function CartDock() {
             <motion.aside
               key="cart-panel"
               dir="rtl"
-              className="pointer-events-auto absolute bottom-4 left-[5.4rem] top-4 flex w-[min(calc(100vw-6.5rem),26rem)] flex-col overflow-hidden rounded-[1.6rem] border border-shop-ink/10 bg-shop-bone shadow-[0_24px_80px_rgba(11,29,42,0.28)]"
-              initial={{ opacity: 0, x: -28, scale: 0.94 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -18, scale: 0.96 }}
+              className={cn(
+                'pointer-events-auto absolute z-10 flex flex-col overflow-hidden rounded-2xl border border-shop-ink/10 bg-shop-paper text-shop-ink shadow-[0_18px_50px_rgba(16,28,48,0.35)]',
+                'bottom-[5.25rem] left-3 w-[min(18.25rem,calc(100vw-1.5rem))] max-h-[min(20.5rem,50dvh)]',
+                'md:bottom-auto md:left-[5.2rem] md:top-1/2 md:w-[18.5rem] md:max-h-[min(22rem,52vh)] md:-translate-y-1/2',
+              )}
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
               transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.85 }}
-              style={{ originX: 0, originY: 0.5 }}
             >
               <CartPopover />
             </motion.aside>
@@ -135,23 +142,23 @@ function CartPopover() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-shop-ink/10 px-5 py-4">
+      <div className="flex shrink-0 items-center justify-between border-b border-shop-ink/10 px-3 py-2.5">
         <div>
-          <p className="text-[11px] tracking-[0.22em] text-shop-ink/45">برگه بسته‌بندی</p>
-          <h2 className="text-xl font-semibold">سبد عمده</h2>
+          <p className="text-[10px] tracking-[0.22em] text-shop-ink/45">برگه بسته‌بندی</p>
+          <h2 className="text-base font-semibold text-shop-ink">سبد عمده</h2>
         </div>
-        <button type="button" onClick={() => setDrawerOpen(false)} className="rounded-full p-2 hover:bg-shop-ink/5" aria-label="بستن">
-          <X className="h-5 w-5" />
+        <button type="button" onClick={() => setDrawerOpen(false)} className="rounded-full p-1.5 hover:bg-shop-ink/5" aria-label="بستن">
+          <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-2.5">
         {message && !lines.length ? <p className="text-sm text-shop-madder">{message}</p> : null}
         {lines.length ? (
           lines.map((line) => (
-            <div key={line.productId} className="rounded-2xl border border-shop-ink/10 bg-shop-paper p-3">
-              <div className="mb-3 flex gap-3">
+            <div key={line.productId} className="rounded-xl border border-shop-ink/10 bg-shop-bone/60 p-2.5">
+              <div className="mb-2 flex gap-2.5">
                 <div
-                  className="h-16 w-14 shrink-0 rounded-xl bg-cover bg-center"
+                  className="h-14 w-12 shrink-0 rounded-xl bg-cover bg-center"
                   style={{ backgroundImage: `url(${line.product.image})` }}
                 />
                 <div className="min-w-0 flex-1">
@@ -176,21 +183,21 @@ function CartPopover() {
             </div>
           ))
         ) : (
-          <p className="py-12 text-center text-sm text-shop-ink/55">سبد خالی است. از کاتالوگ بسته اضافه کنید.</p>
+          <p className="py-4 text-center text-sm text-shop-ink/55">سبد خالی است. از کاتالوگ بسته اضافه کنید.</p>
         )}
       </div>
-      <div className="space-y-3 border-t border-shop-ink/10 bg-shop-paper px-5 py-4">
-        <div className="flex items-center justify-between text-sm">
+      <div className="shrink-0 space-y-2 border-t border-shop-ink/10 bg-shop-paper px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2 text-xs sm:text-sm">
           <span>
             {faNumber(totals.packs)} بسته · {faNumber(totals.pieces)} عدد
           </span>
           <span className="font-semibold text-shop-saffron">{toman(totals.amount)}</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <ShopButton href="/cart" variant="outline" onClick={() => setDrawerOpen(false)}>
+          <ShopButton href="/cart" variant="outline" className="px-3 py-2 text-xs" onClick={() => setDrawerOpen(false)}>
             سبد کامل
           </ShopButton>
-          <ShopButton href="/checkout" onClick={() => setDrawerOpen(false)}>
+          <ShopButton href="/checkout" className="px-3 py-2 text-xs" onClick={() => setDrawerOpen(false)}>
             تسویه عمده
           </ShopButton>
         </div>
@@ -198,4 +205,3 @@ function CartPopover() {
     </>
   );
 }
-

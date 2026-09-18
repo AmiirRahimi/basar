@@ -1,27 +1,49 @@
 import { getCatalog } from '@/actions/shop';
+import { filterCatalog } from '@/lib/catalog';
+import { CatalogFilters } from '@/components/shop/CatalogFilters';
 import { ProductCard } from '@/components/shop/ProductCard';
 import { faNumber } from '@/lib/format';
+import type { CatalogFilters as Filters } from '@/lib/types';
+import { Suspense } from 'react';
 
-export default async function CatalogPage() {
+export default async function CatalogPage({
+  searchParams,
+}: {
+  searchParams: Promise<Filters>;
+}) {
+  const params = await searchParams;
   const products = await getCatalog();
+  const filtered = filterCatalog(products, params);
+  const hasFilters = Boolean(
+    params.q || params.type || params.style || params.size || params.color || params.minPrice || params.maxPrice || params.stock || params.sale || params.new,
+  );
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 lg:px-6">
-      <p className="text-[11px] tracking-[0.28em] text-shop-ink/40">ایندکس</p>
-      <h1 className="mt-2 text-4xl font-semibold">همه مدل‌های انبار</h1>
-      <p className="mt-3 max-w-2xl text-shop-ink/65">
-        {faNumber(products.length)} مدل از جدول لباس. بدون فیلتر — برای غربال از صفحه جستجو استفاده کنید.
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:py-10 lg:px-6 lg:py-12">
+      <p className="text-[11px] tracking-[0.28em] text-shop-saffron">کاتالوگ جین پوش</p>
+      <h1 className="mt-2 text-2xl font-semibold text-shop-ink sm:text-3xl md:text-4xl">همه محصولات</h1>
+      <p className="mt-3 max-w-2xl text-sm text-shop-ink/65 sm:text-base">
+        {faNumber(filtered.length)} از {faNumber(products.length)} مدل
+        {hasFilters ? ' با فیلترهای انتخاب‌شده' : ' — با فیلتر قیمت، نوع و رنگ محدود کنید'}
       </p>
-      {products.length ? (
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+      <div className="mt-6 grid items-start gap-5 sm:mt-8 lg:mt-10 lg:grid-cols-[17.5rem_1fr] lg:gap-8">
+        <Suspense fallback={<div className="h-[28rem] animate-pulse rounded-2xl bg-shop-paper" />}>
+          <CatalogFilters products={products} />
+        </Suspense>
+        <div>
+          {filtered.length ? (
+            <div className="grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
+              {filtered.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-dashed border-shop-ink/15 px-6 py-20 text-center text-shop-ink/50">
+              با این فیلتر مدلی پیدا نشد.
+            </p>
+          )}
         </div>
-      ) : (
-        <p className="mt-16 rounded-[2rem] border border-dashed border-shop-ink/15 px-6 py-20 text-center text-shop-ink/50">
-          موجودی قابل فروش در انبار ثبت نشده است.
-        </p>
-      )}
+      </div>
     </div>
   );
 }

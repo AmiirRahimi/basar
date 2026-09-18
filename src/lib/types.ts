@@ -267,6 +267,8 @@ export type CatalogFilters = {
   minPrice?: string;
   maxPrice?: string;
   stock?: string;
+  sale?: string;
+  new?: string;
 };
 
 export type PublicOrderLine = {

@@ -7,10 +7,10 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   const catalog = await getCatalog();
   const cart = await getCartItems(catalog);
   return (
-    <div data-shop>
+    <div data-shop className="overflow-x-clip">
       <ShopCartProvider initialCart={cart} catalog={catalog}>
         <ShopHeader />
-        <main className="pb-10">{children}</main>
+        <main className="pb-24 md:pb-10">{children}</main>
         <ShopFooter />
         <CartDock />
       </ShopCartProvider>

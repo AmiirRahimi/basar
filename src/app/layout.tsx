@@ -3,8 +3,8 @@ import { Toaster } from '@/ui/components/Toast';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'بازار | عمده‌فروشی پوشاک',
-  description: 'وب‌سایت عمده‌فروشی پوشاک و نرم‌افزار شمارش بازار',
+  title: 'جین پوش | خانواده رحیمی',
+  description: 'برند پوشاک خانواده رحیمی با بیش از ۴۵ سال فعالیت در بازار بزرگ تهران',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

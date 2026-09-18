@@ -16,15 +16,15 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     .slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 lg:px-6">
-      <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:py-10 lg:px-6 lg:py-12">
+      <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
         <ProductGallery images={product.images} name={product.name} />
         <div className="space-y-6">
           <div>
             <p className="text-xs tracking-[0.22em] text-shop-ink/45">
               {product.category} · کد {product.code}
             </p>
-            <h1 className="mt-2 text-4xl font-semibold leading-tight">{product.name}</h1>
+            <h1 className="mt-2 text-3xl font-semibold leading-tight text-shop-ink sm:text-4xl">{product.name}</h1>
             <div className="mt-3 flex flex-wrap gap-2">
               {product.newCollection ? (
                 <span className="rounded-full bg-shop-saffron px-3 py-1 text-xs font-medium text-shop-ink">کالکشن جدید</span>

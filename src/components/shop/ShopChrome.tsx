@@ -1,39 +1,45 @@
 'use client';
 
+import { BRAND, BRAND_ADDRESSES, BRAND_PHONES } from '@/lib/brand';
 import { cn } from '@/ui/lib/cn';
-import { Menu, X } from 'lucide-react';
+import { Menu, Phone, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { ShopButton } from './ShopUi';
 
 const LINKS = [
   { href: '/', label: 'خانه' },
-  { href: '/catalog', label: 'ایندکس کالا' },
-  { href: '/browse', label: 'فیلتر و جستجو' },
-  { href: '/about', label: 'شرایط عمده' },
-  { href: '/contact', label: 'ارتباط' },
+  { href: '/catalog', label: 'محصولات' },
+  { href: '/about', label: 'درباره ما' },
+  { href: '/contact', label: 'تماس با ما' },
 ];
+
+function activePath(pathname: string, href: string) {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function ShopHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur" dir="rtl">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
-        <Link href="/" className="leading-none">
-          <span className="block font-semibold tracking-tight text-2xl">بازار</span>
-          <span className="mt-1 block text-[10px] tracking-[0.28em] text-shop-saffron">عمده‌فروشی پوشاک</span>
+        <Link href="/" className="min-w-0 leading-none">
+          <span className="block text-xl font-semibold tracking-tight sm:text-2xl">{BRAND.name}</span>
+          <span className="mt-1 hidden max-w-[16rem] truncate text-[10px] tracking-[0.14em] text-shop-saffron sm:block md:max-w-none md:tracking-[0.18em]">
+            {BRAND.tagline}
+          </span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm md:flex">
+        <nav className="hidden items-center gap-4 text-sm md:flex lg:gap-7">
           {LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
                 'border-b border-transparent pb-0.5 transition',
-                pathname === link.href ? 'border-shop-saffron text-shop-saffron' : 'text-shop-bone/75 hover:text-shop-bone',
+                activePath(pathname, link.href) ? 'border-shop-saffron text-shop-saffron' : 'text-shop-bone/75 hover:text-shop-bone',
               )}
             >
               {link.label}
@@ -41,9 +47,13 @@ export function ShopHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <ShopButton href="/counting/login" variant="outline" className="hidden border-white/15 bg-transparent text-shop-bone hover:bg-white/5 sm:inline-flex">
-            شمارش
-          </ShopButton>
+          <Link
+            href="/contact"
+            className="hidden items-center gap-2 rounded-full border border-white/15 px-3 py-2 text-xs text-shop-bone/85 hover:bg-white/5 lg:inline-flex"
+          >
+            <Phone className="h-3.5 w-3.5 text-shop-saffron" />
+            <span dir="ltr">{BRAND_PHONES[0].display}</span>
+          </Link>
           <button type="button" className="rounded-full p-2 md:hidden" onClick={() => setOpen((v) => !v)} aria-label="منو">
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -53,13 +63,13 @@ export function ShopHeader() {
         <div className="border-t border-white/10 bg-shop-ink px-4 py-4 md:hidden">
           <div className="grid gap-3 text-sm">
             {LINKS.map((link) => (
-              <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className={pathname === link.href ? 'text-shop-saffron' : ''}>
+              <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className={activePath(pathname, link.href) ? 'text-shop-saffron' : ''}>
                 {link.label}
               </Link>
             ))}
-            <Link href="/counting/login" onClick={() => setOpen(false)} className="text-shop-bone/70">
-              پنل شمارش
-            </Link>
+            <a href={BRAND_PHONES[0].href} dir="ltr" className="text-shop-bone/70">
+              {BRAND_PHONES[0].display}
+            </a>
           </div>
         </div>
       ) : null}
@@ -69,21 +79,38 @@ export function ShopHeader() {
 
 export function ShopFooter() {
   return (
-    <footer className="mt-20 border-t border-shop-ink/10 bg-shop-ink text-shop-bone" dir="rtl">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 md:grid-cols-3 lg:px-6">
+    <footer data-shop-dark className="mt-16 border-t border-shop-ink/10 bg-shop-ink text-shop-bone" dir="rtl">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 lg:grid-cols-4 lg:px-6">
         <div>
-          <p className="text-2xl font-semibold">بازار</p>
-          <p className="mt-2 max-w-sm text-sm leading-7 text-shop-bone/65">
-            بنکداری پوشاک. فروش فقط با بسته و کارتن؛ قیمت خرده‌فروشی نداریم.
-          </p>
+          <p className="text-2xl font-semibold">{BRAND.name}</p>
+          <p className="mt-1 text-xs tracking-[0.16em] text-shop-saffron">{BRAND.latin}</p>
+          <p className="mt-3 max-w-sm text-sm leading-7 text-shop-bone/65">{BRAND.description}. فروش عمده با بسته از حجره‌های بازار آهنگران.</p>
         </div>
         <div className="grid gap-2 text-sm text-shop-bone/75">
-          <Link href="/catalog">ایندکس کالا</Link>
-          <Link href="/browse">فیلتر مدل‌ها</Link>
-          <Link href="/about">شرایط همکاری</Link>
-          <Link href="/contact">ارتباط با انبار</Link>
+          <p className="mb-1 text-xs tracking-[0.18em] text-shop-saffron">صفحات</p>
+          {LINKS.map((link) => (
+            <Link key={link.href} href={link.href} className="hover:text-shop-bone">
+              {link.label}
+            </Link>
+          ))}
         </div>
-        <p className="text-sm text-shop-bone/55">سفارش‌ها به‌صورت فاکتور شمارش ثبت می‌شوند. پرداخت و چک در پنل کارکنان است.</p>
+        <div className="grid gap-2 text-sm">
+          <p className="mb-1 text-xs tracking-[0.18em] text-shop-saffron">تلفن</p>
+          {BRAND_PHONES.map((phone) => (
+            <a key={phone.href} href={phone.href} dir="ltr" className="text-shop-bone/80 hover:text-shop-saffron">
+              {phone.display}
+            </a>
+          ))}
+        </div>
+        <div className="grid gap-4 text-sm text-shop-bone/75">
+          <p className="text-xs tracking-[0.18em] text-shop-saffron">آدرس حجره‌ها</p>
+          {BRAND_ADDRESSES.map((address) => (
+            <p key={address.title} className="leading-7">
+              <span className="block text-shop-bone">{address.title}</span>
+              {address.line}
+            </p>
+          ))}
+        </div>
       </div>
     </footer>
   );

@@ -3,7 +3,7 @@ import { cn } from '@/ui/lib/cn';
 
 const variants = {
   saffron:
-    'bg-shop-saffron text-shop-ink shadow-sm shadow-shop-saffron/20 hover:bg-[#edb12c] active:translate-y-px',
+    'bg-shop-saffron text-shop-ink shadow-sm shadow-shop-saffron/25 hover:bg-[#d4ae5a] active:translate-y-px',
   ink: 'bg-shop-ink text-shop-bone hover:bg-shop-mill active:translate-y-px',
   outline:
     'border border-shop-ink/15 bg-shop-paper/80 text-shop-ink hover:border-shop-saffron/50 hover:bg-shop-paper',
