@@ -225,9 +225,12 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
       fields: [
         { key: 'fullName', label: 'نام' },
         { key: 'phonenumber', label: 'موبایل', kind: 'phone' },
+        { key: 'email', label: 'ایمیل' },
         { key: 'city', label: 'شهر' },
+        { key: 'address', label: 'آدرس' },
         { key: 'loggedIn', label: 'وارد شده', kind: 'bool' },
         { key: 'planName', label: 'طرح' },
+        { key: 'billingCycle', label: 'دوره' },
         { key: 'remainingDays', label: 'مانده اشتراک' },
         { key: 'totalMonths', label: 'جمع ماه' },
         { key: 'purchaseCount', label: 'تعداد خرید' },

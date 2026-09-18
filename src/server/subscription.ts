@@ -168,3 +168,71 @@ export async function buyPlan(
     current.active ? 'اشتراک تمدید شد' : 'اشتراک فعال شد',
   );
 }
+
+export async function adminSetSubscription(
+  userId: string,
+  payload: Record<string, unknown>,
+): Promise<ActionResult> {
+  await db();
+  const user = await M().User.findById(userId).lean();
+  if (!user) return fail('کاربر پیدا نشد', 404);
+
+  const now = new Date();
+  const rows = (await M().UserSubscription.find({ _userId: oid(userId) }).lean()) as any[];
+  const overlapping = rows
+    .filter((row) => new Date(row.endDate).getTime() > now.getTime())
+    .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+
+  const remainingRaw = payload.remainingDays;
+  const hasRemaining = remainingRaw !== undefined && remainingRaw !== null && String(remainingRaw).trim() !== '';
+  let remaining = hasRemaining
+    ? Math.trunc(Number(remainingRaw))
+    : overlapping[0]
+      ? snapshotFromRow(overlapping[0]).remainingDays
+      : cycleDays(payload.billingCycle === 'year' ? 'year' : 'month');
+  if (!Number.isFinite(remaining)) return fail('تعداد روز مانده نامعتبر است');
+  remaining = Math.max(0, Math.min(remaining, 3650));
+
+  if (remaining === 0) {
+    for (const row of overlapping) {
+      await M().UserSubscription.updateOne({ _id: row._id }, { endDate: now });
+    }
+    return ok(null, overlapping.length ? 'اشتراک تمام شد' : '');
+  }
+
+  const planId = String(payload.planId || overlapping[0]?.planId || 'starter');
+  const plan = planById(planId);
+  if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
+  const cycle: BillingCycle = payload.billingCycle === 'year' ? 'year' : 'month';
+  const endDate = new Date(now.getTime() + remaining * 24 * 60 * 60 * 1000);
+  const originalPrice = planPrice(plan, cycle);
+  const price =
+    payload.price === undefined || payload.price === null || String(payload.price).trim() === ''
+      ? 0
+      : Math.max(0, Number(payload.price));
+  if (!Number.isFinite(price)) return fail('مبلغ نامعتبر است');
+
+  const next = {
+    planId: plan.id,
+    billingCycle: cycle,
+    subscriptionType: cycle === 'year' ? 3 : 2,
+    endDate,
+    price,
+    originalPrice,
+    discountCode: '',
+  };
+  const keep = overlapping[0];
+  for (const extra of overlapping.slice(1)) {
+    await M().UserSubscription.updateOne({ _id: extra._id }, { endDate: now });
+  }
+  if (keep) {
+    await M().UserSubscription.updateOne({ _id: keep._id }, next);
+    return ok(serialize({ planId: plan.id, billingCycle: cycle, remainingDays: remaining, endDate }), 'اشتراک به‌روز شد');
+  }
+  await M().UserSubscription.create({
+    _userId: oid(userId),
+    ...next,
+    startDate: now,
+  });
+  return ok(serialize({ planId: plan.id, billingCycle: cycle, remainingDays: remaining, endDate }), 'اشتراک فعال شد');
+}

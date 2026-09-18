@@ -10,6 +10,7 @@ import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { recordViewPath } from '@/lib/record-view';
 import { Button, Input, MultiSelect, toast } from '@/ui';
+import { AdminUserEditor, type EditableAdminUser } from './AdminUserEditor';
 import { RowActions } from './RowActions';
 import { SearchableTable } from './SearchableTable';
 
@@ -28,18 +29,12 @@ function randomCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-type AdminUser = {
-  _id: string;
-  fullName?: string;
-  phonenumber: string;
-  city?: string;
+type AdminUser = EditableAdminUser & {
   loggedIn: boolean;
   purchaseCount: number;
   totalMonths: number;
-  active: boolean;
   remainingDays: number;
-  planName?: string;
-  endDate?: string;
+  active: boolean;
 };
 
 type AdminPurchase = {
@@ -93,6 +88,7 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
   const [minMonths, setMinMonths] = useState('3');
   const [pending, start] = useTransition();
   const [form, setForm] = useState({ code: '', percent: '10', maxUses: '0', note: '', _userIds: [] as string[] });
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
   const months = Math.max(0, Number(minMonths || 0));
   const users = useMemo(() => {
@@ -234,8 +230,9 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
           />
         </div>
       ) : (
-        <UserTable rows={users} onCreateCode={createForUser} />
+        <UserTable rows={users} onCreateCode={createForUser} onEdit={setEditingUser} />
       )}
+      <AdminUserEditor user={editingUser} onClose={() => setEditingUser(null)} />
     </div>
   );
 }
@@ -249,7 +246,15 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (row: AdminUser) => void }) {
+function UserTable({
+  rows,
+  onCreateCode,
+  onEdit,
+}: {
+  rows: AdminUser[];
+  onCreateCode: (row: AdminUser) => void;
+  onEdit: (row: AdminUser) => void;
+}) {
   const helper = createColumnHelper<AdminUser>();
   const columns = useMemo(
     () => [
@@ -276,6 +281,7 @@ function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (r
         cell: ({ row }) => (
           <RowActions
             viewUrl={recordViewPath('admin-user', String(row.original._id))}
+            onEdit={() => onEdit(row.original)}
             extraActions={[
               {
                 label: 'کد تخفیف',
@@ -287,7 +293,7 @@ function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (r
         ),
       }),
     ],
-    [onCreateCode],
+    [onCreateCode, onEdit],
   );
   return (
     <SearchableTable
@@ -296,7 +302,16 @@ function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (r
       columns={columns}
       getRowId={(row) => String(row._id)}
       extraSearch={(row) =>
-        [row.loggedIn ? 'وارد شده' : 'خارج', row.active ? row.planName || 'فعال' : 'ندارد', faNumber(row.remainingDays), faNumber(row.totalMonths)].join(' ')
+        [
+          row.loggedIn ? 'وارد شده' : 'خارج',
+          row.active ? row.planName || 'فعال' : 'ندارد',
+          row.planId,
+          cycleLabel(row.billingCycle),
+          row.address,
+          row.email,
+          faNumber(row.remainingDays),
+          faNumber(row.totalMonths),
+        ].join(' ')
       }
       emptyMessage="کاربری در این فهرست نیست"
     />

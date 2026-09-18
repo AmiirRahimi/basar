@@ -15,6 +15,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { InfoRow, SectionCard } from '@/ui';
+import { AdminUserEditTrigger } from './AdminUserEditor';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
 import { PERSON_ROLES, personRoleLabel } from '@/lib/constants';
 import { cycleLabel } from '@/lib/plans';
@@ -134,7 +135,7 @@ function decorateRow(resource: string, row: Record<string, any>) {
           : row.brandName),
     };
   }
-  if (resource === 'admin-purchase') {
+  if (resource === 'admin-purchase' || resource === 'admin-user') {
     return { ...row, billingCycle: cycleLabel(row.billingCycle) || row.billingCycle };
   }
   return row;
@@ -309,6 +310,7 @@ export function RecordDetail({
                   گردش پرداخت
                 </Link>
               ) : null}
+              {resource === 'admin-user' ? <AdminUserEditTrigger user={raw} /> : null}
             </div>
           </div>
         </div>

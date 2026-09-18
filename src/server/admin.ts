@@ -1,8 +1,9 @@
+import { PHONE_RE } from '@/lib/constants';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
 import { fail, ok, type ActionResult } from './result';
-import { snapshotFromRow } from './subscription';
+import { adminSetSubscription, snapshotFromRow } from './subscription';
 import type { Session } from './session';
 import { withWorkspace } from './workspace';
 
@@ -64,13 +65,17 @@ export async function getAdminOverview(): Promise<ActionResult> {
       _id: id,
       fullName: user.fullName || '',
       phonenumber: String(user.phonenumber || ''),
+      email: user.email || '',
       city: user.city || '',
+      address: user.address || '',
       loggedIn: Boolean(user.refreshToken),
       purchaseCount: rows.length,
       totalMonths: Math.round(totalMonths * 10) / 10,
       active: Boolean(active),
       remainingDays: active?.remainingDays || 0,
+      planId: active?.planId || '',
       planName: active?.planName || '',
+      billingCycle: active?.billingCycle || '',
       endDate: active?.endDate || '',
     };
   });
@@ -175,6 +180,50 @@ export async function deleteDiscountCode(id: string): Promise<ActionResult> {
   await db();
   await M().DiscountCode.findByIdAndDelete(id);
   return ok(null, 'حذف شد');
+}
+
+export async function updateAdminUser(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  await db();
+  const user = await M().User.findById(id).lean();
+  if (!user) return fail('کاربر پیدا نشد', 404);
+
+  const next: Record<string, unknown> = {};
+  if (payload.fullName != null) next.fullName = String(payload.fullName).trim();
+  if (payload.city != null) next.city = String(payload.city).trim();
+  if (payload.address != null) next.address = String(payload.address).trim();
+  if (payload.email != null) {
+    const email = String(payload.email).trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('ایمیل معتبر نیست');
+    next.email = email;
+  }
+  if (payload.phonenumber != null) {
+    const phonenumber = String(payload.phonenumber).trim();
+    if (!PHONE_RE.test(phonenumber)) return fail('شماره موبایل معتبر نیست');
+    const taken = await M().User.findOne({ phonenumber }).lean();
+    if (taken && String(taken._id) !== String(id)) return fail('این موبایل قبلاً ثبت شده');
+    next.phonenumber = phonenumber;
+  }
+  if (Object.keys(next).length) await M().User.findByIdAndUpdate(id, next);
+  return ok(null, Object.keys(next).length ? 'اطلاعات کاربر ذخیره شد' : '');
+}
+
+export async function setAdminSubscription(userId: string, payload: Record<string, unknown>): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  return adminSetSubscription(userId, payload);
+}
+
+export async function saveAdminUser(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  const info = await updateAdminUser(id, payload);
+  if (!info.ok) return info;
+  const sub = await adminSetSubscription(id, payload);
+  if (!sub.ok) return sub;
+  const message = [info.message, sub.message].filter(Boolean).join(' · ') || 'ذخیره شد';
+  return ok(null, message);
 }
 
 export async function consumeDiscountCode(code: string, price: number, userId = '') {
