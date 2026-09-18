@@ -16,6 +16,7 @@ import {
 import { displayName, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { RowActions } from './RowActions';
+import { recordViewPath } from '@/lib/record-view';
 import { SearchableTable } from './SearchableTable';
 import { usePageAddButton } from './PageAction';
 import { useWritable } from './useWritable';
@@ -116,29 +117,32 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
         cell: (info) => (info.getValue() ? 'بله' : 'خیر'),
       }),
     ];
-    if (writable) {
-      defs.push(
-        helper.display({
-          id: 'actions',
-          header: 'عملیات',
-          size: 112,
-          enableHiding: false,
-          enableSorting: false,
-          cell: ({ row }) => (
-            <RowActions
-              onEdit={() => openEdit(row.original)}
-              onDelete={async () => {
-                const res = await deleteResource('check', row.original._id);
-                if (redirectIfUnauthorized(res)) return;
-                if (res.ok) toast.success(res.message || 'حذف شد');
-                else toast.error(res.message || 'حذف نشد');
-                router.refresh();
-              }}
-            />
-          ),
-        }),
-      );
-    }
+    defs.push(
+      helper.display({
+        id: 'actions',
+        header: 'عملیات',
+        size: writable ? 148 : 72,
+        enableHiding: false,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <RowActions
+            viewUrl={recordViewPath('check', String(row.original._id))}
+            onEdit={writable ? () => openEdit(row.original) : undefined}
+            onDelete={
+              writable
+                ? async () => {
+                    const res = await deleteResource('check', row.original._id);
+                    if (redirectIfUnauthorized(res)) return;
+                    if (res.ok) toast.success(res.message || 'حذف شد');
+                    else toast.error(res.message || 'حذف نشد');
+                    router.refresh();
+                  }
+                : undefined
+            }
+          />
+        ),
+      }),
+    );
     return defs;
   }, [router, writable]);
 

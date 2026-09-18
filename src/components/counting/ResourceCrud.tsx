@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 import { Button, Input, Modal, FormCard, Select, Textarea, toast } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
+import { recordViewPath } from '@/lib/record-view';
 import { RowActions } from './RowActions';
 
 import { displayName, faDate, toman } from '@/lib/format';
@@ -108,49 +109,55 @@ export function ResourceCrud({
         },
       }),
     );
-    if (writable) {
-      defs.push(
+    defs.push(
       helper.display({
         id: 'actions',
         header: 'عملیات',
-        size: 112,
+        size: writable ? 148 : 72,
         enableHiding: false,
         enableSorting: false,
-        cell: ({ row }) =>
-          writable ? (
-            <RowActions
-              onEdit={() => {
-                setEditing(row.original);
-                const next: Record<string, string> = {};
-                fields.forEach((f) => {
-                  const value = row.original[f.name];
-                  if (f.type === 'packs') {
-                    next[f.name] = encodePacksEditorValue(packsFromCloth(row.original));
-                    return;
+        cell: ({ row }) => (
+          <RowActions
+            viewUrl={recordViewPath(resource, String(row.original._id))}
+            onEdit={
+              writable
+                ? () => {
+                    setEditing(row.original);
+                    const next: Record<string, string> = {};
+                    fields.forEach((f) => {
+                      const value = row.original[f.name];
+                      if (f.type === 'packs') {
+                        next[f.name] = encodePacksEditorValue(packsFromCloth(row.original));
+                        return;
+                      }
+                      next[f.name] =
+                        Array.isArray(value)
+                          ? value.filter(Boolean).join('\n')
+                          : value && typeof value === 'object'
+                            ? String(value._id || '')
+                            : String(value ?? '');
+                    });
+                    setForm(next);
+                    setShowErrors(false);
+                    setOpen(true);
                   }
-                  next[f.name] =
-                    Array.isArray(value)
-                      ? value.filter(Boolean).join('\n')
-                      : value && typeof value === 'object'
-                        ? String(value._id || '')
-                        : String(value ?? '');
-                });
-                setForm(next);
-                setShowErrors(false);
-                setOpen(true);
-              }}
-              onDelete={async () => {
-                const res = await deleteResource(resource, row.original._id);
-                if (redirectIfUnauthorized(res)) return;
-                if (res.ok) toast.success(res.message || 'حذف شد');
-                else toast.error(res.message || 'حذف نشد');
-                reload();
-              }}
-            />
-          ) : null,
+                : undefined
+            }
+            onDelete={
+              writable
+                ? async () => {
+                    const res = await deleteResource(resource, row.original._id);
+                    if (redirectIfUnauthorized(res)) return;
+                    if (res.ok) toast.success(res.message || 'حذف شد');
+                    else toast.error(res.message || 'حذف نشد');
+                    reload();
+                  }
+                : undefined
+            }
+          />
+        ),
       }),
     );
-    }
     return defs;
   }, [writable, columns, fields, resource, reload]);
 

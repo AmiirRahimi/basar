@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { TableActionButtons, type TableActionExtra } from '@/ui';
 
 const FA_LABELS = {
@@ -17,16 +18,20 @@ export function RowActions({
   onDelete,
   extraActions,
   extraButtons,
+  viewUrl,
 }: {
   onEdit?: () => void;
   onDelete?: () => void | Promise<void>;
   extraActions?: TableActionExtra[];
   extraButtons?: ReactNode;
+  viewUrl?: string;
 }) {
   return (
     <TableActionButtons
       dir="rtl"
-      showView={false}
+      showView={Boolean(viewUrl)}
+      viewUrl={viewUrl}
+      LinkComponent={Link}
       showEdit={Boolean(onEdit)}
       showDelete={Boolean(onDelete)}
       onEditClick={onEdit ? () => onEdit() : undefined}

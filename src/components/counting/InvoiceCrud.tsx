@@ -40,6 +40,7 @@ import {
   type ClothPack,
 } from '@/lib/packs';
 import type { Check, FieldOption, Invoice } from '@/lib/types';
+import { recordViewPath } from '@/lib/record-view';
 import { SearchableTable } from './SearchableTable';
 import { InvoicePackStepper } from './InvoicePackStepper';
 import { usePageAddButton } from './PageAction';
@@ -181,11 +182,12 @@ export function InvoiceCrud({
       helper.display({
         id: 'actions',
         header: 'عملیات',
-        size: 176,
+        size: 220,
         enableHiding: false,
         enableSorting: false,
         cell: ({ row }) => (
           <RowActions
+            viewUrl={recordViewPath('invoice', String(row.original._id))}
             onEdit={writable ? () => openEdit(row.original) : undefined}
             extraActions={[
               ...(writable

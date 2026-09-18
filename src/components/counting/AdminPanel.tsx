@@ -8,7 +8,9 @@ import { createDiscountCode, deleteDiscountCode, updateDiscountCode } from '@/ac
 import { cycleLabel } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { recordViewPath } from '@/lib/record-view';
 import { Button, Input, MultiSelect, toast } from '@/ui';
+import { RowActions } from './RowActions';
 import { SearchableTable } from './SearchableTable';
 
 const selectLabels = {
@@ -294,9 +296,14 @@ function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (r
         enableHiding: false,
         enableSorting: false,
         cell: ({ row }) => (
-          <Button size="sm" variant="outline" onClick={() => onCreateCode(row.original)}>
-            کد تخفیف
-          </Button>
+          <RowActions
+            viewUrl={recordViewPath('admin-user', String(row.original._id))}
+            extraButtons={
+              <Button size="sm" variant="outline" onClick={() => onCreateCode(row.original)}>
+                کد تخفیف
+              </Button>
+            }
+          />
         ),
       }),
     ],
@@ -333,6 +340,13 @@ function PurchaseTable({ rows }: { rows: AdminPurchase[] }) {
       helper.accessor('billingCycle', { header: 'دوره', cell: (info) => cycleLabel(info.getValue()) }),
       helper.accessor('discountCode', { header: 'کد تخفیف', cell: (info) => info.getValue() || '—' }),
       helper.accessor('originalPrice', { header: 'مبلغ اصلی', cell: (info) => toman(info.getValue()) }),
+      helper.display({
+        id: 'actions',
+        header: 'عملیات',
+        enableHiding: false,
+        enableSorting: false,
+        cell: ({ row }) => <RowActions viewUrl={recordViewPath('admin-purchase', String(row.original._id))} />,
+      }),
     ],
     [],
   );
@@ -393,14 +407,19 @@ function CodeTable({
         enableHiding: false,
         enableSorting: false,
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => onToggle(row.original)}>
-              {row.original.active ? 'غیرفعال' : 'فعال'}
-            </Button>
-            <Button size="sm" variant="danger" disabled={pending} onClick={() => onDelete(row.original)}>
-              حذف
-            </Button>
-          </div>
+          <RowActions
+            viewUrl={recordViewPath('admin-code', String(row.original._id))}
+            extraButtons={
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" disabled={pending} onClick={() => onToggle(row.original)}>
+                  {row.original.active ? 'غیرفعال' : 'فعال'}
+                </Button>
+                <Button size="sm" variant="danger" disabled={pending} onClick={() => onDelete(row.original)}>
+                  حذف
+                </Button>
+              </div>
+            }
+          />
         ),
       }),
     ],
