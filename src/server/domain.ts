@@ -1190,6 +1190,34 @@ function relationKey(value: unknown) {
   return String(value);
 }
 
+function paymentCheckIds(row: { _check?: unknown; _checks?: unknown }) {
+  const list = Array.isArray(row._checks) ? row._checks : [];
+  return [...new Set([...list, row._check].map(relationKey).filter(Boolean))];
+}
+
+function paymentMethodCounts(payments: any[]) {
+  let cashCount = 0;
+  let checkCount = 0;
+  for (const row of payments) {
+    if (Number(row.cashAmount ?? row.cash ?? 0) > 0) cashCount += 1;
+    const loaded = Array.isArray(row.checks) ? row.checks.filter(Boolean) : [];
+    if (loaded.length) checkCount += loaded.length;
+    else if (paymentCheckIds(row).length || Number(row.checkAmount || 0) > 0) checkCount += 1;
+  }
+  return { paymentCount: payments.length, cashCount, checkCount };
+}
+
+async function withPaymentChecks(payments: any[]) {
+  const ids = [...new Set(payments.flatMap((row) => paymentCheckIds(row)))];
+  if (!ids.length) return payments.map((row) => ({ ...row, checks: [] }));
+  const rows = await M().Check.find({ _id: { $in: ids.map(oid) } }).lean();
+  const map = new Map((rows as any[]).map((row) => [String(row._id), row]));
+  return payments.map((row) => ({
+    ...row,
+    checks: paymentCheckIds(row).map((id) => map.get(id)).filter(Boolean),
+  }));
+}
+
 async function cartTotalsMap(session: Session) {
   const lines = await M().CustomerCart.find(storeFilter(session)).lean();
   const map: Record<string, number> = {};
@@ -1366,10 +1394,12 @@ export async function personAccount(personId: string): Promise<ActionResult> {
   const person = await M().Person.findOne(storeFilter(auth.session, { _id: personId })).lean();
   if (!person) return fail('شخص پیدا نشد', 404);
   const role = String(person.role || '1');
-  const payments = await M().Payment.find(storeFilter(auth.session, { _person: oid(personId) }))
-    .populate('_check')
-    .populate('_invoice')
-    .lean();
+  const payments = await withPaymentChecks(
+    await M().Payment.find(storeFilter(auth.session, { _person: oid(personId) }))
+      .populate('_check')
+      .populate('_invoice')
+      .lean(),
+  );
   const paidTotal = payments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
 
   if (isPayablePersonRole(role)) {
@@ -1408,6 +1438,7 @@ export async function personAccount(personId: string): Promise<ActionResult> {
         total,
         paid,
         remaining: Math.max(0, total - paid),
+        ...paymentMethodCounts(related),
       };
     })
     .sort((a: any, b: any) => new Date(b.timeStamp).getTime() - new Date(a.timeStamp).getTime());
@@ -1487,7 +1518,9 @@ export async function invoiceBalance(invoiceId: string): Promise<ActionResult> {
   if (!invoice) return fail('فاکتور پیدا نشد', 404);
   const [lines, payments] = await Promise.all([
     M().CustomerCart.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).lean(),
-    M().Payment.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).populate('_check').lean(),
+    withPaymentChecks(
+      await M().Payment.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).populate('_check').lean(),
+    ),
   ]);
   const total = lines.reduce((sum: number, line: any) => sum + Number(line.count || 0) * Number(line.price || 0), 0);
   const paid = payments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
