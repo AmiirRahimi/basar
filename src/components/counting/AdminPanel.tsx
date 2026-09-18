@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createColumnHelper } from '@tanstack/react-table';
-import { BadgePercent, LogIn, Receipt, Ticket, UserX, Users } from 'lucide-react';
+import { BadgePercent, Ban, CircleCheck, LogIn, Receipt, Ticket, UserX, Users } from 'lucide-react';
 import { createDiscountCode, deleteDiscountCode, updateDiscountCode } from '@/actions/admin';
 import { cycleLabel } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
@@ -90,32 +90,17 @@ type TabId = (typeof TABS)[number]['id'];
 export function AdminPanel({ overview }: { overview: AdminOverview }) {
   const router = useRouter();
   const [tab, setTab] = useState<TabId>('all');
-  const [query, setQuery] = useState('');
   const [minMonths, setMinMonths] = useState('3');
   const [pending, start] = useTransition();
   const [form, setForm] = useState({ code: '', percent: '10', maxUses: '0', note: '', _userIds: [] as string[] });
 
-  const q = query.trim();
   const months = Math.max(0, Number(minMonths || 0));
   const users = useMemo(() => {
-    const list = overview.users.filter((row) => {
-      if (!q) return true;
-      return [row.fullName, row.phonenumber, row.planName, row.city].join(' ').includes(q);
-    });
-    if (tab === 'logged') return list.filter((row) => row.loggedIn);
-    if (tab === 'active') return list.filter((row) => row.active);
-    if (tab === 'lapsed') return list.filter((row) => !row.active && row.totalMonths >= months);
-    return list;
-  }, [overview.users, q, tab, months]);
-
-  const purchases = useMemo(
-    () =>
-      overview.purchases.filter((row) => {
-        if (!q) return true;
-        return [row.fullName, row.phonenumber, row.planName, row.discountCode].join(' ').includes(q);
-      }),
-    [overview.purchases, q],
-  );
+    if (tab === 'logged') return overview.users.filter((row) => row.loggedIn);
+    if (tab === 'active') return overview.users.filter((row) => row.active);
+    if (tab === 'lapsed') return overview.users.filter((row) => !row.active && row.totalMonths >= months);
+    return overview.users;
+  }, [overview.users, tab, months]);
 
   const userOptions = overview.users.map((user) => ({
     value: user._id,
@@ -176,21 +161,14 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
         })}
       </nav>
 
-      {tab !== 'codes' ? (
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[220px] flex-1">
-            <Input label="جستجو" value={query} onChange={(e) => setQuery(e.target.value)} />
-          </div>
-          {tab === 'lapsed' ? (
-            <div className="w-40">
-              <Input
-                label="حداقل ماه اشتراک"
-                type="number"
-                value={minMonths}
-                onChange={(e) => setMinMonths(e.target.value)}
-              />
-            </div>
-          ) : null}
+      {tab === 'lapsed' ? (
+        <div className="w-40">
+          <Input
+            label="حداقل ماه اشتراک"
+            type="number"
+            value={minMonths}
+            onChange={(e) => setMinMonths(e.target.value)}
+          />
         </div>
       ) : null}
 
@@ -201,7 +179,7 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
       ) : null}
 
       {tab === 'purchases' ? (
-        <PurchaseTable rows={purchases} />
+        <PurchaseTable rows={overview.purchases} />
       ) : tab === 'codes' ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
           <section className="h-fit rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -298,11 +276,13 @@ function UserTable({ rows, onCreateCode }: { rows: AdminUser[]; onCreateCode: (r
         cell: ({ row }) => (
           <RowActions
             viewUrl={recordViewPath('admin-user', String(row.original._id))}
-            extraButtons={
-              <Button size="sm" variant="outline" onClick={() => onCreateCode(row.original)}>
-                کد تخفیف
-              </Button>
-            }
+            extraActions={[
+              {
+                label: 'کد تخفیف',
+                icon: <Ticket className="size-3.5" />,
+                onClick: () => onCreateCode(row.original),
+              },
+            ]}
           />
         ),
       }),
@@ -409,16 +389,18 @@ function CodeTable({
         cell: ({ row }) => (
           <RowActions
             viewUrl={recordViewPath('admin-code', String(row.original._id))}
-            extraButtons={
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" disabled={pending} onClick={() => onToggle(row.original)}>
-                  {row.original.active ? 'غیرفعال' : 'فعال'}
-                </Button>
-                <Button size="sm" variant="danger" disabled={pending} onClick={() => onDelete(row.original)}>
-                  حذف
-                </Button>
-              </div>
+            extraActions={
+              pending
+                ? []
+                : [
+                    {
+                      label: row.original.active ? 'غیرفعال' : 'فعال',
+                      icon: row.original.active ? <Ban className="size-3.5" /> : <CircleCheck className="size-3.5" />,
+                      onClick: () => onToggle(row.original),
+                    },
+                  ]
             }
+            onDelete={pending ? undefined : () => onDelete(row.original)}
           />
         ),
       }),
