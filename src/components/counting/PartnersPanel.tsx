@@ -2,13 +2,14 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Handshake, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Handshake, Pencil, Trash2 } from 'lucide-react';
 import { createPartner, deletePartner, updatePartner } from '@/actions/workspace';
 import { partnerAppliesToStore, partnerScopeLabel, partnersForStore, sharePercentTotal } from '@/lib/partners';
 import { faNumber } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Partner, WorkspaceBrand, WorkspaceStore } from '@/lib/types';
 import { Button, Input, Modal, MultiSelect, toast } from '@/ui';
+import { AddPlusButton } from './PageAction';
 import { useWritable } from './useWritable';
 
 const selectLabels = {
@@ -161,12 +162,7 @@ export function PartnersPanel({
             برندهای انتخاب‌شده اعمال می‌شود.
           </p>
         </div>
-        {canManage ? (
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="ml-1 h-4 w-4" />
-            شریک
-          </Button>
-        ) : null}
+        {canManage ? <AddPlusButton label="ثبت شریک" onClick={openCreate} /> : null}
       </div>
 
       {selectedStore ? (

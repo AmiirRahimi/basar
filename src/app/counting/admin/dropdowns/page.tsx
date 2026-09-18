@@ -16,60 +16,56 @@ export default async function DropdownsPage() {
   return (
     <CountingShell title="لیست‌های کمکی" error={errorMessage(kinds)}>
       <div className="grid gap-8">
-        <section>
-          <h3 className="mb-3 font-medium">نوع لباس</h3>
-          <p className="mb-3 text-sm text-muted-foreground">فقط از این صفحه قابل ویرایش است؛ مثلاً شلوار جین و شلوار کتان.</p>
-          <CrudPage
-            resource="cloth-kind"
-            title="نوع"
-            rows={Array.isArray(kinds.data) ? kinds.data : []}
-            columns={[{ header: 'نام', accessor: 'name' }]}
-            fields={[{ name: 'name', label: 'نام', required: true }]}
-          />
-        </section>
-        <section>
-          <h3 className="mb-3 font-medium">مدل لباس</h3>
-          <p className="mb-3 text-sm text-muted-foreground">مدل‌های هر نوع؛ مثلاً برای شلوار جین: شلوار راسته و شلوار مام.</p>
-          <CrudPage
-            resource="cloth-style"
-            title="مدل"
-            rows={Array.isArray(styles.data) ? styles.data : []}
-            columns={[
-              { header: 'نام', accessor: 'name' },
-              { header: 'نوع لباس', accessor: '_clothKind', format: 'name' },
-            ]}
-            fields={[
-              { name: 'name', label: 'نام', required: true },
-              { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
-            ]}
-          />
-        </section>
-        <section>
-          <h3 className="mb-3 font-medium">رنگ</h3>
-          <CrudPage
-            resource="color"
-            title="رنگ"
-            rows={Array.isArray(colors.data) ? colors.data : []}
-            columns={[{ header: 'نام', accessor: 'name' }]}
-            fields={[{ name: 'name', label: 'نام', required: true }]}
-          />
-        </section>
-        <section>
-          <h3 className="mb-3 font-medium">سایز</h3>
-          <CrudPage
-            resource="size"
-            title="سایز"
-            rows={Array.isArray(sizes.data) ? sizes.data : []}
-            columns={[
-              { header: 'نام', accessor: 'name' },
-              { header: 'نوع لباس', accessor: '_clothKind', format: 'name' },
-            ]}
-            fields={[
-              { name: 'name', label: 'نام', required: true },
-              { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
-            ]}
-          />
-        </section>
+        <CrudPage
+          resource="cloth-kind"
+          title="نوع"
+          heading="نوع لباس"
+          headingDescription="فقط از این صفحه قابل ویرایش است؛ مثلاً شلوار جین و شلوار کتان."
+          headerAction="local"
+          rows={Array.isArray(kinds.data) ? kinds.data : []}
+          columns={[{ header: 'نام', accessor: 'name' }]}
+          fields={[{ name: 'name', label: 'نام', required: true }]}
+        />
+        <CrudPage
+          resource="cloth-style"
+          title="مدل"
+          heading="مدل لباس"
+          headingDescription="مدل‌های هر نوع؛ مثلاً برای شلوار جین: شلوار راسته و شلوار مام."
+          headerAction="local"
+          rows={Array.isArray(styles.data) ? styles.data : []}
+          columns={[
+            { header: 'نام', accessor: 'name' },
+            { header: 'نوع لباس', accessor: '_clothKind', format: 'name' },
+          ]}
+          fields={[
+            { name: 'name', label: 'نام', required: true },
+            { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
+          ]}
+        />
+        <CrudPage
+          resource="color"
+          title="رنگ"
+          heading="رنگ"
+          headerAction="local"
+          rows={Array.isArray(colors.data) ? colors.data : []}
+          columns={[{ header: 'نام', accessor: 'name' }]}
+          fields={[{ name: 'name', label: 'نام', required: true }]}
+        />
+        <CrudPage
+          resource="size"
+          title="سایز"
+          heading="سایز"
+          headerAction="local"
+          rows={Array.isArray(sizes.data) ? sizes.data : []}
+          columns={[
+            { header: 'نام', accessor: 'name' },
+            { header: 'نوع لباس', accessor: '_clothKind', format: 'name' },
+          ]}
+          fields={[
+            { name: 'name', label: 'نام', required: true },
+            { name: '_clothKind', label: 'نوع لباس', type: 'relation', options: kindOptions, required: true },
+          ]}
+        />
       </div>
     </CountingShell>
   );

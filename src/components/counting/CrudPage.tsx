@@ -11,6 +11,9 @@ export function CrudPage({
   fields,
   defaults,
   allowWrite = true,
+  heading,
+  headingDescription,
+  headerAction = 'page',
 }: {
   resource: string;
   title: string;
@@ -19,6 +22,9 @@ export function CrudPage({
   fields: Field[];
   defaults?: Record<string, string>;
   allowWrite?: boolean;
+  heading?: string;
+  headingDescription?: string;
+  headerAction?: 'page' | 'local';
 }) {
   const router = useRouter();
   return (
@@ -30,6 +36,9 @@ export function CrudPage({
       fields={fields}
       defaults={defaults}
       allowWrite={allowWrite}
+      heading={heading}
+      headingDescription={headingDescription}
+      headerAction={headerAction}
       reload={() => router.refresh()}
     />
   );

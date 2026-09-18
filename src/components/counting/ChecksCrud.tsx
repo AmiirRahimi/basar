@@ -17,6 +17,7 @@ import { displayName, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { RowActions } from './RowActions';
 import { SearchableTable } from './SearchableTable';
+import { usePageAddButton } from './PageAction';
 import { useWritable } from './useWritable';
 import type { Check, FieldOption } from '@/lib/types';
 
@@ -228,20 +229,17 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
     });
   }
 
+  usePageAddButton({
+    label: 'ثبت چک',
+    onClick: () => {
+      resetForm();
+      setOpen(true);
+    },
+    enabled: writable,
+  });
+
   return (
     <div className="space-y-4">
-      {writable ? (
-        <div className="flex justify-end">
-          <Button
-            onClick={() => {
-              resetForm();
-              setOpen(true);
-            }}
-          >
-            ثبت چک
-          </Button>
-        </div>
-      ) : null}
       <SearchableTable
         storageKey="check"
         data={checks}

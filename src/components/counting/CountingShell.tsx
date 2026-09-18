@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -22,6 +22,7 @@ import { ResultToast } from './ResultToast';
 import { CountingSidebar } from './CountingSidebar';
 import { SidebarWorkspace } from './SidebarWorkspace';
 import { useWorkspace } from './WorkspaceProvider';
+import { PageActionProvider } from './PageAction';
 
 const menuSections = [
   { id: 'dashboard', name: 'داشبورد', icon: LayoutDashboard, href: '/counting/dashboard', menuItems: [] },
@@ -58,6 +59,7 @@ export function CountingShell({
   const pathname = usePathname();
   const workspace = useWorkspace();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [headerAction, setHeaderAction] = useState<ReactNode>(null);
   const role = workspace?.storeRole || 'owner';
   const visibleMenu = menuSections.filter((section) =>
     canAccessMenu(role, section.id, workspace?.isPlatformAdmin),
@@ -95,7 +97,9 @@ export function CountingShell({
           </button>
         </div>
         <MainWrapper>
-          <PageHeader title={title} subtitle={contextLabel || undefined} />
+          <PageHeader title={title} subtitle={contextLabel || undefined}>
+            {headerAction}
+          </PageHeader>
           {description ? <p className="mb-4 text-sm text-muted-foreground">{description}</p> : null}
           {workspace && !workspace.isPlatformAdmin && workspace.subscriptionActive === false ? (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -110,7 +114,9 @@ export function CountingShell({
             </div>
           ) : null}
           <ResultToast message={error} />
-          {allowed ? children : <p className="text-sm text-muted-foreground">به این بخش دسترسی ندارید.</p>}
+          <PageActionProvider onAction={setHeaderAction}>
+            {allowed ? children : <p className="text-sm text-muted-foreground">به این بخش دسترسی ندارید.</p>}
+          </PageActionProvider>
         </MainWrapper>
       </div>
     </main>

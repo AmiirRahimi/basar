@@ -11,6 +11,7 @@ import { PERSON_ROLES } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { ClothPacksEditor } from './ClothPacksEditor';
 import { SearchableTable } from './SearchableTable';
+import { AddPlusButton, usePageAddButton } from './PageAction';
 import { useWritable } from './useWritable';
 import {
   encodePacksEditorValue,
@@ -54,6 +55,9 @@ export function ResourceCrud({
   reload,
   defaults,
   allowWrite = true,
+  heading,
+  headingDescription,
+  headerAction = 'page',
 }: {
   resource: string;
   title: string;
@@ -63,6 +67,9 @@ export function ResourceCrud({
   reload: () => void;
   defaults?: Record<string, string>;
   allowWrite?: boolean;
+  heading?: string;
+  headingDescription?: string;
+  headerAction?: 'page' | 'local';
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, any> | null>(null);
@@ -71,6 +78,19 @@ export function ResourceCrud({
   const [pending, start] = useTransition();
   const subscriptionWritable = useWritable();
   const writable = allowWrite && subscriptionWritable;
+
+  function openCreate() {
+    setEditing(null);
+    setForm(defaults || {});
+    setShowErrors(false);
+    setOpen(true);
+  }
+
+  usePageAddButton({
+    label: `ثبت ${title}`,
+    onClick: openCreate,
+    enabled: writable && headerAction === 'page',
+  });
 
   const tableColumns = useMemo(() => {
     const helper = createColumnHelper<any>();
@@ -248,19 +268,16 @@ export function ResourceCrud({
 
   return (
     <div className="space-y-4">
-      {writable ? (
-      <div className="flex justify-end">
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setForm(defaults || {});
-            setShowErrors(false);
-            setOpen(true);
-          }}
-        >
-          ثبت {title}
-        </Button>
-      </div>
+      {heading || headingDescription || (writable && headerAction === 'local') ? (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            {heading ? <h3 className="font-medium">{heading}</h3> : null}
+            {headingDescription ? <p className="mt-1 text-sm text-muted-foreground">{headingDescription}</p> : null}
+          </div>
+          {writable && headerAction === 'local' ? (
+            <AddPlusButton label={`ثبت ${title}`} onClick={openCreate} />
+          ) : null}
+        </div>
       ) : null}
       <SearchableTable
         storageKey={resource}

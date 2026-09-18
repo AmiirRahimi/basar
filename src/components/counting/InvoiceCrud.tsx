@@ -40,8 +40,9 @@ import {
   type ClothPack,
 } from '@/lib/packs';
 import type { Check, FieldOption, Invoice } from '@/lib/types';
-import { InvoicePackStepper } from './InvoicePackStepper';
 import { SearchableTable } from './SearchableTable';
+import { InvoicePackStepper } from './InvoicePackStepper';
+import { usePageAddButton } from './PageAction';
 
 type DraftItem = {
   key: string;
@@ -445,13 +446,14 @@ export function InvoiceCrud({
       }
     : { count: 0, amount: 0 };
 
+  usePageAddButton({
+    label: 'ثبت فاکتور',
+    onClick: openCreate,
+    enabled: writable,
+  });
+
   return (
     <div className="space-y-4">
-      {writable ? (
-        <div className="flex justify-end">
-          <Button onClick={openCreate}>ثبت فاکتور</Button>
-        </div>
-      ) : null}
       <SearchableTable
         storageKey="invoice"
         data={invoices}
