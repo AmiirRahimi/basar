@@ -1,7 +1,7 @@
 'use client';
 
 import { faNumber, toman } from '@/lib/format';
-import { formatPacksFa, totalPacks } from '@/lib/packs';
+import { packLabelFa } from '@/lib/packs';
 import type { CatalogProduct } from '@/lib/types';
 import { cn } from '@/ui/lib/cn';
 import Link from 'next/link';
@@ -13,16 +13,15 @@ import { ShopPackPicker } from './ShopPackPicker';
 export function ProductCard({ product, featured = false }: { product: CatalogProduct; featured?: boolean }) {
   const [open, setOpen] = useState(false);
   const { setProductPacks, pending, setDrawerOpen } = useShopCart();
-  const packs = product.packs || [];
 
   return (
     <article
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-2xl border border-shop-ink/10 bg-shop-paper shadow-[0_10px_30px_-18px_rgb(16_28_48_/_0.45)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-16px_rgb(16_28_48_/_0.5)]',
+        'group relative flex flex-col rounded-2xl border border-shop-ink/10 bg-shop-paper shadow-[0_10px_30px_-18px_rgb(16_28_48_/_0.45)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-16px_rgb(16_28_48_/_0.5)]',
         featured && 'md:min-h-[28rem]',
       )}
     >
-      <Link href={`/product/${product.id}`} className="relative block overflow-hidden">
+      <Link href={`/product/${product.id}`} className="relative block overflow-hidden rounded-t-2xl">
         <div
           className={cn('bg-cover bg-center transition duration-700 group-hover:scale-105', featured ? 'h-64 sm:h-80 md:h-[22rem]' : 'h-56 sm:h-72 md:h-80')}
           style={{ backgroundImage: `url(${product.image})` }}
@@ -61,9 +60,8 @@ export function ProductCard({ product, featured = false }: { product: CatalogPro
         <p className="text-xs text-shop-ink/55">
           {product.color || '—'} {product.size ? `· ${product.size}` : ''}
         </p>
-        <p className="text-xs text-shop-ink/60">{formatPacksFa(packs) || 'بدون موجودی بسته'}</p>
         <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="text-[11px] text-shop-ink/45">حداقل {faNumber(product.minOrderQty)} عدد</span>
+          <span className="text-[11px] text-shop-ink/45">{packLabelFa(product.packSize)}</span>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -88,7 +86,6 @@ export function ProductCard({ product, featured = false }: { product: CatalogPro
           </div>
         ) : null}
       </div>
-      <p className="sr-only">{faNumber(totalPacks(packs))} بسته</p>
     </article>
   );
 }

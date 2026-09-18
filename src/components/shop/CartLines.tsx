@@ -1,6 +1,6 @@
 'use client';
 
-import { formatPacksFa } from '@/lib/packs';
+import { packLabelFa } from '@/lib/packs';
 import { toman } from '@/lib/format';
 import Link from 'next/link';
 import { ShopPackPicker } from './ShopPackPicker';
@@ -32,15 +32,13 @@ export function CartLines({ compact = false }: { compact?: boolean }) {
                   {line.product.name}
                 </Link>
                 <p className="text-xs text-shop-ink/50">کد {line.product.code}</p>
-                <p className="text-xs text-shop-ink/60">{formatPacksFa(line.packs)}</p>
+                <p className="text-xs text-shop-ink/60">{packLabelFa(line.product.packSize)}</p>
               </div>
               <p className="text-shop-saffron">{toman(line.total)}</p>
             </div>
             <div className="mt-3">
               {compact ? (
-                <p className="text-sm text-shop-ink/65">
-                  {line.packCount} بسته · {line.pieces} عدد
-                </p>
+                <p className="text-sm text-shop-ink/65">{packLabelFa(line.product.packSize)}</p>
               ) : (
                 <ShopPackPicker
                   packSize={line.product.packSize}
@@ -60,9 +58,7 @@ export function CartLines({ compact = false }: { compact?: boolean }) {
       ))}
       {!compact ? (
         <div className="flex items-center justify-between rounded-[1.6rem] bg-shop-ink px-5 py-4 text-shop-bone">
-          <p>
-            {totals.packs} بسته · {totals.pieces} عدد
-          </p>
+          <p>جمع</p>
           <div className="flex items-center gap-4">
             <p className="text-shop-saffron">{toman(totals.amount)}</p>
             <ShopButton href="/checkout">تسویه سفارش</ShopButton>

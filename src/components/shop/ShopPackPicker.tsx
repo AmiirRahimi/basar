@@ -1,7 +1,7 @@
 'use client';
 
 import { faNumber, toman } from '@/lib/format';
-import { formatStockFa, remainingOf, subtractPacks, totalItems, totalPacks, type ClothPack } from '@/lib/packs';
+import { packLabelFa, remainingOf, subtractPacks, totalItems, type ClothPack } from '@/lib/packs';
 import { cn } from '@/ui/lib/cn';
 import { Minus, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -78,14 +78,8 @@ export function ShopPackPicker({
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] tracking-[0.22em] text-shop-ink/45">سفارش با بسته</p>
-          <p className="mt-1 text-sm text-shop-ink/70">موجودی: {formatStockFa(available)}</p>
-        </div>
-        <p className="text-xs text-shop-ink/50">بسته کامل {faNumber(packSize)} تایی</p>
-      </div>
+    <div className="space-y-3" dir="rtl">
+      <p className="text-sm text-shop-ink/70">{packLabelFa(packSize)}</p>
       <div className="grid gap-2">
         {sizes.length ? (
           sizes.map((items) => {
@@ -96,7 +90,7 @@ export function ShopPackPicker({
               <div
                 key={items}
                 className={cn(
-                  'flex items-center gap-3 rounded-2xl border px-3 py-3',
+                  'flex items-center gap-3 rounded-2xl border px-3 py-2.5',
                   full ? 'border-shop-saffron/40 bg-shop-saffron/8' : 'border-shop-ink/10 bg-shop-paper',
                 )}
               >
@@ -121,29 +115,21 @@ export function ShopPackPicker({
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <div className="min-w-0 flex-1 text-right">
-                  <p className="text-sm font-medium">
-                    {faNumber(items)} تایی {full ? '— کامل' : '— ناقص'}
-                  </p>
-                  <p className="text-[11px] text-shop-ink/50">{faNumber(left)} بسته مانده</p>
-                </div>
+                <p className="min-w-0 flex-1 text-right text-sm font-medium">{packLabelFa(items)}</p>
               </div>
             );
           })
         ) : (
           <p className="rounded-2xl border border-dashed border-shop-ink/15 px-3 py-4 text-sm text-shop-ink/50">
-            موجودی بسته‌ای برای فروش نمانده است.
+            بسته‌ای برای فروش نمانده است.
           </p>
         )}
       </div>
-      <div className="flex items-center justify-between text-sm">
-        <span>
-          {faNumber(totalPacks(packs))} بسته · {faNumber(pieces)} عدد
-        </span>
+      <div className="flex items-center justify-end text-sm">
         <span className="font-medium text-shop-saffron">{toman(pieces * unitPrice)}</span>
       </div>
       {!meetsMoq && pieces > 0 ? (
-        <p className="text-xs text-shop-madder">حداقل سفارش این مدل {faNumber(minOrderQty)} عدد است.</p>
+        <p className="text-xs text-shop-madder">سفارش از {packLabelFa(packSize)} کمتر نشود.</p>
       ) : null}
       {mode === 'edit' && onRemove ? (
         <button type="button" className="text-xs text-shop-madder" onClick={onRemove}>
@@ -156,7 +142,7 @@ export function ShopPackPicker({
           disabled={pending || !meetsMoq}
           onClick={async () => {
             if (!meetsMoq) {
-              setMessage(`حداقل سفارش ${minOrderQty} عدد است`);
+              setMessage(`سفارش از ${packLabelFa(packSize)} کمتر نشود`);
               return;
             }
             await onSubmit(packs, order);

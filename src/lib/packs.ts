@@ -193,6 +193,10 @@ export function validatePacksEditor(value: PacksEditorValue): string | null {
   return null;
 }
 
+export function packLabelFa(items: number): string {
+  return `بسته ${faNumber(items)} عددی`;
+}
+
 export function formatPacksFa(packs: ClothPack[]): string {
   const merged = mergePacks(packs);
   if (!merged.length) return '—';

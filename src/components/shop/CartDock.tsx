@@ -1,7 +1,7 @@
 'use client';
 
 import { compactToman, faNumber, toman } from '@/lib/format';
-import { formatPacksFa } from '@/lib/packs';
+import { packLabelFa } from '@/lib/packs';
 import { cn } from '@/ui/lib/cn';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ShoppingBag, X } from 'lucide-react';
@@ -73,7 +73,7 @@ export function CartDock() {
   }, [drawerOpen, setDrawerOpen]);
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50">
+    <div className="pointer-events-none fixed inset-0 z-[80]">
       <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 md:bottom-auto md:top-1/2 md:-translate-y-1/2">
         <motion.button
           ref={buttonRef}
@@ -119,9 +119,9 @@ export function CartDock() {
               key="cart-panel"
               dir="rtl"
               className={cn(
-                'pointer-events-auto absolute z-10 flex flex-col overflow-hidden rounded-2xl border border-shop-ink/10 bg-shop-paper text-shop-ink shadow-[0_18px_50px_rgba(16,28,48,0.35)]',
-                'bottom-[5.25rem] left-3 w-[min(18.25rem,calc(100vw-1.5rem))] max-h-[min(20.5rem,50dvh)]',
-                'md:bottom-auto md:left-[5.2rem] md:top-1/2 md:w-[18.5rem] md:max-h-[min(22rem,52vh)] md:-translate-y-1/2',
+                'pointer-events-auto absolute z-20 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-shop-ink/10 bg-shop-paper text-shop-ink shadow-[0_18px_50px_rgba(16,28,48,0.35)]',
+                'left-3 top-20 w-[min(18.25rem,calc(100vw-1.5rem))] max-h-[min(20.5rem,50dvh)]',
+                'md:left-[5.2rem] md:top-20 md:w-[18.5rem] md:max-h-[min(22rem,52vh)]',
               )}
               initial={{ opacity: 0, y: 16, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -166,7 +166,7 @@ function CartPopover() {
                     {line.product.name}
                   </Link>
                   <p className="text-xs text-shop-ink/50">کد {line.product.code}</p>
-                  <p className="text-xs text-shop-ink/60">{formatPacksFa(line.packs)}</p>
+                  <p className="text-xs text-shop-ink/60">{packLabelFa(line.product.packSize)}</p>
                 </div>
               </div>
               <ShopPackPicker
@@ -188,9 +188,7 @@ function CartPopover() {
       </div>
       <div className="shrink-0 space-y-2 border-t border-shop-ink/10 bg-shop-paper px-3 py-2.5">
         <div className="flex items-center justify-between gap-2 text-xs sm:text-sm">
-          <span>
-            {faNumber(totals.packs)} بسته · {faNumber(totals.pieces)} عدد
-          </span>
+          <span>جمع</span>
           <span className="font-semibold text-shop-saffron">{toman(totals.amount)}</span>
         </div>
         <div className="grid grid-cols-2 gap-2">

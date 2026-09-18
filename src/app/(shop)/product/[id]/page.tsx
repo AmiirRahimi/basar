@@ -4,7 +4,7 @@ import { ProductGallery } from '@/components/shop/ProductGallery';
 import { ProductPackForm } from '@/components/shop/ProductPackForm';
 import { SaleCountdown } from '@/components/shop/SaleCountdown';
 import { faNumber, toman } from '@/lib/format';
-import { formatStockFa } from '@/lib/packs';
+import { packLabelFa } from '@/lib/packs';
 import { notFound } from 'next/navigation';
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -45,8 +45,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             {product.saleEndsAt ? <div className="mt-3"><SaleCountdown endsAt={product.saleEndsAt} /></div> : null}
           </div>
           <ul className="grid gap-2 text-sm text-shop-ink/70">
-            <li>حداقل سفارش: {faNumber(product.minOrderQty)} عدد</li>
-            <li>موجودی: {formatStockFa(product.packs)}</li>
+            <li>{packLabelFa(product.packSize)}</li>
             {product.size ? <li>سایز: {product.size}</li> : null}
             {product.color ? <li>رنگ: {product.color}</li> : null}
             {product.style ? <li>مدل: {product.style}</li> : null}
