@@ -30,6 +30,7 @@ import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
 import { parseImageList } from '@/lib/shop-cart';
+import { clampDiscountPercent, isTruthyFlag, saleState } from '@/lib/product-sale';
 import { fail, failDb, ok, type ActionResult } from './result';
 import type { PublicOrderSummary } from '@/lib/types';
 import type { Session } from './session';
@@ -89,6 +90,10 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     'minOrderQty',
     'published',
     'images',
+    'onSale',
+    'discountPercent',
+    'saleEndsAt',
+    'newCollection',
   ],
   invoice: ['_client', 'receiverAddress', 'isSent'],
   'customer-cart': ['_invoice', '_cloth', 'count', 'packs', 'price'],
@@ -446,6 +451,21 @@ function applyClothShopFields(body: Record<string, unknown>): ActionResult<Recor
     body.minOrderQty = qty > 0 ? qty : DEFAULT_MOQ;
   }
   if (body.description != null) body.description = String(body.description || '').trim();
+  if (body.onSale != null) body.onSale = isTruthyFlag(body.onSale);
+  if (body.newCollection != null) body.newCollection = isTruthyFlag(body.newCollection);
+  if (body.discountPercent != null && body.discountPercent !== '') {
+    body.discountPercent = clampDiscountPercent(body.discountPercent);
+  }
+  if (body.saleEndsAt !== undefined) {
+    if (!body.saleEndsAt) body.saleEndsAt = null;
+    else {
+      const ends = new Date(String(body.saleEndsAt));
+      body.saleEndsAt = Number.isNaN(ends.getTime()) ? null : ends;
+    }
+  }
+  if (body.onSale && !Number(body.discountPercent || 0)) {
+    return fail('برای حراج، درصد تخفیف را وارد کنید');
+  }
   return ok(body);
 }
 
@@ -782,7 +802,7 @@ const PUBLIC_CLOTH_POPULATE = [
 ];
 
 const PUBLIC_CLOTH_SELECT =
-  '_id code count packSize packs description wholesalePrice minOrderQty images _type _style _size _color _storeId';
+  '_id code count packSize packs description wholesalePrice minOrderQty images onSale discountPercent saleEndsAt newCollection _type _style _size _color _storeId';
 
 export async function listPublicClothes(): Promise<ActionResult> {
   await db();
@@ -820,11 +840,12 @@ async function sellPublicPacks(items: any[]): Promise<ActionResult<any[]>> {
     const pieces = totalItems(taken);
     const minOrder = Number(cloth.minOrderQty || DEFAULT_MOQ);
     if (pieces < minOrder) return fail(`حداقل سفارش عمده ${minOrder} عدد است`);
+    const listPrice = Number(cloth.wholesalePrice || 0) > 0 ? Number(cloth.wholesalePrice) : clothUnitPrice(cloth);
     prepared.push({
       _cloth: id,
       packs: taken,
       count: pieces,
-      price: Number(cloth.wholesalePrice || clothUnitPrice(cloth)),
+      price: saleState({ ...cloth, wholesalePrice: listPrice }).salePrice,
       _storeId: storeIdOf(cloth),
     });
     needed.set(id, addPacks(needed.get(id) || [], taken));

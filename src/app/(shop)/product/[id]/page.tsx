@@ -2,6 +2,7 @@ import { getCatalog, getCatalogProduct } from '@/actions/shop';
 import { ProductCard } from '@/components/shop/ProductCard';
 import { ProductGallery } from '@/components/shop/ProductGallery';
 import { ProductPackForm } from '@/components/shop/ProductPackForm';
+import { SaleCountdown } from '@/components/shop/SaleCountdown';
 import { faNumber, toman } from '@/lib/format';
 import { formatStockFa } from '@/lib/packs';
 import { notFound } from 'next/navigation';
@@ -24,9 +25,25 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               {product.category} · کد {product.code}
             </p>
             <h1 className="mt-2 text-4xl font-semibold leading-tight">{product.name}</h1>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {product.newCollection ? (
+                <span className="rounded-full bg-shop-saffron px-3 py-1 text-xs font-medium text-shop-ink">کالکشن جدید</span>
+              ) : null}
+              {product.onSale && product.discountPercent ? (
+                <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-medium text-white">
+                  حراج {faNumber(product.discountPercent)}٪
+                </span>
+              ) : null}
+            </div>
             <p className="mt-3 text-shop-ink/65">{product.description}</p>
           </div>
-          <p className="text-3xl text-shop-saffron">{toman(product.wholesalePrice)}</p>
+          <div>
+            {product.onSale && product.listPrice && product.listPrice > product.wholesalePrice ? (
+              <p className="text-base text-shop-ink/40 line-through">{toman(product.listPrice)}</p>
+            ) : null}
+            <p className="text-3xl text-shop-saffron">{toman(product.wholesalePrice)}</p>
+            {product.saleEndsAt ? <div className="mt-3"><SaleCountdown endsAt={product.saleEndsAt} /></div> : null}
+          </div>
           <ul className="grid gap-2 text-sm text-shop-ink/70">
             <li>حداقل سفارش: {faNumber(product.minOrderQty)} عدد</li>
             <li>موجودی: {formatStockFa(product.packs)}</li>

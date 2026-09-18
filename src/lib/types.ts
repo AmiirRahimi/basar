@@ -162,6 +162,10 @@ export type Cloth = {
   published?: boolean;
   description?: string;
   images?: string[];
+  onSale?: boolean;
+  discountPercent?: number;
+  saleEndsAt?: string;
+  newCollection?: boolean;
   sellInAllStores?: boolean;
   _storeIds?: string[];
   _brandId?: string;
@@ -229,6 +233,11 @@ export type CatalogProduct = {
   category: string;
   style?: string;
   wholesalePrice: number;
+  listPrice?: number;
+  onSale?: boolean;
+  discountPercent?: number;
+  saleEndsAt?: string;
+  newCollection?: boolean;
   minOrderQty: number;
   count: number;
   image: string;

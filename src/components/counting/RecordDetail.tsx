@@ -49,7 +49,7 @@ function formatField(row: Record<string, any>, field: DetailField) {
   if (field.kind === 'toman') return toman(value);
   if (field.kind === 'date') return faDate(value);
   if (field.kind === 'role') return PERSON_ROLES[String(value)] || String(value);
-  if (field.key === 'percent') return `${faNumber(value)}٪`;
+  if (field.key === 'percent' || field.key === 'discountPercent') return `${faNumber(value)}٪`;
   if (field.key === 'remainingDays') return `${faNumber(value)} روز`;
   if (field.key === 'maxUses') return Number(value) > 0 ? faNumber(value) : 'نامحدود';
   if (field.key === 'usedCount' && row.maxUses != null) {

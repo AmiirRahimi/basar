@@ -14,6 +14,7 @@ import { CrudPage } from '@/components/counting/CrudPage';
 import { clothUnitPrice } from '@/lib/cloth-price';
 import { formatPacksFa, packsFromCloth, totalItems } from '@/lib/packs';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
+import { saleState } from '@/lib/product-sale';
 import { canWriteResource } from '@/lib/roles';
 
 export default async function ClothesPage() {
@@ -33,11 +34,14 @@ export default async function ClothesPage() {
   guardSession(res);
   const rows = (Array.isArray(res.data) ? res.data : []).map((row: Record<string, any>) => {
     const stock = packsFromCloth(row);
+    const sale = saleState(row);
     return {
       ...row,
       unitPrice: clothUnitPrice(row),
       count: totalItems(stock.packs) || Number(row.count || 0),
       packSummary: formatPacksFa(stock.packs),
+      saleLabel: sale.active ? `${sale.percent}٪` : '—',
+      collectionLabel: row.newCollection ? 'جدید' : '—',
     };
   });
   const data = workspace.data;
@@ -64,6 +68,8 @@ export default async function ClothesPage() {
           { header: 'سایز', accessor: '_size', format: 'name' },
           { header: 'تعداد', accessor: 'count' },
           { header: 'قیمت', accessor: 'unitPrice', format: 'toman' },
+          { header: 'حراج', accessor: 'saleLabel' },
+          { header: 'کالکشن', accessor: 'collectionLabel' },
           { header: 'فروشگاه', accessor: '_storeId', format: 'name' },
           { header: 'بسته‌ها', accessor: 'packSummary' },
           { header: 'رنگ', accessor: '_color', format: 'name' },
@@ -100,6 +106,21 @@ export default async function ClothesPage() {
           { name: 'boughtFee', label: 'قیمت خرید هر عدد از فروشنده', type: 'number' },
           { name: '_partner', label: 'شریک فروش این لباس', type: 'relation', options: partners },
           { name: 'minOrderQty', label: 'حداقل سفارش عمده', type: 'number' },
+          { name: 'wholesalePrice', label: 'قیمت عمده فروشگاه', type: 'number' },
+          { name: 'onSale', label: 'این محصول در حراج است', type: 'boolean' },
+          {
+            name: 'discountPercent',
+            label: 'درصد تخفیف',
+            type: 'number',
+            visibleWhen: { field: 'onSale', values: ['true'] },
+          },
+          {
+            name: 'saleEndsAt',
+            label: 'پایان حراج (اختیاری — برای تایمر روی کارت)',
+            type: 'datetime',
+            visibleWhen: { field: 'onSale', values: ['true'] },
+          },
+          { name: 'newCollection', label: 'کالکشن جدید', type: 'boolean' },
           { name: 'description', label: 'توضیح فروشگاه', type: 'textarea' },
           { name: 'images', label: 'تصاویر فروشگاه (هر خط یک آدرس)', type: 'textarea' },
         ]}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
-import { Button, Input, Modal, FormCard, Select, Textarea, toast } from '@/ui';
+import { Button, Checkbox, Input, Modal, FormCard, Select, Textarea, toast } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { recordViewPath } from '@/lib/record-view';
 import { RowActions } from './RowActions';
@@ -29,7 +29,7 @@ export type { FieldOption };
 export type Field = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'packs';
+  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'packs' | 'boolean' | 'datetime';
   options?: FieldOption[];
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
@@ -46,6 +46,14 @@ export type ColumnSpec = {
   accessor: string;
   format?: 'text' | 'name' | 'toman' | 'date' | 'role';
 };
+
+function toDateTimeLocal(value: unknown) {
+  if (!value) return '';
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 export function ResourceCrud({
   resource,
@@ -128,6 +136,14 @@ export function ResourceCrud({
                       const value = row.original[f.name];
                       if (f.type === 'packs') {
                         next[f.name] = encodePacksEditorValue(packsFromCloth(row.original));
+                        return;
+                      }
+                      if (f.type === 'boolean') {
+                        next[f.name] = value === true || value === 'true' || value === 1 || value === '1' ? 'true' : 'false';
+                        return;
+                      }
+                      if (f.type === 'datetime') {
+                        next[f.name] = toDateTimeLocal(value);
                         return;
                       }
                       next[f.name] =
@@ -257,6 +273,14 @@ export function ResourceCrud({
           payload.count = totalItems(mergePacks(parsed.packs));
           return;
         }
+        if (f.type === 'boolean') {
+          payload[f.name] = form[f.name] === 'true';
+          return;
+        }
+        if (f.type === 'datetime') {
+          payload[f.name] = form[f.name] || null;
+          return;
+        }
         payload[f.name] = f.type === 'number' ? Number(form[f.name]) : form[f.name];
       });
       const res = editing
@@ -336,6 +360,30 @@ export function ResourceCrud({
                     value={form[field.name] || ''}
                     onChange={(next) => setValue(field, next)}
                     error={packsError || undefined}
+                  />
+                );
+              }
+
+              if (field.type === 'boolean') {
+                return (
+                  <Checkbox
+                    key={field.name}
+                    checked={form[field.name] === 'true'}
+                    onChange={() => setValue(field, form[field.name] === 'true' ? 'false' : 'true')}
+                    label={label}
+                  />
+                );
+              }
+
+              if (field.type === 'datetime') {
+                return (
+                  <Input
+                    key={field.name}
+                    label={label}
+                    error={error}
+                    type="datetime-local"
+                    value={form[field.name] || ''}
+                    onChange={(e) => setValue(field, e.target.value)}
                   />
                 );
               }

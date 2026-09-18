@@ -7,10 +7,22 @@ type DB = Record<string, Doc[]>;
 
 const FILE = path.join(process.cwd(), '.data', 'basar.json');
 
+let loadedAt = 0;
+
+function fileMtime() {
+  try {
+    return fs.statSync(FILE).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
 function load(): DB {
   try {
+    loadedAt = fileMtime() || Date.now();
     return JSON.parse(fs.readFileSync(FILE, 'utf8')) as DB;
   } catch {
+    loadedAt = Date.now();
     return {};
   }
 }
@@ -18,9 +30,15 @@ function load(): DB {
 function save(db: DB) {
   fs.mkdirSync(path.dirname(FILE), { recursive: true });
   fs.writeFileSync(FILE, JSON.stringify(db, null, 2));
+  loadedAt = fileMtime() || Date.now();
 }
 
 let state: DB = load();
+
+function refresh() {
+  const mtime = fileMtime();
+  if (mtime && mtime > loadedAt) state = load();
+}
 
 function id() {
   return randomBytes(12).toString('hex');
@@ -249,6 +267,7 @@ export class FileModel {
   constructor(private name: string) {}
 
   private all() {
+    refresh();
     if (!state[this.name]) state[this.name] = [];
     return state[this.name];
   }

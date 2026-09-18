@@ -1,6 +1,7 @@
 import { DEFAULT_MOQ } from './constants';
 import { clothUnitPrice } from './cloth-price';
 import { packsFromCloth, totalItems } from './packs';
+import { isTruthyFlag, saleState } from './product-sale';
 import type { CatalogFilters, CatalogProduct, Cloth } from './types';
 
 const FALLBACK_IMAGE =
@@ -19,6 +20,8 @@ export function clothToProduct(cloth: Cloth): CatalogProduct {
   const size = relation(cloth._size);
   const stock = packsFromCloth(cloth);
   const images = (cloth.images || []).map((url) => String(url || '').trim()).filter(Boolean);
+  const listPrice = Number(cloth.wholesalePrice || 0) > 0 ? Number(cloth.wholesalePrice) : clothUnitPrice(cloth);
+  const sale = saleState({ ...cloth, wholesalePrice: listPrice });
   return {
     id: cloth._id,
     code: String(cloth.code ?? cloth._id),
@@ -26,7 +29,12 @@ export function clothToProduct(cloth: Cloth): CatalogProduct {
     description: cloth.description || 'موجودی انبار بازار — فروش فقط به‌صورت عمده و با بسته.',
     category: type.name || 'پوشاک',
     style: style.name,
-    wholesalePrice: Number(cloth.wholesalePrice || 0) > 0 ? Number(cloth.wholesalePrice) : clothUnitPrice(cloth),
+    wholesalePrice: sale.salePrice,
+    listPrice: sale.listPrice,
+    onSale: sale.active,
+    discountPercent: sale.percent,
+    saleEndsAt: sale.endsAt,
+    newCollection: isTruthyFlag(cloth.newCollection),
     minOrderQty: Number(cloth.minOrderQty || DEFAULT_MOQ),
     count: totalItems(stock.packs) || Number(cloth.count || 0),
     image: images[0] || FALLBACK_IMAGE,

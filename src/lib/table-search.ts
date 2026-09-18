@@ -226,6 +226,8 @@ export function tableRowSearchExtra(resource: string, row: Record<string, any>) 
       displayName(row._size),
       displayName(row._storeId),
     );
+    if (row.onSale) parts.push('حراج تخفیف');
+    if (row.newCollection) parts.push('کالکشن جدید');
   }
   if (resource === 'fabric') {
     parts.push(

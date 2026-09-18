@@ -7,6 +7,7 @@ import { cn } from '@/ui/lib/cn';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useShopCart } from './CartProvider';
+import { SaleCountdown } from './SaleCountdown';
 import { ShopPackPicker } from './ShopPackPicker';
 
 export function ProductCard({ product, featured = false }: { product: CatalogProduct; featured?: boolean }) {
@@ -27,9 +28,26 @@ export function ProductCard({ product, featured = false }: { product: CatalogPro
           style={{ backgroundImage: `url(${product.image})` }}
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-shop-ink/55 via-transparent to-transparent" />
+        <div className="absolute left-3 top-3 flex max-w-[70%] flex-col items-start gap-1.5">
+          {product.newCollection ? (
+            <span className="rounded-full bg-shop-saffron px-2.5 py-1 text-[11px] font-medium tracking-wide text-shop-ink shadow-sm">
+              کالکشن جدید
+            </span>
+          ) : null}
+          {product.onSale && product.discountPercent ? (
+            <span className="rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-medium text-white shadow-sm">
+              حراج {faNumber(product.discountPercent)}٪
+            </span>
+          ) : null}
+        </div>
         <span className="absolute right-3 top-3 rounded-full bg-shop-bone/90 px-2.5 py-1 text-[11px] tracking-wide text-shop-ink">
           {product.category}
         </span>
+        {product.saleEndsAt ? (
+          <div className="absolute bottom-3 left-3">
+            <SaleCountdown endsAt={product.saleEndsAt} />
+          </div>
+        ) : null}
         <span className="absolute bottom-3 right-3 rounded-md bg-shop-ink/80 px-2 py-1 font-mono text-[11px] text-shop-saffron">
           کد {product.code}
         </span>
@@ -39,7 +57,12 @@ export function ProductCard({ product, featured = false }: { product: CatalogPro
           <h3 className="text-lg font-medium leading-snug">
             <Link href={`/product/${product.id}`}>{product.name}</Link>
           </h3>
-          <p className="shrink-0 text-sm text-shop-saffron">{toman(product.wholesalePrice)}</p>
+          <div className="shrink-0 text-left">
+            {product.onSale && product.listPrice && product.listPrice > product.wholesalePrice ? (
+              <p className="text-[11px] text-shop-ink/40 line-through">{toman(product.listPrice)}</p>
+            ) : null}
+            <p className="text-sm text-shop-saffron">{toman(product.wholesalePrice)}</p>
+          </div>
         </div>
         <p className="text-xs text-shop-ink/55">
           {product.color || '—'} {product.size ? `· ${product.size}` : ''}
