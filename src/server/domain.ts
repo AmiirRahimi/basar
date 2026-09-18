@@ -313,7 +313,9 @@ export async function listResource(resource: string, page = 1, skip = 50, extra 
     const scanned = await q.limit(MAX_LIST_SCAN).lean();
     let rows = (scanned as any[]).map((row) => decorateListRow(resource, row));
     if (parsed.q) {
-      rows = rows.filter((row) => matchesTableSearch(row, parsed.q, tableRowSearchExtra(resource, row)));
+      rows = rows.filter((row) =>
+        matchesTableSearch(row, parsed.q, tableRowSearchExtra(resource, row), parsed.fields, resource),
+      );
     }
     const fallback = defaultSortFromCfg(cfg.sort);
     const sortKey = parsed.sort || fallback.key;

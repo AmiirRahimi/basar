@@ -38,9 +38,68 @@ function collectSearchText(value: unknown, depth = 0, seen?: Set<unknown>): stri
   return parts.join(' ');
 }
 
-export function matchesTableSearch(row: unknown, query: string, extra = '') {
+const MAX_SEARCH_FIELDS = 40;
+
+function parseFieldList(value: unknown) {
+  const raw = Array.isArray(value)
+    ? value.map((item) => String(item || ''))
+    : String(value || '').split(',');
+  const seen = new Set<string>();
+  const fields: string[] = [];
+  for (const part of raw) {
+    const key = part.trim();
+    if (!SORT_KEY_RE.test(key) || seen.has(key)) continue;
+    seen.add(key);
+    fields.push(key);
+    if (fields.length >= MAX_SEARCH_FIELDS) break;
+  }
+  return fields;
+}
+
+export function fieldSearchText(row: Record<string, any>, key: string, resource = '') {
+  if (!key || key === 'actions' || !row) return '';
+  const value = row[key];
+  const parts: unknown[] = [sortColumnValue(row, key, resource), collectSearchText(value)];
+  if (key === 'role' || (resource === 'person' && key === 'role')) {
+    parts.push(PERSON_ROLES[String(row.role)] || personRoleLabel(row.role));
+  }
+  if (key === 'isSent') parts.push(row.isSent ? 'ارسال شده' : 'پیش‌نویس');
+  if (key === 'timeStamp' || key === 'endDate' || key === 'startDate' || key === 'expiresAt') {
+    parts.push(faDate(value));
+  }
+  if (key === 'unitPrice' || key === 'totalPrice' || key === 'amount' || key === 'price' || key.endsWith('Fee')) {
+    if (value != null && value !== '') parts.push(toman(value));
+  }
+  if (resource === 'check' && key === 'direction') {
+    parts.push(CHECK_DIRECTIONS[row.direction === 'out' ? 'out' : 'in']);
+  }
+  if (resource === 'check' && key === 'status') parts.push(CHECK_STATUSES[checkStatus(row)]);
+  if (resource === 'check' && key === 'source') parts.push(checkSourceLabel(row));
+  if (resource === 'check' && key === 'isTransferred') {
+    parts.push(row.isTransferred ? 'بله واگذار شده' : 'خیر');
+  }
+  if (key === 'store') parts.push(row.storeName, row.brandName);
+  if (key === 'active' || key === 'loggedIn' || key === 'published') {
+    parts.push(value ? 'بله فعال' : 'خیر غیرفعال');
+  }
+  return parts.filter((part) => part != null && part !== '').join(' ');
+}
+
+export function matchesTableSearch(
+  row: unknown,
+  query: string,
+  extra = '',
+  fields?: string[],
+  resource = '',
+) {
   const needle = normalizeSearch(query);
   if (!needle) return true;
+  if (fields?.length) {
+    const haystack = fields
+      .map((key) => fieldSearchText((row || {}) as Record<string, any>, key, resource))
+      .join(' ');
+    return normalizeSearch(haystack).includes(needle);
+  }
   const haystack = normalizeSearch(`${collectSearchText(row)} ${extra}`);
   return haystack.includes(needle);
 }
@@ -50,6 +109,7 @@ export function encodeListQuery(input: {
   sort?: string;
   dir?: 'asc' | 'desc';
   filter?: Record<string, unknown>;
+  fields?: string[];
 }) {
   const params = new URLSearchParams();
   if (input.filter && Object.keys(input.filter).length) {
@@ -57,6 +117,8 @@ export function encodeListQuery(input: {
   }
   const q = String(input.q || '').trim().slice(0, MAX_QUERY_LEN);
   if (q) params.set('q', q);
+  const fields = parseFieldList(input.fields);
+  if (fields.length) params.set('fields', fields.join(','));
   if (input.sort && SORT_KEY_RE.test(input.sort)) {
     params.set('sort', input.sort);
     if (input.dir === 'desc') params.set('dir', 'desc');
@@ -82,6 +144,7 @@ export function parseListQuery(extra = '') {
     q: String(params.get('q') || '').trim().slice(0, MAX_QUERY_LEN),
     sort: SORT_KEY_RE.test(sortRaw) ? sortRaw : '',
     dir: params.get('dir') === 'desc' ? ('desc' as const) : ('asc' as const),
+    fields: parseFieldList(params.get('fields')),
   };
 }
 

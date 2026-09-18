@@ -9,8 +9,9 @@ import {
   type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table';
-import { BasicTable, ColumnPickerPanel, EmptyState, Input, TableFilter } from '@/ui';
+import { BasicTable, Checkbox, ColumnPickerPanel, EmptyState, Input, Popover, PopoverContent, PopoverTrigger, TableFilter, cn } from '@/ui';
 import type { ColumnOption } from '@/ui';
+import { ListFilter } from 'lucide-react';
 import { listResource } from '@/actions/crud';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { encodeListQuery, matchesTableSearch } from '@/lib/table-search';
@@ -103,6 +104,81 @@ function mergeLayout(stored: StoredLayout | null, allIds: string[], fallbackVisi
   return { order, visible: visible.length ? visible : fallbackVisible };
 }
 
+function searchPlaceholder(options: ColumnOption[], selected: string[] | null) {
+  if (!selected || selected.length === options.length) return 'جستجو در همه فیلدها';
+  const labels = selected
+    .map((id) => options.find((option) => option.value === id)?.label || id)
+    .filter(Boolean);
+  if (labels.length === 1) return `جستجو در ${labels[0]}`;
+  if (labels.length === 2) return `جستجو در ${labels.join(' و ')}`;
+  return `جستجو در ${labels.slice(0, 2).join('، ')} و ${labels.length - 2} فیلد دیگر`;
+}
+
+function SearchFieldPicker({
+  options,
+  selected,
+  onChange,
+}: {
+  options: ColumnOption[];
+  selected: string[] | null;
+  onChange: (next: string[] | null) => void;
+}) {
+  const ids = options.map((option) => option.value);
+  const searchingAll = !selected || selected.length === ids.length;
+  const current = searchingAll ? ids : selected || ids;
+  const count = searchingAll ? ids.length : current.length;
+
+  function toggle(id: string) {
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+    if (!next.length) return;
+    onChange(next.length === ids.length ? null : next);
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            '-ms-px inline-flex h-9 shrink-0 items-center gap-1.5 rounded-s-none rounded-e-xl border px-3 text-sm font-medium shadow-sm transition-colors',
+            searchingAll
+              ? 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'
+              : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15',
+          )}
+          aria-label="انتخاب فیلدهای جستجو"
+        >
+          <ListFilter className="size-3.5" />
+          فیلدها
+          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-100 px-1 text-[10px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            {count}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={8} className="w-64 p-3" dir="rtl">
+        <p className="mb-2 text-sm font-medium text-gray-800">جستجو در کدام فیلدها؟</p>
+        <p className="mb-3 text-xs text-gray-500">پیش‌فرض همه فیلدهاست. می‌توانید فقط بعضی را انتخاب کنید.</p>
+        <div className="mb-2">
+          <Checkbox
+            checked={searchingAll}
+            onChange={() => onChange(null)}
+            label="همه فیلدها"
+          />
+        </div>
+        <div className="max-h-64 space-y-1 overflow-auto border-t border-gray-100 pt-2 dark:border-gray-800">
+          {options.map((option) => (
+            <Checkbox
+              key={option.value}
+              checked={current.includes(option.value)}
+              onChange={() => toggle(option.value)}
+              label={option.label}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function SearchableTable<T>({
   storageKey,
   data,
@@ -135,6 +211,7 @@ export function SearchableTable<T>({
   );
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [searchFields, setSearchFields] = useState<string[] | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [serverRows, setServerRows] = useState<T[]>(data);
   const [fetching, setFetching] = useState(false);
@@ -142,6 +219,9 @@ export function SearchableTable<T>({
   const [layout, setLayout] = useState<StoredLayout>({ order: ids, visible: fallbackVisible });
   const idsKey = ids.join('|');
   const serverMode = Boolean(resource);
+  const searchingAll = !searchFields || searchFields.length === pickerIds.length;
+  const activeSearchFields = searchingAll ? undefined : searchFields || undefined;
+  const searchFieldsKey = activeSearchFields?.join(',') || '';
 
   useEffect(() => {
     setLayout(
@@ -179,6 +259,7 @@ export function SearchableTable<T>({
       q,
       sort: sort?.id,
       dir: sort?.desc ? 'desc' : 'asc',
+      fields: q ? activeSearchFields : undefined,
     });
     listResource(resource, 1, pageSize, extra)
       .then((res) => {
@@ -193,12 +274,14 @@ export function SearchableTable<T>({
     return () => {
       cancelled = true;
     };
-  }, [resource, debouncedQuery, sorting, data, pageSize]);
+  }, [resource, debouncedQuery, sorting, data, pageSize, searchFieldsKey]);
 
   const tableData = useMemo(() => {
     if (serverMode) return serverRows;
-    return data.filter((row) => matchesTableSearch(row, query, extraSearch?.(row) || ''));
-  }, [serverMode, serverRows, data, extraSearch, query]);
+    return data.filter((row) =>
+      matchesTableSearch(row, query, extraSearch?.(row) || '', activeSearchFields, resource),
+    );
+  }, [serverMode, serverRows, data, extraSearch, query, activeSearchFields, resource]);
 
   const visibility = useMemo<VisibilityState>(() => {
     const next: VisibilityState = {};
@@ -247,12 +330,18 @@ export function SearchableTable<T>({
     <div>
       <TableFilter
         search={
-          <Input
-            placeholder="جستجو در همه فیلدها"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            fullWidth
-          />
+          <div className="flex w-full min-w-0 items-stretch">
+            <div className="min-w-0 flex-1">
+              <Input
+                placeholder={searchPlaceholder(options, searchFields)}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                fullWidth
+                className="rounded-e-none"
+              />
+            </div>
+            <SearchFieldPicker options={options} selected={searchFields} onChange={setSearchFields} />
+          </div>
         }
         showColumns
         columnsContent={
