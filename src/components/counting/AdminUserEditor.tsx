@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Pencil } from 'lucide-react';
 import { saveAdminUser } from '@/actions/admin';
 import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
-import { SUBSCRIPTION_PLANS, cycleDays, cycleLabel, planById, planPrice, type BillingCycle, type PlanId } from '@/lib/plans';
+import {
+  ADMIN_ADD_MONTH_OPTIONS,
+  SUBSCRIPTION_PLANS,
+  planById,
+  type PlanId,
+} from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, FormCard, Input, Modal, Select, toast } from '@/ui';
@@ -32,14 +37,6 @@ export type EditableAdminUser = {
 };
 
 const PLAN_OPTIONS = SUBSCRIPTION_PLANS.map((plan) => ({ value: plan.id, label: plan.name }));
-const CYCLE_OPTIONS = [
-  { value: 'month', label: 'ماهانه' },
-  { value: 'year', label: 'سالانه' },
-];
-
-function asCycle(value?: string): BillingCycle {
-  return value === 'year' ? 'year' : 'month';
-}
 
 function asPlanId(value?: string): PlanId {
   return planById(value).id;
@@ -53,9 +50,8 @@ function emptyForm(user: EditableAdminUser) {
     city: user.city || '',
     address: user.address || '',
     planId: asPlanId(user.planId),
-    billingCycle: asCycle(user.billingCycle),
-    remainingDays: String(user.remainingDays || 0),
-    price: '0',
+    addMonths: '0',
+    price: '',
   };
 }
 
@@ -69,8 +65,8 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
   }, [user]);
 
   const plan = planById(form?.planId);
-  const cycle = asCycle(form?.billingCycle);
-  const catalogPrice = planPrice(plan, cycle);
+  const addMonths = Math.max(0, Math.trunc(Number(form?.addMonths || 0)));
+  const suggestedPrice = addMonths > 0 ? plan.monthlyPrice * addMonths : 0;
 
   function set<K extends keyof NonNullable<typeof form>>(key: K, value: string) {
     setForm((current) => (current ? { ...current, [key]: value } : current));
@@ -78,14 +74,19 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
 
   function save(endSubscription = false) {
     if (!user || !form) return;
-    const remainingRaw = String(form.remainingDays ?? '').trim();
-    if (!endSubscription && remainingRaw === '') {
-      toast.error('روز مانده را وارد کنید');
+    const months = endSubscription ? 0 : Math.trunc(Number(form.addMonths || 0));
+    if (!endSubscription && (!Number.isFinite(months) || months < 0)) {
+      toast.error('تعداد ماه نامعتبر است');
       return;
     }
-    const remainingDays = endSubscription ? 0 : Number(remainingRaw);
-    if (!Number.isFinite(remainingDays) || remainingDays < 0) {
-      toast.error('روز مانده نامعتبر است');
+    if (!endSubscription && !user.active && months < 1) {
+      toast.error('برای فعال‌کردن اشتراک، تعداد ماه را وارد کنید');
+      return;
+    }
+    const priceRaw = String(form.price ?? '').trim();
+    const price = priceRaw === '' ? undefined : Number(priceRaw);
+    if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
+      toast.error('مبلغ نامعتبر است');
       return;
     }
     start(async () => {
@@ -96,9 +97,9 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
         city: form.city,
         address: form.address,
         planId: form.planId,
-        billingCycle: form.billingCycle,
-        remainingDays,
-        price: Number(form.price || 0),
+        addMonths: months,
+        endSubscription,
+        ...(price !== undefined ? { price } : {}),
       });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
@@ -146,11 +147,9 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
 
           <section className="grid gap-3 sm:grid-cols-2">
             <p className="sm:col-span-2 text-sm font-medium text-gray-800">اشتراک</p>
-            {!user.active ? (
-              <p className="sm:col-span-2 text-xs text-gray-500">
-                برای فعال‌کردن اشتراک، طرح را انتخاب کنید و روز مانده را بیشتر از صفر بگذارید.
-              </p>
-            ) : null}
+            <p className="sm:col-span-2 text-xs text-gray-500">
+              روز مانده قابل ویرایش نیست. می‌توانید ۲، ۳، ۴ یا چند ماه به حساب کاربر اضافه کنید.
+            </p>
             <Select
               label="طرح"
               value={form.planId}
@@ -158,29 +157,49 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
               options={PLAN_OPTIONS}
               labels={selectLabels}
             />
-            <Select
-              label="دوره"
-              value={form.billingCycle}
-              onChange={(v) => set('billingCycle', String(v || 'month'))}
-              options={CYCLE_OPTIONS}
-              labels={selectLabels}
-            />
-            <Input
-              label="روز مانده"
-              type="number"
-              min={0}
-              value={form.remainingDays}
-              onChange={(e) => set('remainingDays', e.target.value)}
-              hint={`صفر یعنی اشتراک تمام شود. دوره ${cycleLabel(cycle)} معمولاً ${faNumber(cycleDays(cycle))} روز است.`}
-            />
             <Input
               label="مبلغ ثبت‌شده"
               type="number"
               min={0}
               value={form.price}
               onChange={(e) => set('price', e.target.value)}
-              hint={`قیمت طرح ${toman(catalogPrice)} — برای اعطای ادمین می‌تواند صفر باشد.`}
+              hint={
+                addMonths > 0
+                  ? `پیشنهادی برای ${faNumber(addMonths)} ماه: ${toman(suggestedPrice)}`
+                  : `ماهانه از ${toman(plan.monthlyPrice)}`
+              }
             />
+            <div className="sm:col-span-2 space-y-2">
+              <p className="text-xs font-medium text-gray-700">افزودن ماه</p>
+              <div className="flex flex-wrap gap-2">
+                {ADMIN_ADD_MONTH_OPTIONS.map((months) => (
+                  <button
+                    key={months}
+                    type="button"
+                    onClick={() => set('addMonths', String(months))}
+                    className={`rounded-xl border px-3 py-1.5 text-sm ${
+                      Number(form.addMonths) === months
+                        ? 'border-teal-600 bg-teal-50 font-medium text-teal-900'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {faNumber(months)} ماه
+                  </button>
+                ))}
+              </div>
+              <Input
+                label="چند ماه (دلخواه)"
+                type="number"
+                min={0}
+                value={form.addMonths}
+                onChange={(e) => set('addMonths', e.target.value)}
+                hint={
+                  user.active
+                    ? 'صفر یعنی مدت فعلی عوض نشود و فقط طرح یا مبلغ ذخیره شود.'
+                    : 'برای کاربر بدون اشتراک حداقل یک ماه لازم است.'
+                }
+              />
+            </div>
           </section>
 
           <div className="flex flex-wrap items-center justify-between gap-2">

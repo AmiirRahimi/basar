@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import {
+  addCalendarMonths,
   cycleDays,
   cycleFromLegacy,
   planById,
@@ -147,6 +148,31 @@ export async function listPurchases(userId: string) {
   });
 }
 
+export async function previewPlanDiscount(
+  session: Session,
+  planId: string,
+  cycle: BillingCycle,
+  discountCode = '',
+): Promise<ActionResult> {
+  await db();
+  const plan = planById(planId);
+  if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
+  const originalPrice = planPrice(plan, cycle);
+  const { consumeDiscountCode } = await import('./admin');
+  const discounted = await consumeDiscountCode(discountCode, originalPrice, session._id);
+  if (!discounted.ok) return fail(discounted.message);
+  const percent =
+    originalPrice > 0 ? Math.round((1 - discounted.price / originalPrice) * 100) : 0;
+  return ok({
+    planId: plan.id,
+    billingCycle: cycle,
+    originalPrice,
+    price: discounted.price,
+    code: discounted.code,
+    percent,
+  });
+}
+
 export async function buyPlan(
   session: Session,
   planId: string,
@@ -195,6 +221,10 @@ export async function buyPlan(
   );
 }
 
+function keepPrice(row: any) {
+  return Number(row?.price || 0);
+}
+
 export async function adminSetSubscription(
   userId: string,
   payload: Record<string, unknown>,
@@ -209,56 +239,83 @@ export async function adminSetSubscription(
     .filter((row) => new Date(row.endDate).getTime() > now.getTime())
     .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
 
-  const remainingRaw = payload.remainingDays;
-  const hasRemaining = remainingRaw !== undefined && remainingRaw !== null && String(remainingRaw).trim() !== '';
-  let remaining = hasRemaining
-    ? Math.trunc(Number(remainingRaw))
-    : overlapping[0]
-      ? snapshotFromRow(overlapping[0]).remainingDays
-      : cycleDays(payload.billingCycle === 'year' ? 'year' : 'month');
-  if (!Number.isFinite(remaining)) return fail('تعداد روز مانده نامعتبر است');
-  remaining = Math.max(0, Math.min(remaining, 3650));
-
-  if (remaining === 0) {
+  const endSubscription = payload.endSubscription === true || payload.endSubscription === 'true';
+  if (endSubscription) {
     for (const row of overlapping) {
       await M().UserSubscription.updateOne({ _id: row._id }, { endDate: now });
     }
     return ok(null, overlapping.length ? 'اشتراک تمام شد' : '');
   }
 
+  const addRaw = payload.addMonths;
+  const hasAdd = addRaw !== undefined && addRaw !== null && String(addRaw).trim() !== '';
+  const addMonths = hasAdd ? Math.trunc(Number(addRaw)) : 0;
+  if (hasAdd && (!Number.isFinite(addMonths) || addMonths < 0)) return fail('تعداد ماه نامعتبر است');
+  if (addMonths > 120) return fail('تعداد ماه بیش از حد مجاز است');
+
   const planId = String(payload.planId || overlapping[0]?.planId || 'starter');
   const plan = planById(planId);
   if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
-  const cycle: BillingCycle = payload.billingCycle === 'year' ? 'year' : 'month';
-  const endDate = new Date(now.getTime() + remaining * 24 * 60 * 60 * 1000);
-  const originalPrice = planPrice(plan, cycle);
-  const price =
-    payload.price === undefined || payload.price === null || String(payload.price).trim() === ''
-      ? 0
-      : Math.max(0, Number(payload.price));
+  const cycle: BillingCycle =
+    addMonths >= 12
+      ? 'year'
+      : payload.billingCycle === 'year' || payload.billingCycle === 'month'
+        ? payload.billingCycle
+        : cycleFromLegacy(Number(overlapping[0]?.subscriptionType || 0), overlapping[0]?.billingCycle);
+  const originalPrice = addMonths > 0 ? plan.monthlyPrice * addMonths : planPrice(plan, cycle);
+  const hasPrice = payload.price !== undefined && payload.price !== null && String(payload.price).trim() !== '';
+  const price = hasPrice ? Math.max(0, Number(payload.price)) : addMonths > 0 ? originalPrice : keepPrice(overlapping[0]);
   if (!Number.isFinite(price)) return fail('مبلغ نامعتبر است');
 
-  const next = {
-    planId: plan.id,
-    billingCycle: cycle,
-    subscriptionType: cycle === 'year' ? 3 : 2,
-    endDate,
-    price,
-    originalPrice,
-    discountCode: '',
-  };
   const keep = overlapping[0];
   for (const extra of overlapping.slice(1)) {
     await M().UserSubscription.updateOne({ _id: extra._id }, { endDate: now });
   }
-  if (keep) {
-    await M().UserSubscription.updateOne({ _id: keep._id }, next);
-    return ok(serialize({ planId: plan.id, billingCycle: cycle, remainingDays: remaining, endDate }), 'اشتراک به‌روز شد');
+
+  if (addMonths > 0) {
+    const base =
+      keep && new Date(keep.endDate).getTime() > now.getTime() ? new Date(keep.endDate) : now;
+    const endDate = addCalendarMonths(base, addMonths);
+    const next = {
+      planId: plan.id,
+      billingCycle: cycle,
+      subscriptionType: cycle === 'year' ? 3 : 2,
+      endDate,
+      price,
+      originalPrice,
+      discountCode: '',
+    };
+    if (keep) {
+      await M().UserSubscription.updateOne({ _id: keep._id }, next);
+      return ok(
+        serialize({ planId: plan.id, billingCycle: cycle, addMonths, endDate }),
+        `${addMonths} ماه به اشتراک اضافه شد`,
+      );
+    }
+    await M().UserSubscription.create({
+      _userId: oid(userId),
+      ...next,
+      startDate: now,
+    });
+    return ok(
+      serialize({ planId: plan.id, billingCycle: cycle, addMonths, endDate }),
+      'اشتراک فعال شد',
+    );
   }
-  await M().UserSubscription.create({
-    _userId: oid(userId),
-    ...next,
-    startDate: now,
-  });
-  return ok(serialize({ planId: plan.id, billingCycle: cycle, remainingDays: remaining, endDate }), 'اشتراک فعال شد');
+
+  if (keep) {
+    const next: Record<string, unknown> = {
+      planId: plan.id,
+      billingCycle: cycle,
+      subscriptionType: cycle === 'year' ? 3 : 2,
+    };
+    if (hasPrice) {
+      next.price = price;
+      next.originalPrice = originalPrice;
+    }
+    await M().UserSubscription.updateOne({ _id: keep._id }, next);
+    return ok(serialize({ planId: plan.id, billingCycle: cycle }), 'اشتراک به‌روز شد');
+  }
+
+  return ok(null, '');
 }

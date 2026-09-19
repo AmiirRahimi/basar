@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import {
   activateSubscription as activate,
+  previewSubscriptionDiscount as previewDiscount,
   checkPhone as checkPhoneDb,
   getSessionUser as sessionUser,
   listUsers as usersDb,
@@ -41,6 +42,10 @@ export async function updateProfile(payload: Record<string, unknown>) {
 
 export async function activateSubscription(payload: Record<string, unknown>) {
   return activate(payload);
+}
+
+export async function previewSubscriptionDiscount(payload: Record<string, unknown>) {
+  return previewDiscount(payload);
 }
 
 export async function listAuthUsers(page = 1, skip = 50) {

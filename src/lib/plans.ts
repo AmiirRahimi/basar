@@ -16,8 +16,9 @@ export type SubscriptionPlan = {
   highlight?: boolean;
 };
 
-export const MONTHLY_BASE_TOMAN = 250_000;
+export const MONTHLY_BASE_TOMAN = 500_000;
 export const ANNUAL_DISCOUNT = 0.2;
+export const ADMIN_ADD_MONTH_OPTIONS = [2, 3, 4, 6, 12] as const;
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -47,7 +48,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: 'shops',
     name: 'فروشگاه‌ها',
     blurb: 'چند شعبه و ارسال لینک محصولات با پیامک به شماره مشتری',
-    monthlyPrice: 390_000,
+    monthlyPrice: 650_000,
     maxBrands: 1,
     maxStores: 5,
     allowPartners: false,
@@ -70,7 +71,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: 'partners',
     name: 'شرکا',
     blurb: 'شریک درآمد + پیامک خودکار وقتی محصول جدید منتشر می‌شود',
-    monthlyPrice: 550_000,
+    monthlyPrice: 850_000,
     maxBrands: 1,
     maxStores: 5,
     allowPartners: true,
@@ -94,7 +95,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: 'brands',
     name: 'برندها',
     blurb: 'چند برند، فروشگاه نامحدود، لینک و پیامک مشتری',
-    monthlyPrice: 850_000,
+    monthlyPrice: 1_200_000,
     maxBrands: 99,
     maxStores: 99,
     allowPartners: true,
@@ -129,6 +130,14 @@ export function planPrice(plan: SubscriptionPlan, cycle: BillingCycle) {
 
 export function cycleDays(cycle: BillingCycle) {
   return cycle === 'year' ? 365 : 30;
+}
+
+export function addCalendarMonths(from: Date, months: number) {
+  const next = new Date(from.getTime());
+  const day = next.getDate();
+  next.setMonth(next.getMonth() + months);
+  if (next.getDate() < day) next.setDate(0);
+  return next;
 }
 
 export function cycleLabel(cycle?: string | null) {

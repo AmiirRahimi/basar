@@ -11,7 +11,7 @@ import {
   ensureOwnerWorkspace,
   resolveLoginContext,
 } from './workspace';
-import { buyPlan, remainingDays } from './subscription';
+import { buyPlan, previewPlanDiscount, remainingDays } from './subscription';
 import { clampPage } from './paging';
 import { clientIp, rateLimit } from './rate-limit';
 
@@ -197,10 +197,19 @@ export async function updateProfile(payload: Record<string, unknown>): Promise<A
 export async function activateSubscription(payload: Record<string, unknown>): Promise<ActionResult> {
   const { withWorkspace } = await import('./workspace');
   const access = await withWorkspace();
-  if ('error' in access) return access.error;
+  if ('error' in access) return access.error || fail('وارد شوید', 401);
   const planId = String(payload.planId || 'starter');
   const cycle = payload.billingCycle === 'year' ? 'year' : 'month';
   return buyPlan(access.session, planId, cycle, String(payload.discountCode || ''));
+}
+
+export async function previewSubscriptionDiscount(payload: Record<string, unknown>): Promise<ActionResult> {
+  const { withWorkspace } = await import('./workspace');
+  const access = await withWorkspace();
+  if ('error' in access) return access.error || fail('وارد شوید', 401);
+  const planId = String(payload.planId || 'starter');
+  const cycle = payload.billingCycle === 'year' ? 'year' : 'month';
+  return previewPlanDiscount(access.session, planId, cycle, String(payload.discountCode || ''));
 }
 
 export async function listUsers(page = 1, skip = 50): Promise<ActionResult> {

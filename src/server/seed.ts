@@ -118,7 +118,7 @@ async function seedStoreDemo(storeId: unknown, brandId: unknown, userId: unknown
       planId: 'starter',
       billingCycle: 'month',
       subscriptionType: 2,
-      price: 250_000,
+      price: 500_000,
       startDate: daysAgo(50),
       endDate: daysAgo(20),
     });
@@ -127,7 +127,7 @@ async function seedStoreDemo(storeId: unknown, brandId: unknown, userId: unknown
       planId: 'starter',
       billingCycle: 'month',
       subscriptionType: 2,
-      price: 250_000,
+      price: 500_000,
       startDate: daysAgo(20),
       endDate: new Date(Date.now() + 70 * 24 * 60 * 60 * 1000),
     });
@@ -150,7 +150,7 @@ async function seedStoreDemo(storeId: unknown, brandId: unknown, userId: unknown
       planId: 'brands',
       billingCycle: 'year',
       subscriptionType: 3,
-      price: 8_160_000,
+      price: 11_520_000,
       startDate: daysAgo(40),
       endDate: new Date(Date.now() + 300 * 24 * 60 * 60 * 1000),
     });
