@@ -42,6 +42,7 @@ export default async function ClothesPage() {
       packSummary: formatPacksFa(stock.packs),
       saleLabel: sale.active ? `${sale.percent}٪` : '—',
       collectionLabel: row.newCollection ? 'جدید' : '—',
+      publishLabel: row.published ? 'منتشر' : '—',
     };
   });
   const data = workspace.data;
@@ -70,6 +71,7 @@ export default async function ClothesPage() {
           { header: 'قیمت', accessor: 'unitPrice', format: 'toman' },
           { header: 'حراج', accessor: 'saleLabel' },
           { header: 'کالکشن', accessor: 'collectionLabel' },
+          { header: 'وب‌سایت', accessor: 'publishLabel' },
           { header: 'فروشگاه', accessor: '_storeId', format: 'name' },
           { header: 'بسته‌ها', accessor: 'packSummary' },
           { header: 'رنگ', accessor: '_color', format: 'name' },
@@ -121,6 +123,9 @@ export default async function ClothesPage() {
             visibleWhen: { field: 'onSale', values: ['true'] },
           },
           { name: 'newCollection', label: 'کالکشن جدید', type: 'boolean' },
+          ...(workspace.data?.isPlatformAdmin
+            ? [{ name: 'published', label: 'انتشار در وب‌سایت', type: 'boolean' as const }]
+            : []),
           { name: 'description', label: 'توضیح فروشگاه', type: 'textarea' },
           { name: 'images', label: 'تصاویر فروشگاه', type: 'images' },
         ]}

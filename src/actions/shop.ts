@@ -9,6 +9,7 @@ import { cookies } from 'next/headers';
 import { loadSharedClothes } from './share';
 import {
   getPublicCatalogProduct,
+  getShopCartProduct,
   listPublicCatalog,
   loadPublicOrders,
   placePublicWholesaleOrder,
@@ -41,25 +42,53 @@ export async function getCatalogProduct(id: string): Promise<CatalogProduct | nu
   return all.find((product) => product.id === id) || null;
 }
 
-function parseCookieCart(raw: string | undefined, catalog: CatalogProduct[]): WholesaleCartItem[] {
+async function getCartProduct(id: string): Promise<CatalogProduct | null> {
+  const published = await getCatalogProduct(id);
+  if (published) return published;
+  const found = await getShopCartProduct(id);
+  if (found.ok && found.data) return clothToProduct(found.data as Cloth);
+  return null;
+}
+
+async function catalogWithCartProducts(catalog: CatalogProduct[], items: Array<{ productId?: string }>) {
+  const extras: CatalogProduct[] = [];
+  for (const line of items) {
+    const id = String(line.productId || '');
+    if (!id || catalog.some((row) => row.id === id) || extras.some((row) => row.id === id)) continue;
+    const product = await getCartProduct(id);
+    if (product) extras.push(product);
+  }
+  return extras.length ? [...catalog, ...extras] : catalog;
+}
+
+function parseCookieRows(raw: string | undefined): WholesaleCartItem[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((row) => {
-        const productId = row && typeof row === 'object' ? String((row as WholesaleCartItem).productId || '') : '';
-        const product = catalog.find((item) => item.id === productId) || null;
-        return normalizeCartItem(row, product);
-      })
-      .filter(Boolean) as WholesaleCartItem[];
+    return Array.isArray(parsed) ? (parsed as WholesaleCartItem[]) : [];
   } catch {
     return [];
   }
 }
 
+function parseCookieCart(raw: string | undefined, catalog: CatalogProduct[]): WholesaleCartItem[] {
+  return parseCookieRows(raw)
+    .map((row) => {
+      const productId = row && typeof row === 'object' ? String(row.productId || '') : '';
+      const product = catalog.find((item) => item.id === productId) || null;
+      return normalizeCartItem(row, product);
+    })
+    .filter(Boolean) as WholesaleCartItem[];
+}
+
+export async function resolveShopCatalog(catalog?: CatalogProduct[]) {
+  const base = catalog ?? (await getCatalog());
+  const raw = (await cookies()).get(CART_COOKIE)?.value;
+  return catalogWithCartProducts(base, parseCookieRows(raw));
+}
+
 export async function getCartItems(catalog?: CatalogProduct[]): Promise<WholesaleCartItem[]> {
-  const products = catalog ?? (await getCatalog());
+  const products = await resolveShopCatalog(catalog);
   return parseCookieCart((await cookies()).get(CART_COOKIE)?.value, products);
 }
 
@@ -79,7 +108,7 @@ async function persistCart(items: WholesaleCartItem[]) {
 }
 
 export async function setCartPacks(productId: string, packs: ClothPack[], takenOrder: number[] = []) {
-  const product = await getCatalogProduct(productId);
+  const product = await getCartProduct(productId);
   if (!product) return { ok: false, message: 'این مدل در کاتالوگ نیست', items: await getCartItems() };
   const merged = mergePacks(packs);
   const pieces = totalItems(merged);
@@ -122,15 +151,10 @@ export async function removeFromCart(productId: string) {
 
 export async function checkoutWholesale(input: { fullName: string; phone: string; address: string }) {
   const cart = await getCartItems();
-  const catalog = await getCatalog();
   if (!cart.length) return { ok: false, message: 'سبد خالی است', invoices: [] as PublicOrderSummary[] };
   const items = cart
-    .map((line) => {
-      const product = catalog.find((row) => row.id === line.productId);
-      if (!product) return null;
-      return { productId: product.id, packs: line.packs };
-    })
-    .filter(Boolean) as Array<{ productId: string; packs: ClothPack[] }>;
+    .map((line) => ({ productId: line.productId, packs: line.packs }))
+    .filter((line) => line.productId);
   const result = await placePublicWholesaleOrder({
     fullName: input.fullName,
     phone: input.phone,

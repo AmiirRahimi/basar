@@ -474,7 +474,14 @@ function applyClothShopFields(body: Record<string, unknown>): ActionResult<Recor
   if (body.onSale && !Number(body.discountPercent || 0)) {
     return fail('برای حراج، درصد تخفیف را وارد کنید');
   }
+  if (body.published != null) body.published = isTruthyFlag(body.published);
   return ok(body);
+}
+
+function restrictClothPublish(session: Session, body: Record<string, unknown>, isCreate: boolean) {
+  if (session.isPlatformAdmin) return;
+  delete body.published;
+  if (isCreate) body.published = false;
 }
 
 function linePacks(item: any, packSize: number): ClothPack[] {
@@ -650,6 +657,7 @@ export async function createResource(resource: string, payload: unknown): Promis
     const inventoried = applyClothInventory(next);
     if (!inventoried.ok) return inventoried;
     next = inventoried.data || next;
+    restrictClothPublish(auth.session, next, true);
     next = await applyClothCost(auth.session, next);
   }
   if (resource === 'check') {
@@ -739,6 +747,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
     const inventoried = applyClothInventory(body);
     if (!inventoried.ok) return inventoried;
     body = inventoried.data || body;
+    restrictClothPublish(auth.session, body, false);
     body = await applyClothCost(auth.session, body);
   }
   if (resource === 'check') {
@@ -822,20 +831,30 @@ const PUBLIC_CLOTH_POPULATE = [
 ];
 
 const PUBLIC_CLOTH_SELECT =
-  '_id code count packSize packs description wholesalePrice minOrderQty images onSale discountPercent saleEndsAt newCollection _type _style _size _color _storeId';
+  '_id code count packSize packs description wholesalePrice minOrderQty images onSale discountPercent saleEndsAt newCollection published _type _style _size _color _storeId';
+
+async function loadPublicCloth(filter: Record<string, unknown>) {
+  await db();
+  const query: any = M().Cloth.findOne(filter);
+  return query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).lean();
+}
 
 export async function listPublicClothes(): Promise<ActionResult> {
   await db();
-  const query: any = M().Cloth.find({ isDeleted: false });
+  const query: any = M().Cloth.find({ isDeleted: false, published: true });
   const rows = await query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).sort('code').lean();
   const inStock = (Array.isArray(rows) ? rows : []).filter((row: any) => totalItems(packsFromCloth(row).packs) > 0);
   return ok(serialize(inStock));
 }
 
 export async function getPublicClothById(id: string): Promise<ActionResult> {
-  await db();
-  const query: any = M().Cloth.findOne({ _id: oid(id), isDeleted: false });
-  const row = await query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).lean();
+  const row = await loadPublicCloth({ _id: oid(id), isDeleted: false, published: true });
+  if (!row) return fail('لباس پیدا نشد', 404);
+  return ok(serialize(row));
+}
+
+export async function getShopClothById(id: string): Promise<ActionResult> {
+  const row = await loadPublicCloth({ _id: oid(id), isDeleted: false });
   if (!row) return fail('لباس پیدا نشد', 404);
   return ok(serialize(row));
 }

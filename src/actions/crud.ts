@@ -11,6 +11,7 @@ import {
   deleteAttachment,
   deleteResource as remove,
   getPublicClothById,
+  getShopClothById,
   getPublicOrderSummaries,
   getResource as getById,
   getStore as storeDb,
@@ -58,6 +59,10 @@ export async function listPublicCatalog() {
 
 export async function getPublicCatalogProduct(id: string) {
   return getPublicClothById(id);
+}
+
+export async function getShopCartProduct(id: string) {
+  return getShopClothById(id);
 }
 
 export async function placePublicWholesaleOrder(payload: unknown) {
