@@ -9,19 +9,39 @@ import { displayName, faDate, faNumber } from '@/lib/format';
 import { parseImageList } from '@/lib/shop-cart';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { ProductShare } from '@/lib/types';
-import { Button, Input, toast } from '@/ui';
+import { Button, FormCard, Input, Modal, Textarea, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 
 function sharePath(token: string) {
   return `/s/${token}`;
 }
 
+function personPhone(row: Record<string, any>) {
+  const raw = row.phoneNumber ?? row.phonenumber;
+  if (Array.isArray(raw)) return String(raw[0] || '').trim();
+  return String(raw || '').trim();
+}
+
+export function buildShareSmsText(customerName: string, url: string) {
+  const name = customerName.trim() || 'مشتری گرامی';
+  return [
+    `سلام جناب ${name}،`,
+    '',
+    'لینک لباس‌های درخواستی جهت مشاهده خدمت شما ارسال شد:',
+    url,
+    '',
+    'در صورت نیاز به راهنمایی، در خدمتیم.',
+  ].join('\n');
+}
+
 export function ShareLinksBoard({
   clothes,
   shares,
+  customers = [],
 }: {
   clothes: Record<string, any>[];
   shares: ProductShare[];
+  customers?: Record<string, any>[];
 }) {
   const router = useRouter();
   const workspace = useWorkspace();
@@ -30,9 +50,13 @@ export function ShareLinksBoard({
   const [pending, start] = useTransition();
   const [title, setTitle] = useState('');
   const [phone, setPhone] = useState('');
-  const [sendPhone, setSendPhone] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [q, setQ] = useState('');
+  const [smsModal, setSmsModal] = useState<{ shareId: string; token: string; title: string } | null>(null);
+  const [smsPhone, setSmsPhone] = useState('');
+  const [smsText, setSmsText] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [customerQ, setCustomerQ] = useState('');
 
   const filtered = useMemo(() => {
     const term = q.trim();
@@ -44,6 +68,62 @@ export function ShareLinksBoard({
       return hay.includes(term.toLowerCase());
     });
   }, [clothes, q]);
+
+  const filteredCustomers = useMemo(() => {
+    const term = customerQ.trim().toLowerCase();
+    return customers.filter((row) => {
+      if (!term) return true;
+      const hay = [row.fullName, personPhone(row), row.city].join(' ').toLowerCase();
+      return hay.includes(term);
+    });
+  }, [customers, customerQ]);
+
+  function shareUrlForToken(token: string) {
+    if (typeof window === 'undefined') return sharePath(token);
+    return `${window.location.origin}${sharePath(token)}`;
+  }
+
+  function openSmsModal(share: ProductShare) {
+    if (!allowSms) {
+      toast.error('ارسال پیامک لینک در طرح فروشگاه‌ها و بالاتر است');
+      return;
+    }
+    const url = shareUrlForToken(share.token);
+    setSmsModal({ shareId: share._id, token: share.token, title: share.title || 'لینک محصولات' });
+    setCustomerId('');
+    setCustomerQ('');
+    setSmsPhone('');
+    setSmsText(buildShareSmsText('', url));
+  }
+
+  function closeSmsModal() {
+    setSmsModal(null);
+    setCustomerId('');
+    setCustomerQ('');
+    setSmsPhone('');
+    setSmsText('');
+  }
+
+  function selectCustomer(row: Record<string, any>) {
+    if (!smsModal) return;
+    const id = String(row._id);
+    const url = shareUrlForToken(smsModal.token);
+    const name = String(row.fullName || '').trim();
+    const number = personPhone(row);
+    setCustomerId(id);
+    setSmsPhone(number);
+    setSmsText(buildShareSmsText(name, url));
+  }
+
+  function onPhoneChange(value: string) {
+    setSmsPhone(value);
+    if (customerId) {
+      const selectedCustomer = customers.find((row) => String(row._id) === customerId);
+      if (selectedCustomer && personPhone(selectedCustomer) !== value.trim()) {
+        setCustomerId('');
+      }
+    }
+  }
 
   function toggle(id: string) {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -70,7 +150,7 @@ export function ShareLinksBoard({
         return;
       }
       const token = String((res.data as { token?: string }).token || '');
-      const url = `${window.location.origin}${sharePath(token)}`;
+      const url = shareUrlForToken(token);
       try {
         await navigator.clipboard.writeText(url);
         toast.success(withSms ? res.message || 'لینک ساخته و پیامک شد' : 'لینک ساخته شد و کپی شد');
@@ -84,27 +164,36 @@ export function ShareLinksBoard({
   }
 
   function copy(token: string) {
-    const url = `${window.location.origin}${sharePath(token)}`;
+    const url = shareUrlForToken(token);
     navigator.clipboard.writeText(url).then(
       () => toast.success('لینک کپی شد'),
       () => toast.error('کپی نشد'),
     );
   }
 
-  function sendSms(shareId: string) {
-    if (!allowSms) {
-      toast.error('ارسال پیامک لینک در طرح فروشگاه‌ها و بالاتر است');
+  function sendSms() {
+    if (!smsModal) return;
+    if (!smsPhone.trim()) {
+      toast.error('شماره موبایل را وارد کنید یا مشتری انتخاب کنید');
       return;
     }
-    if (!sendPhone.trim()) {
-      toast.error('شماره موبایل را وارد کنید');
+    if (!smsText.trim()) {
+      toast.error('متن پیامک را وارد کنید');
       return;
     }
     start(async () => {
-      const res = await sendProductShareSms({ shareId, phone: sendPhone.trim() });
+      const res = await sendProductShareSms({
+        shareId: smsModal.shareId,
+        phone: smsPhone.trim(),
+        message: smsText.trim(),
+      });
       if (redirectIfUnauthorized(res)) return;
-      if (res.ok) toast.success(res.message || 'پیامک ارسال شد');
-      else toast.error(res.message || 'پیامک ارسال نشد');
+      if (res.ok) {
+        toast.success(res.message || 'پیامک ارسال شد');
+        closeSmsModal();
+      } else {
+        toast.error(res.message || 'پیامک ارسال نشد');
+      }
     });
   }
 
@@ -145,7 +234,7 @@ export function ShareLinksBoard({
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <Input label="عنوان لینک (اختیاری)" value={title} onChange={(e) => setTitle(e.target.value)} />
           <Input
-            label="شماره موبایل برای پیامک"
+            label="شماره موبایل برای پیامک هنگام ساخت"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="0912xxxxxxx"
@@ -209,13 +298,9 @@ export function ShareLinksBoard({
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-gray-100 px-4 py-3">
+        <div className="border-b border-gray-100 px-4 py-3">
           <h3 className="text-sm font-semibold text-gray-900">لینک‌های ساخته‌شده</h3>
-          {allowSms ? (
-            <div className="w-full max-w-xs">
-              <Input label="شماره برای ارسال لینک موجود" value={sendPhone} onChange={(e) => setSendPhone(e.target.value)} />
-            </div>
-          ) : null}
+          <p className="mt-1 text-xs text-gray-500">برای ارسال به مشتری، روی «ارسال به شماره» کلیک کنید.</p>
         </div>
         {shares.length ? (
           <ul className="divide-y divide-gray-100">
@@ -237,9 +322,9 @@ export function ShareLinksBoard({
                       variant="outline"
                       disabled={pending}
                       icon={<MessageSquare className="h-4 w-4" />}
-                      onClick={() => sendSms(row._id)}
+                      onClick={() => openSmsModal(row)}
                     >
-                      پیامک
+                      ارسال به شماره
                     </Button>
                   ) : null}
                   <Button size="sm" variant="ghost" disabled={pending} onClick={() => remove(row._id)} aria-label="حذف لینک">
@@ -253,6 +338,77 @@ export function ShareLinksBoard({
           <p className="px-4 py-8 text-center text-sm text-gray-500">هنوز لینکی ساخته نشده</p>
         )}
       </section>
+
+      <Modal isOpen={Boolean(smsModal)} onClose={closeSmsModal} size="lg">
+        <FormCard>
+          <h3 className="mb-1 text-lg font-medium">ارسال لینک با پیامک</h3>
+          <p className="mb-4 text-sm text-gray-500">
+            {smsModal?.title || 'لینک محصولات'} — شماره را بنویسید یا از لیست مشتریان انتخاب کنید و متن را در صورت نیاز ویرایش کنید.
+          </p>
+
+          <div className="space-y-4">
+            <Input
+              label="شماره موبایل"
+              value={smsPhone}
+              onChange={(e) => onPhoneChange(e.target.value)}
+              placeholder="0912xxxxxxx"
+            />
+
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-800">انتخاب از مشتریان</p>
+              <Input
+                label="جستجوی مشتری"
+                value={customerQ}
+                onChange={(e) => setCustomerQ(e.target.value)}
+                placeholder="نام یا موبایل"
+              />
+              <div className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-xl border border-gray-100 p-1">
+                {filteredCustomers.length ? (
+                  filteredCustomers.map((row) => {
+                    const id = String(row._id);
+                    const checked = customerId === id;
+                    const number = personPhone(row);
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => selectCustomer(row)}
+                        className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-right text-sm ${
+                          checked ? 'bg-teal-50 text-teal-900 ring-1 ring-teal-600/20' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="min-w-0 truncate font-medium">{row.fullName || 'بدون نام'}</span>
+                        <span className="shrink-0 text-xs text-gray-500" dir="ltr">
+                          {number || 'بدون شماره'}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className="px-3 py-4 text-center text-xs text-gray-500">مشتری‌ای پیدا نشد</p>
+                )}
+              </div>
+            </div>
+
+            <Textarea
+              label="متن پیامک"
+              value={smsText}
+              onChange={(e) => setSmsText(e.target.value)}
+              rows={7}
+              className="min-h-[9rem]"
+            />
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" onClick={closeSmsModal} disabled={pending}>
+                انصراف
+              </Button>
+              <Button onClick={sendSms} disabled={pending || !smsPhone.trim() || !smsText.trim()} icon={<MessageSquare className="h-4 w-4" />}>
+                ارسال پیامک
+              </Button>
+            </div>
+          </div>
+        </FormCard>
+      </Modal>
     </div>
   );
 }

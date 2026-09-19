@@ -936,7 +936,11 @@ export async function createProductShare(payload: {
   );
 }
 
-export async function sendProductShareSms(payload: { shareId?: string; phone: string }): Promise<ActionResult> {
+export async function sendProductShareSms(payload: {
+  shareId?: string;
+  phone: string;
+  message?: string;
+}): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
   const denied = denyWrite(access.session, 'product-share');
@@ -952,12 +956,12 @@ export async function sendProductShareSms(payload: { shareId?: string; phone: st
     isDeleted: false,
   }).lean();
   if (!row) return fail('لینک پیدا نشد', 404);
-  const sent = await dispatchShareSms(access.session, String(row.token), phone);
+  const sent = await dispatchShareSms(access.session, String(row.token), phone, payload.message);
   if (!sent.ok) return fail(sent.message);
   return ok({ _id: String(row._id), token: row.token }, sent.message);
 }
 
-async function dispatchShareSms(session: Session, token: string, phone: string) {
+async function dispatchShareSms(session: Session, token: string, phone: string, message?: string) {
   if (!PHONE_RE.test(phone)) return { ok: false, message: 'شماره موبایل معتبر نیست' };
   const ip = await clientIp();
   if (
@@ -969,7 +973,9 @@ async function dispatchShareSms(session: Session, token: string, phone: string) 
   const origin = await publicAppOrigin();
   if (!origin) return { ok: false, message: 'آدرس سایت برای ساخت لینک مشخص نیست' };
   const url = shareUrl(token, origin);
-  return sendSmsText(phone, `لینک محصولات: ${url}`);
+  const custom = String(message || '').trim();
+  const body = custom.includes(url) ? custom : custom ? `${custom}\n${url}` : `لینک محصولات: ${url}`;
+  return sendSmsText(phone, body);
 }
 
 async function notifyCustomersOfNewCloth(session: Session, cloth: any) {

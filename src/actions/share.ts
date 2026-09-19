@@ -20,7 +20,7 @@ export async function deleteProductShare(id: string) {
   return removeShare(id);
 }
 
-export async function sendProductShareSms(payload: { shareId: string; phone: string }) {
+export async function sendProductShareSms(payload: { shareId: string; phone: string; message?: string }) {
   return sendShareSms(payload);
 }
 
