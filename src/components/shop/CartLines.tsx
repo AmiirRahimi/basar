@@ -44,6 +44,7 @@ export function CartLines({ compact = false }: { compact?: boolean }) {
                   packSize={line.product.packSize}
                   available={line.product.packs}
                   taken={line.packs}
+                  takenOrder={line.takenOrder}
                   unitPrice={line.product.wholesalePrice}
                   minOrderQty={line.product.minOrderQty}
                   pending={pending}

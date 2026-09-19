@@ -5,6 +5,7 @@ import {
   addPacks,
   formatPacksFa,
   itemsToPacks,
+  meetsWholesaleMoq,
   mergePacks,
   packsFromCloth,
   parsePacks,
@@ -961,7 +962,9 @@ async function sellPublicPacks(items: any[]): Promise<ActionResult<any[]>> {
     if (!taken.length) return fail('حداقل یک بسته انتخاب کنید');
     const pieces = totalItems(taken);
     const minOrder = Number(cloth.minOrderQty || DEFAULT_MOQ);
-    if (pieces < minOrder) return fail(`حداقل سفارش عمده ${minOrder} عدد است`);
+    if (!meetsWholesaleMoq(pieces, minOrder, stock.packs, taken, stock.packSize)) {
+      return fail(`حداقل سفارش عمده ${minOrder} عدد است`);
+    }
     const listPrice = Number(cloth.wholesalePrice || 0) > 0 ? Number(cloth.wholesalePrice) : clothUnitPrice(cloth);
     prepared.push({
       _cloth: id,

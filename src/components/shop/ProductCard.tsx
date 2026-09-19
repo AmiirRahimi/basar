@@ -1,11 +1,9 @@
 'use client';
 
 import { faNumber, toman } from '@/lib/format';
-import { packLabelFa } from '@/lib/packs';
 import type { CatalogProduct } from '@/lib/types';
 import { cn } from '@/ui/lib/cn';
 import Link from 'next/link';
-import { useState } from 'react';
 import { useShopCart } from './CartProvider';
 import { SaleCountdown } from './SaleCountdown';
 import { ShopPackPicker } from './ShopPackPicker';
@@ -19,8 +17,10 @@ export function ProductCard({
   featured?: boolean;
   linkToDetail?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const { setProductPacks, pending, setDrawerOpen } = useShopCart();
+  const { setProductPacks, pending, setDrawerOpen, items } = useShopCart();
+  const line = items.find((item) => item.productId === product.id);
+  const taken = line?.packs || [];
+  const takenOrder = line?.takenOrder || [];
   const media = (
     <>
       <div
@@ -77,31 +77,22 @@ export function ProductCard({
         <p className="text-xs text-shop-ink/55">
           {product.color || '—'} {product.size ? `· ${product.size}` : ''}
         </p>
-        <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="text-[11px] text-shop-ink/45">{packLabelFa(product.packSize)}</span>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="text-sm text-shop-ink underline decoration-shop-saffron/80 underline-offset-4"
-          >
-            {open ? 'بستن' : 'افزودن بسته'}
-          </button>
+        <div className="mt-auto border-t border-shop-ink/10 pt-3">
+          <ShopPackPicker
+            packSize={product.packSize}
+            available={product.packs}
+            taken={taken}
+            takenOrder={takenOrder}
+            unitPrice={product.wholesalePrice}
+            minOrderQty={product.minOrderQty}
+            pending={pending}
+            onChange={async (nextPacks, order) => {
+              const wasEmpty = !taken.length;
+              const res = await setProductPacks(product.id, nextPacks, order);
+              if (res.ok && wasEmpty && nextPacks.length) setDrawerOpen(true);
+            }}
+          />
         </div>
-        {open ? (
-          <div className="mt-2 border-t border-shop-ink/10 pt-3">
-            <ShopPackPicker
-              packSize={product.packSize}
-              available={product.packs}
-              unitPrice={product.wholesalePrice}
-              minOrderQty={product.minOrderQty}
-              pending={pending}
-              onSubmit={async (nextPacks, order) => {
-                const res = await setProductPacks(product.id, nextPacks, order);
-                if (res.ok) setDrawerOpen(true);
-              }}
-            />
-          </div>
-        ) : null}
       </div>
     </article>
   );

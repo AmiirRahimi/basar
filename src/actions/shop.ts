@@ -3,7 +3,7 @@
 import { clothToProduct } from '@/lib/catalog';
 import { CART_COOKIE, DEFAULT_MOQ } from '@/lib/constants';
 import { normalizeCartItem } from '@/lib/shop-cart';
-import { mergePacks, packsToOrder, subtractPacks, totalItems, type ClothPack } from '@/lib/packs';
+import { meetsWholesaleMoq, mergePacks, packsToOrder, subtractPacks, totalItems, type ClothPack } from '@/lib/packs';
 import type { CatalogProduct, Cloth, PublicOrderSummary, WholesaleCartItem } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { loadSharedClothes } from './share';
@@ -89,7 +89,15 @@ export async function setCartPacks(productId: string, packs: ClothPack[], takenO
   }
   const remaining = subtractPacks(product.packs, merged);
   if (!remaining) return { ok: false, message: 'موجودی این بسته‌ها کافی نیست', items: await getCartItems() };
-  if (pieces < Number(product.minOrderQty || DEFAULT_MOQ)) {
+  if (
+    !meetsWholesaleMoq(
+      pieces,
+      Number(product.minOrderQty || DEFAULT_MOQ),
+      product.packs,
+      merged,
+      product.packSize,
+    )
+  ) {
     return { ok: false, message: `حداقل سفارش عمده ${product.minOrderQty} عدد است`, items: await getCartItems() };
   }
   const items = await getCartItems();

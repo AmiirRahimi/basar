@@ -108,6 +108,42 @@ export function defaultPackToTake(stock: ClothPack[], packSize: number): number 
   return fullest ? fullest.items : null;
 }
 
+export function remainingAfter(stock: ClothPack[], taken: ClothPack[] | number[]) {
+  const takenPacks = Array.isArray(taken) && taken.length && typeof taken[0] === 'number'
+    ? orderToPacks(taken as number[])
+    : mergePacks(taken as ClothPack[]);
+  return subtractPacks(stock, takenPacks);
+}
+
+export function appendLargestPack(stock: ClothPack[], takenOrder: number[], packSize: number): number[] | null {
+  const remaining = remainingAfter(stock, takenOrder);
+  if (!remaining) return null;
+  const next = defaultPackToTake(remaining, packSize);
+  if (next == null) return null;
+  return [...takenOrder, next];
+}
+
+export function popLastPack(takenOrder: number[]) {
+  if (!takenOrder.length) return [];
+  return takenOrder.slice(0, -1);
+}
+
+export function leftoverOnlyStock(stock: ClothPack[], packSize: number) {
+  return remainingOf(mergePacks(stock), packSize) === 0;
+}
+
+export function meetsWholesaleMoq(
+  pieces: number,
+  minOrderQty: number,
+  stock: ClothPack[],
+  taken: ClothPack[],
+  packSize: number,
+) {
+  if (pieces <= 0) return true;
+  if (pieces >= minOrderQty) return true;
+  return leftoverOnlyStock(stock, packSize) || leftoverOnlyStock(remainingAfter(stock, taken) || [], packSize);
+}
+
 export function takeItemsAsPacks(stock: ClothPack[], qty: number, packSize: number): ClothPack[] | null {
   let remaining = mergePacks(stock);
   const taken: number[] = [];
