@@ -63,6 +63,9 @@ export function CountingShell({
   const pathname = usePathname();
   const workspace = useWorkspace();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const sidebarExpanded = sidebarPinned || sidebarHovered || mobileOpen;
   const [headerAction, setHeaderAction] = useState<ReactNode>(null);
   const role = workspace?.storeRole || 'owner';
   const visibleMenu = menuSections.filter((section) =>
@@ -74,8 +77,26 @@ export function CountingShell({
   const contextLabel = [activeBrand?.name, activeStore?.name].filter(Boolean).join(' · ');
 
   useEffect(() => {
+    try {
+      setSidebarPinned(localStorage.getItem('basar.sidebarPinned') === '1');
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  function setPinned(next: boolean) {
+    setSidebarPinned(next);
+    setSidebarHovered(next);
+    try {
+      localStorage.setItem('basar.sidebarPinned', next ? '1' : '0');
+    } catch {
+      // ignore
+    }
+  }
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
@@ -83,9 +104,17 @@ export function CountingShell({
         pathname={pathname}
         menuSections={visibleMenu}
         mobileOpen={mobileOpen}
+        expanded={sidebarExpanded}
+        pinned={sidebarPinned}
+        onExpandedChange={setSidebarHovered}
+        onPinnedChange={setPinned}
         onClose={() => setMobileOpen(false)}
       />
-      <div className="relative z-10 flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-col gap-3 md:min-h-[calc(100vh-2.5rem)] md:ms-[16.75rem]">
+      <div
+        className={`relative z-10 flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-col gap-3 transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:min-h-[calc(100vh-2.5rem)] ${
+          sidebarExpanded ? 'md:ms-[17.75rem]' : 'md:ms-[6.25rem]'
+        }`}
+      >
         <div className="flex items-center gap-2 rounded-2xl bg-sidebar-gradient px-3 py-2 text-white md:hidden">
           <button
             type="button"
@@ -99,7 +128,7 @@ export function CountingShell({
             <SidebarWorkspace compact />
           </button>
         </div>
-        <MainWrapper className="min-h-0 flex-1 rounded-[28px] border-white/80 bg-white shadow-[0_24px_60px_-28px_rgba(15,23,42,0.38)] ring-1 ring-black/[0.04]">
+        <MainWrapper className="min-h-0 flex-1 rounded-[22px] bg-content-gradient shadow-lg">
           <PageHeader title={title} subtitle={contextLabel || undefined}>
             {headerAction}
           </PageHeader>

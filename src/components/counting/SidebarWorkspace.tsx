@@ -8,7 +8,7 @@ import { logout } from '@/actions/auth';
 import { switchWorkspace } from '@/actions/workspace';
 import { STORE_STAFF_ROLES } from '@/lib/constants';
 import { cn, toast } from '@/ui';
-import { SidebarCollapseItem, SidebarCollapsible } from './SidebarCollapsible';
+import { SidebarCollapseItem, SidebarCollapsible, SidebarReveal } from './SidebarCollapsible';
 import { useWorkspace } from './WorkspaceProvider';
 
 const LAST_STORE_KEY = 'basar.activeStoreByBrand';
@@ -51,19 +51,19 @@ function BrandMark({
 }) {
   const dim = size === 'sm' ? 'h-7 w-7 text-[11px]' : 'h-9 w-9 text-sm';
   if (logo) {
-    return <img src={logo} alt="" className={cn('shrink-0 rounded-lg object-cover', dim)} />;
+    return <img src={logo} alt="" className={cn('shrink-0 rounded-full object-cover', dim)} />;
   }
   return (
     <span
-      className={cn('flex shrink-0 items-center justify-center rounded-lg font-semibold text-white', dim)}
-      style={{ background: color || '#0f766e' }}
+      className={cn('flex shrink-0 items-center justify-center rounded-full font-semibold text-white', dim)}
+      style={{ background: color || '#c49440' }}
     >
       {initials(name)}
     </span>
   );
 }
 
-export function SidebarWorkspace({ compact = false }: { compact?: boolean }) {
+export function SidebarWorkspace({ compact = false, expanded = true }: { compact?: boolean; expanded?: boolean }) {
   const workspace = useWorkspace();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -75,6 +75,10 @@ export function SidebarWorkspace({ compact = false }: { compact?: boolean }) {
     setBrandId(workspace?.activeBrandId || '');
     setStoreId(workspace?.activeStoreId || '');
   }, [workspace?.activeBrandId, workspace?.activeStoreId]);
+
+  useEffect(() => {
+    if (!expanded) setOpenPanel('');
+  }, [expanded]);
 
   const brands = workspace?.brands || [];
   const stores = useMemo(
@@ -129,24 +133,43 @@ export function SidebarWorkspace({ compact = false }: { compact?: boolean }) {
     );
   }
 
+  if (!expanded) {
+    return (
+      <div
+        className="flex justify-center"
+        title={[activeBrand?.name, activeStore?.name].filter(Boolean).join(' · ') || 'فضای کار'}
+      >
+        <BrandMark name={activeBrand?.name} color={activeBrand?.color} logo={activeBrand?.logo} />
+      </div>
+    );
+  }
+
   return (
-    <section className="overflow-hidden rounded-2xl bg-black/15 ring-1 ring-white/10">
+    <section className="overflow-hidden rounded-2xl bg-white/[0.06] ring-1 ring-white/10">
       <div className="flex items-center gap-2 px-2 pt-2">
         <BrandMark name={activeBrand?.name} color={activeBrand?.color} logo={activeBrand?.logo} size="sm" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] leading-4 text-white/40">فضای کار فعال</p>
-          <p className="truncate text-[12px] font-medium leading-4 text-white/80">
+        <SidebarReveal show={expanded} className="flex-1">
+          <p className="text-[10px] tracking-wide text-white/40">فضای کار</p>
+          <p className="truncate text-[12px] font-medium leading-4 text-white">
             {[activeBrand?.name, activeStore?.name].filter(Boolean).join(' · ') || 'انتخاب نشده'}
           </p>
-        </div>
-        {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin text-white/40" /> : null}
+        </SidebarReveal>
+        {pending ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-shop-bone/40" /> : null}
       </div>
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+          expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
       <div className="mt-1 flex flex-col px-1 pb-1">
         <SidebarCollapsible
           label="برند"
           subtitle={activeBrand?.name || 'برندی نیست'}
           open={openPanel === 'brand'}
           onOpenChange={(next) => setOpenPanel(next ? 'brand' : '')}
+          expanded={expanded}
           disabled={!brands.length || pending}
           leading={<BrandMark name={activeBrand?.name} color={activeBrand?.color} logo={activeBrand?.logo} size="sm" />}
         >
@@ -181,9 +204,10 @@ export function SidebarWorkspace({ compact = false }: { compact?: boolean }) {
           subtitle={activeStore?.name || 'فروشگاهی نیست'}
           open={openPanel === 'store'}
           onOpenChange={(next) => setOpenPanel(next ? 'store' : '')}
+          expanded={expanded}
           disabled={!stores.length || pending}
           leading={
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80">
               <Store className="h-3.5 w-3.5" />
             </span>
           }
@@ -214,33 +238,51 @@ export function SidebarWorkspace({ compact = false }: { compact?: boolean }) {
           </div>
         </SidebarCollapsible>
       </div>
+        </div>
+      </div>
     </section>
   );
 }
 
-export function SidebarUser() {
+export function SidebarUser({ expanded = true }: { expanded?: boolean }) {
   const workspace = useWorkspace();
   const [, start] = useTransition();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) setOpen(false);
+  }, [expanded]);
+
   const roleLabel =
     workspace?.storeRole === 'owner'
       ? 'صاحب برند'
       : STORE_STAFF_ROLES[workspace?.storeRole as keyof typeof STORE_STAFF_ROLES] || 'کاربر';
   const name = workspace?.user.fullName || workspace?.user.phonenumber || 'کاربر';
 
+  const avatar = (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/12 text-sm font-medium text-white ring-1 ring-white/10">
+      {/^0\d+$/.test(name.replace(/\s/g, '')) ? <User className="h-4 w-4" /> : initials(name)}
+    </span>
+  );
+
+  if (!expanded) {
+    return (
+      <div className="flex justify-center" title={name}>
+        {avatar}
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-2xl bg-white/[0.07] ring-1 ring-white/10">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04]">
       <SidebarCollapsible
         label={roleLabel}
         subtitle={name}
         open={open}
         onOpenChange={setOpen}
+        expanded={expanded}
         expand="up"
-        leading={
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/12 text-sm font-medium">
-            {/^0\d+$/.test(name.replace(/\s/g, '')) ? <User className="h-4 w-4" /> : initials(name)}
-          </span>
-        }
+        leading={avatar}
       >
         <div className="rounded-xl bg-black/20 p-1">
           <Link

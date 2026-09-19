@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import type { ComponentType } from 'react';
+import { Pin, PinOff } from 'lucide-react';
 import { cn } from '@/ui';
+import { SidebarReveal } from './SidebarCollapsible';
 import { SidebarUser, SidebarWorkspace } from './SidebarWorkspace';
 
 export type CountingMenuItem = {
@@ -24,6 +26,8 @@ const GROUPS: { label: string; ids: string[] }[] = [
   { label: 'سازمان', ids: ['store', 'subscription', 'admin'] },
 ];
 
+const EASE = 'duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]';
+
 function isActivePath(pathname: string, href?: string) {
   if (!href) return false;
   if (pathname === href) return true;
@@ -36,44 +40,38 @@ function NavLink({
   name,
   icon: Icon,
   active,
+  expanded,
   onNavigate,
 }: {
   href: string;
   name: string;
   icon?: ComponentType<{ className?: string }>;
   active: boolean;
+  expanded: boolean;
   onNavigate?: () => void;
 }) {
   return (
     <Link
       href={href}
       onClick={onNavigate}
+      title={name}
       className={cn(
-        'group relative flex items-center gap-2.5 rounded-xl px-2.5 py-[7px] text-[13px] font-medium transition',
-        active
-          ? 'bg-white/12 text-white'
-          : 'text-white/68 hover:bg-white/[0.07] hover:text-white',
+        'group relative flex items-center text-[13px] font-medium transition',
+        EASE,
+        expanded ? 'gap-2.5 rounded-xl px-2.5 py-2' : 'mx-auto h-11 w-11 justify-center rounded-xl',
+        active ? 'bg-white/12 text-white' : 'text-white/68 hover:bg-white/[0.07] hover:text-white',
       )}
     >
-      <span
-        className={cn(
-          'absolute start-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-e-full transition',
-          active ? 'bg-primary opacity-100' : 'opacity-0',
-        )}
-      />
       {Icon ? (
-        <span
-          className={cn(
-            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition',
-            active ? 'bg-primary/25 text-white' : 'bg-white/[0.05] text-white/70 group-hover:text-white',
-          )}
-        >
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
           <Icon className="h-4 w-4" />
         </span>
       ) : (
         <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', active ? 'bg-primary' : 'bg-white/30')} />
       )}
-      <span className="truncate">{name}</span>
+      <SidebarReveal show={expanded}>
+        <span className="truncate">{name}</span>
+      </SidebarReveal>
     </Link>
   );
 }
@@ -82,11 +80,19 @@ export function CountingSidebar({
   pathname,
   menuSections,
   mobileOpen,
+  expanded,
+  pinned,
+  onExpandedChange,
+  onPinnedChange,
   onClose,
 }: {
   pathname: string;
   menuSections: CountingMenuSection[];
   mobileOpen: boolean;
+  expanded: boolean;
+  pinned: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  onPinnedChange: (pinned: boolean) => void;
   onClose: () => void;
 }) {
   const grouped = GROUPS.map((group) => ({
@@ -112,49 +118,110 @@ export function CountingSidebar({
       <aside
         role="navigation"
         aria-label="منوی شمارش"
+        onMouseEnter={() => onExpandedChange(true)}
+        onMouseLeave={() => {
+          if (!pinned) onExpandedChange(false);
+        }}
         className={cn(
-          'fixed z-30 flex w-[256px] flex-col overflow-hidden rounded-3xl bg-sidebar-gradient py-3 text-white shadow-lg shadow-black/15',
+          'fixed z-30 flex flex-col overflow-hidden rounded-3xl bg-sidebar-gradient py-3 text-white shadow-lg shadow-black/15',
           'start-5 top-14 bottom-16',
-          'max-md:z-[60] max-md:start-0 max-md:top-0 max-md:bottom-0 max-md:h-full max-md:w-[min(320px,88vw)] max-md:rounded-none max-md:shadow-xl max-md:transition-transform max-md:duration-200',
-          mobileOpen ? 'max-md:translate-x-0' : 'max-md:pointer-events-none max-md:translate-x-full',
+          'transition-[width]',
+          EASE,
+          expanded ? 'w-[256px]' : 'w-[72px]',
+          'max-md:z-[60] max-md:start-0 max-md:top-0 max-md:bottom-0 max-md:h-full max-md:rounded-none max-md:shadow-xl max-md:transition-transform max-md:duration-200',
+          mobileOpen ? 'max-md:w-[min(320px,88vw)] max-md:translate-x-0' : 'max-md:pointer-events-none max-md:w-[min(320px,88vw)] max-md:translate-x-full',
         )}
       >
-        <div className="shrink-0 px-2.5 pb-2">
-          <div className="mb-2 flex items-center gap-2.5 rounded-2xl bg-white/[0.07] px-2 py-2 ring-1 ring-white/10">
+        <div className={cn('shrink-0 pb-2', expanded ? 'px-2.5' : 'px-1.5')}>
+          <div
+            className={cn(
+              'mb-2 flex rounded-2xl bg-white/[0.07] py-2 ring-1 ring-white/10 transition',
+              EASE,
+              expanded ? 'items-center gap-2 px-2' : 'flex-col items-center gap-1.5 px-1',
+            )}
+          >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-bold text-slate-900 shadow-sm">
               ب
             </span>
-            <div className="min-w-0 flex-1">
+            <SidebarReveal show={expanded} className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold leading-5 tracking-tight">باسار</p>
               <p className="truncate text-[10px] leading-4 text-white/45">پنل شمارش</p>
-            </div>
+            </SidebarReveal>
+            <button
+              type="button"
+              title={pinned ? 'بازگشت به حالت هاور' : 'همیشه باز بماند'}
+              aria-label={pinned ? 'بازگشت به حالت هاور' : 'همیشه باز بماند'}
+              aria-pressed={pinned}
+              onClick={(event) => {
+                event.stopPropagation();
+                onPinnedChange(!pinned);
+              }}
+              className={cn(
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition',
+                pinned ? 'bg-white/15 text-white' : 'text-white/45 hover:bg-white/10 hover:text-white',
+              )}
+            >
+              {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+            </button>
           </div>
-          <SidebarWorkspace />
+          <SidebarWorkspace expanded={expanded} />
         </div>
 
-        <nav className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
+        <nav
+          className={cn(
+            'min-h-0 flex-1 overflow-x-hidden pb-2',
+            expanded
+              ? 'custom-scrollbar overflow-y-auto px-2'
+              : 'overflow-y-auto px-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          )}
+        >
           {navGroups.map((group) => (
             <div key={group.label} className="mb-2">
-              <p className="mb-0.5 px-3 text-[10px] font-medium tracking-wide text-white/35">{group.label}</p>
-              <div className="flex flex-col gap-0.5">
+              <div
+                className={cn(
+                  'grid transition-[grid-template-rows,opacity]',
+                  EASE,
+                  expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+                )}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  <p className="mb-0.5 px-3 text-[10px] font-medium tracking-wide text-white/35">{group.label}</p>
+                </div>
+              </div>
+              <div className={cn('flex flex-col', expanded ? 'gap-0.5' : 'gap-1.5')}>
                 {group.items.map((section) => {
                   const children = section.menuItems?.filter((item) => item.href) || [];
                   if (!section.href && children.length) {
                     return (
                       <div key={section.id} className="pt-0.5">
-                        <p className="mb-0.5 flex items-center gap-2 px-2.5 py-1 text-[11px] text-white/45">
-                          <section.icon className="h-3.5 w-3.5" />
-                          {section.name}
-                        </p>
-                        {children.map((item) => (
-                          <NavLink
-                            key={item.href}
-                            href={item.href!}
-                            name={item.name}
-                            active={isActivePath(pathname, item.href)}
-                            onNavigate={onClose}
-                          />
-                        ))}
+                        <NavLink
+                          href={children[0].href!}
+                          name={section.name}
+                          icon={section.icon}
+                          active={children.some((item) => isActivePath(pathname, item.href))}
+                          expanded={expanded}
+                          onNavigate={onClose}
+                        />
+                        <div
+                          className={cn(
+                            'grid transition-[grid-template-rows,opacity]',
+                            EASE,
+                            expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+                          )}
+                        >
+                          <div className="min-h-0 overflow-hidden">
+                            {children.map((item) => (
+                              <NavLink
+                                key={item.href}
+                                href={item.href!}
+                                name={item.name}
+                                active={isActivePath(pathname, item.href)}
+                                expanded={expanded}
+                                onNavigate={onClose}
+                              />
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     );
                   }
@@ -166,6 +233,7 @@ export function CountingSidebar({
                           name={section.name}
                           icon={section.icon}
                           active={isActivePath(pathname, section.href)}
+                          expanded={expanded}
                           onNavigate={onClose}
                         />
                       ) : null}
@@ -177,8 +245,8 @@ export function CountingSidebar({
           ))}
         </nav>
 
-        <div className="shrink-0 px-2.5 pb-1 pt-1">
-          <SidebarUser />
+        <div className={cn('shrink-0 pb-1 pt-1', expanded ? 'px-2.5' : 'px-1.5')}>
+          <SidebarUser expanded={expanded} />
         </div>
       </aside>
     </>
