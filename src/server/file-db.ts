@@ -358,4 +358,5 @@ export const fileModels = {
   Attachment: new FileModel('attachments'),
   ImageTokenPurchase: new FileModel('imagetokenpurchases'),
   ImageEdit: new FileModel('imageedits'),
+  ProductShare: new FileModel('productshares'),
 };

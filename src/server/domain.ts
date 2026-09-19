@@ -825,6 +825,123 @@ export async function getPublicClothById(id: string): Promise<ActionResult> {
   return ok(serialize(row));
 }
 
+const MAX_SHARE_CLOTHES = 40;
+
+function shareClothIds(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const item of value) {
+    const id = String(item?._id || item || '').trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+export async function createProductShare(payload: { title?: string; clothIds: unknown }): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const denied = denyWrite(access.session, 'product-share');
+  if (denied) return denied;
+  const clothIds = shareClothIds(payload.clothIds);
+  if (!clothIds.length) return fail('حداقل یک لباس انتخاب کنید');
+  if (clothIds.length > MAX_SHARE_CLOTHES) return fail(`حداکثر ${MAX_SHARE_CLOTHES} لباس در هر لینک مجاز است`);
+  await db();
+  const clothes = await M()
+    .Cloth.find({ _id: { $in: clothIds.map((id) => oid(id)) }, ...clothVisibleFilter(access.session) })
+    .select('_id')
+    .lean();
+  const allowed = new Set((clothes as any[]).map((row) => String(row._id)));
+  const kept = clothIds.filter((id) => allowed.has(id));
+  if (!kept.length) return fail('لباس معتبری انتخاب نشده');
+  const token = publicOrderToken();
+  const created = await M().ProductShare.create({
+    token,
+    title: String(payload.title || '').trim().slice(0, 80),
+    _clothIds: kept.map((id) => oid(id)),
+    _storeId: oid(access.session._storeId),
+    _brandId: oid(access.session._brandId),
+    _userId: oid(access.session._id),
+    isDeleted: false,
+    timeStamp: new Date(),
+  });
+  return ok(
+    serialize({
+      _id: created._id,
+      token,
+      title: created.title,
+      _clothIds: kept,
+      clothCount: kept.length,
+    }),
+    'لینک ساخته شد',
+  );
+}
+
+export async function listProductShares(): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const denied = denyRead(access.session, 'product-share');
+  if (denied) return denied;
+  await db();
+  const rows = await M()
+    .ProductShare.find({ _storeId: oid(access.session._storeId), isDeleted: false })
+    .sort({ timeStamp: -1 })
+    .limit(50)
+    .lean();
+  return ok(
+    serialize(
+      (rows as any[]).map((row) => ({
+        _id: row._id,
+        token: row.token,
+        title: row.title || '',
+        _clothIds: shareClothIds(row._clothIds),
+        clothCount: shareClothIds(row._clothIds).length,
+        timeStamp: row.timeStamp,
+      })),
+    ),
+  );
+}
+
+export async function deleteProductShare(id: string): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const denied = denyWrite(access.session, 'product-share');
+  if (denied) return denied;
+  await db();
+  const row = await M().ProductShare.findOne({
+    _id: oid(id),
+    _storeId: oid(access.session._storeId),
+    isDeleted: false,
+  }).lean();
+  if (!row) return fail('لینک پیدا نشد', 404);
+  await M().ProductShare.findByIdAndUpdate(id, { isDeleted: true });
+  return ok({ _id: id }, 'لینک حذف شد');
+}
+
+export async function getPublicSharedClothes(token: string): Promise<ActionResult> {
+  const value = String(token || '').trim();
+  if (value.length < 16 || value.length > 128) return fail('لینک نامعتبر است', 404);
+  await db();
+  const share = await M().ProductShare.findOne({ token: value, isDeleted: false }).lean();
+  if (!share) return fail('این لینک پیدا نشد', 404);
+  const ids = shareClothIds(share._clothIds);
+  if (!ids.length) return fail('محصولی در این لینک نیست', 404);
+  const query: any = M().Cloth.find({ _id: { $in: ids.map((id) => oid(id)) }, isDeleted: false });
+  const rows = await query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).lean();
+  const byId = new Map((Array.isArray(rows) ? rows : []).map((row: any) => [String(row._id), row]));
+  const ordered = ids.map((id) => byId.get(id)).filter(Boolean);
+  const inStock = ordered.filter((row: any) => totalItems(packsFromCloth(row).packs) > 0);
+  return ok(
+    serialize({
+      token: value,
+      title: String(share.title || '').trim(),
+      clothes: inStock,
+    }),
+  );
+}
+
 function storeIdOf(cloth: any) {
   const value = cloth?._storeId;
   if (value && typeof value === 'object' && '_id' in value) return String(value._id);

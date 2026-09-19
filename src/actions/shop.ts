@@ -6,6 +6,7 @@ import { normalizeCartItem } from '@/lib/shop-cart';
 import { mergePacks, packsToOrder, subtractPacks, totalItems, type ClothPack } from '@/lib/packs';
 import type { CatalogProduct, Cloth, PublicOrderSummary, WholesaleCartItem } from '@/lib/types';
 import { cookies } from 'next/headers';
+import { loadSharedClothes } from './share';
 import {
   getPublicCatalogProduct,
   listPublicCatalog,
@@ -19,6 +20,18 @@ export async function getCatalog(): Promise<CatalogProduct[]> {
     return published.data.map((cloth) => clothToProduct(cloth as Cloth));
   }
   return [];
+}
+
+export async function getSharedCatalog(token: string) {
+  const found = await loadSharedClothes(token);
+  if (!found.ok || !found.data) return { ok: false as const, title: '', products: [] as CatalogProduct[], message: found.message };
+  const data = found.data as { title?: string; clothes?: Cloth[] };
+  return {
+    ok: true as const,
+    title: String(data.title || ''),
+    products: (Array.isArray(data.clothes) ? data.clothes : []).map((cloth) => clothToProduct(cloth)),
+    message: '',
+  };
 }
 
 export async function getCatalogProduct(id: string): Promise<CatalogProduct | null> {

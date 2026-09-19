@@ -411,6 +411,20 @@ const ImageEditSchema = new Schema(
   { collection: 'imageedits' },
 );
 
+const ProductShareSchema = new Schema(
+  {
+    token: { type: String, required: true, unique: true, index: true },
+    title: { type: String, default: '' },
+    _clothIds: { type: [Schema.Types.ObjectId], ref: 'Cloth', default: [] },
+    _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true, index: true },
+    _brandId: { type: Schema.Types.ObjectId, ref: 'Brand' },
+    _userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    isDeleted: { type: Boolean, required: true, default: false },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'productshares' },
+);
+
 const AttachmentSchema = new Schema(
   {
     size: Number,
@@ -454,6 +468,7 @@ export const Permision = modelOf<any>('Permision', PermisionSchema);
 export const UserPermision = modelOf<any>('UserPermision', UserPermisionSchema);
 export const ImageTokenPurchase = modelOf<any>('ImageTokenPurchase', ImageTokenPurchaseSchema);
 export const ImageEdit = modelOf<any>('ImageEdit', ImageEditSchema);
+export const ProductShare = modelOf<any>('ProductShare', ProductShareSchema);
 export const Attachment = modelOf<any>('Attachment', AttachmentSchema);
 
 export const PERSON_POPULATE = personSelect;

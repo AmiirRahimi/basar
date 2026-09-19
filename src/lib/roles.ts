@@ -7,6 +7,7 @@ export const MENU_ACCESS: Record<string, StoreRole[]> = {
   invoice: ['owner', 'admin', 'seller'],
   person: ALL,
   cloth: ALL,
+  share: ['owner', 'admin', 'seller'],
   images: ['owner', 'admin'],
   check: ['owner', 'admin'],
   fabric: ['owner', 'admin', 'other'],
@@ -22,6 +23,7 @@ export const RESOURCE_WRITE_ROLES: Record<string, StoreRole[]> = {
   invoice: ['owner', 'admin', 'seller'],
   'customer-cart': ['owner', 'admin', 'seller'],
   cloth: ['owner', 'admin'],
+  'product-share': ['owner', 'admin', 'seller'],
   person: ALL,
   fabric: ['owner', 'admin', 'other'],
   check: ['owner', 'admin'],
@@ -55,6 +57,7 @@ const RESOURCE_READ_MENU: Record<string, string> = {
   'customer-cart': 'invoice',
   person: 'person',
   cloth: 'cloth',
+  'product-share': 'share',
   check: 'check',
   fabric: 'fabric',
   returned: 'returned',
@@ -78,6 +81,7 @@ export function pathMenuId(pathname: string) {
   if (pathname.startsWith('/counting/invoices')) return 'invoice';
   if (pathname.startsWith('/counting/people')) return 'person';
   if (pathname.startsWith('/counting/clothes')) return 'cloth';
+  if (pathname.startsWith('/counting/shares')) return 'share';
   if (pathname.startsWith('/counting/images')) return 'images';
   if (pathname.startsWith('/counting/checks')) return 'check';
   if (pathname.startsWith('/counting/fabric')) return 'fabric';

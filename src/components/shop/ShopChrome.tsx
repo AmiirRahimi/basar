@@ -22,6 +22,23 @@ function activePath(pathname: string, href: string) {
 export function ShopHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const sharePage = pathname.startsWith('/s/');
+
+  if (sharePage) {
+    return (
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
+          <span className="min-w-0 text-xl font-semibold tracking-tight sm:text-2xl">{BRAND.name}</span>
+          <Link
+            href="/catalog"
+            className="rounded-full bg-shop-saffron px-4 py-2 text-sm font-medium text-shop-ink hover:brightness-105"
+          >
+            مشاهده همه محصولات
+          </Link>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
@@ -78,6 +95,9 @@ export function ShopHeader() {
 }
 
 export function ShopFooter() {
+  const pathname = usePathname();
+  if (pathname.startsWith('/s/')) return null;
+
   return (
     <footer data-shop-dark className="mt-16 border-t border-shop-ink/10 bg-shop-ink text-shop-bone" dir="rtl">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 lg:grid-cols-4 lg:px-6">
