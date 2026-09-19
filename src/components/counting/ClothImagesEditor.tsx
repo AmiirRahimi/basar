@@ -1,17 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Pencil, Plus, X } from 'lucide-react';
 import { faNumber } from '@/lib/format';
 import { encodeImageList, MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { Button, IconButton, Input, toast } from '@/ui';
-import { ClothImageStudio } from './ImageStudio';
 
 export function ClothImagesEditor({
   label,
   value,
   onChange,
-  clothId,
   error,
 }: {
   label: string;
@@ -22,6 +20,8 @@ export function ClothImagesEditor({
 }) {
   const images = parseImageList(value);
   const [draft, setDraft] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState('');
   const atLimit = images.length >= MAX_CLOTH_IMAGES;
 
   function emit(next: string[]) {
@@ -48,6 +48,28 @@ export function ClothImagesEditor({
 
   function remove(src: string) {
     emit(images.filter((item) => item !== src));
+    setEditingIndex(null);
+  }
+
+  function startEdit(index: number) {
+    setEditingIndex(index);
+    setEditDraft(images[index] || '');
+  }
+
+  function saveEdit() {
+    if (editingIndex == null) return;
+    const url = editDraft.trim();
+    if (!url) {
+      toast.error('آدرس تصویر را وارد کنید');
+      return;
+    }
+    if (images.some((item, index) => index !== editingIndex && item === url)) {
+      toast.error('این تصویر قبلاً اضافه شده');
+      return;
+    }
+    emit(images.map((item, index) => (index === editingIndex ? url : item)));
+    setEditingIndex(null);
+    setEditDraft('');
   }
 
   return (
@@ -56,7 +78,7 @@ export function ClothImagesEditor({
         <div>
           <p className="text-sm font-medium">{label}</p>
           <p className="mt-1 text-xs text-gray-500">
-            حداکثر {faNumber(MAX_CLOTH_IMAGES)} تصویر. هر تصویر دکمه‌ای برای ویرایش دارد.
+            حداکثر {faNumber(MAX_CLOTH_IMAGES)} تصویر. برای هر تصویر دکمه ویرایش هست.
           </p>
         </div>
         <p className="shrink-0 text-xs text-gray-500">
@@ -70,32 +92,47 @@ export function ClothImagesEditor({
             <div key={src + index} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="h-28 w-full object-cover" />
-              <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                <p className="truncate text-[11px] text-gray-500">تصویر {faNumber(index + 1)}</p>
-                <div className="flex items-center gap-1">
-                  {clothId ? (
-                    <ClothImageStudio
-                      clothId={clothId}
-                      images={images}
-                      imageUrl={src}
-                      label="ویرایش"
-                      onSuccess={(next) => emit(parseImageList(next))}
-                      compact
-                      className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 hover:border-gray-300"
-                    />
-                  ) : (
-                    <span className="text-[11px] text-gray-400">پس از ثبت، قابل ویرایش است</span>
-                  )}
-                  <IconButton
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    aria-label="حذف تصویر"
-                    onClick={() => remove(src)}
-                  >
-                    <X className="h-4 w-4" />
-                  </IconButton>
+              <div className="space-y-2 px-2 py-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-[11px] text-gray-500">تصویر {faNumber(index + 1)}</p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      icon={<Pencil className="h-3 w-3" />}
+                      onClick={() => startEdit(index)}
+                    >
+                      ویرایش
+                    </Button>
+                    <IconButton
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      aria-label="حذف تصویر"
+                      onClick={() => remove(src)}
+                    >
+                      <X className="h-4 w-4" />
+                    </IconButton>
+                  </div>
                 </div>
+                {editingIndex === index ? (
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      label="آدرس جدید تصویر"
+                      value={editDraft}
+                      onChange={(e) => setEditDraft(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button type="button" size="xs" onClick={saveEdit}>
+                        ذخیره تصویر
+                      </Button>
+                      <Button type="button" size="xs" variant="outline" onClick={() => setEditingIndex(null)}>
+                        انصراف
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}

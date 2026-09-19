@@ -417,7 +417,6 @@ export function ResourceCrud({
                     label={label}
                     value={form[field.name] || ''}
                     onChange={(next) => setValue(field, next)}
-                    clothId={editing?._id ? String(editing._id) : undefined}
                     error={imagesError || undefined}
                   />
                 );
