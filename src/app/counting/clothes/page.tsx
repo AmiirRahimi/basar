@@ -122,7 +122,7 @@ export default async function ClothesPage() {
           },
           { name: 'newCollection', label: 'کالکشن جدید', type: 'boolean' },
           { name: 'description', label: 'توضیح فروشگاه', type: 'textarea' },
-          { name: 'images', label: 'تصاویر فروشگاه (هر خط یک آدرس)', type: 'textarea' },
+          { name: 'images', label: 'تصاویر فروشگاه', type: 'images' },
         ]}
       />
     </CountingShell>

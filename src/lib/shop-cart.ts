@@ -1,6 +1,8 @@
 import { itemsToPacks, mergePacks, packsToOrder, parsePacks, subtractPacks, totalItems, totalPacks, type ClothPack } from './packs';
 import type { CatalogProduct, WholesaleCartItem } from './types';
 
+export const MAX_CLOTH_IMAGES = 5;
+
 export function parseImageList(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
   if (typeof value !== 'string') return [];
@@ -8,6 +10,15 @@ export function parseImageList(value: unknown): string[] {
     .split(/[\n,]+/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+export function encodeImageList(images: string[]) {
+  return parseImageList(images).join('\n');
+}
+
+export function clothImageLimitMessage(count = 0) {
+  if (count > MAX_CLOTH_IMAGES) return `حداکثر ${MAX_CLOTH_IMAGES} تصویر برای هر لباس مجاز است`;
+  return '';
 }
 
 export function normalizeCartItem(raw: unknown, product?: CatalogProduct | null): WholesaleCartItem | null {

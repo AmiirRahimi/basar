@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { InfoRow, SectionCard } from '@/ui';
 import { AdminUserEditTrigger } from './AdminUserEditor';
-import { ClothImageStudio } from './ImageStudio';
+import { ClothImageGallery } from './ClothImageGallery';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
 import { PERSON_ROLES, personRoleLabel } from '@/lib/constants';
 import { cycleLabel } from '@/lib/plans';
@@ -312,13 +312,14 @@ export function RecordDetail({
                 </Link>
               ) : null}
               {resource === 'admin-user' ? <AdminUserEditTrigger user={raw} /> : null}
-              {resource === 'cloth' && images.length ? (
-                <ClothImageStudio clothId={String(row._id)} images={images} />
-              ) : null}
             </div>
           </div>
         </div>
       </section>
+
+      {resource === 'cloth' ? (
+        <ClothImageGallery clothId={String(row._id)} images={images} name={title} />
+      ) : null}
 
       {extras?.balance ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -379,22 +380,6 @@ export function RecordDetail({
       {description ? (
         <SectionCard title="توضیح" flush={false}>
           <p className="whitespace-pre-wrap text-sm leading-7 text-gray-700">{description}</p>
-        </SectionCard>
-      ) : null}
-
-      {images.length ? (
-        <SectionCard title="تصاویر" flush={false}>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {images.map((src) => (
-              // eslint-disable-next-line @next/next/no-img-element -- remote catalog URLs are not in next/image domains
-              <img
-                key={src}
-                src={src}
-                alt=""
-                className="h-36 w-full rounded-2xl border border-gray-100 object-cover"
-              />
-            ))}
-          </div>
         </SectionCard>
       ) : null}
 

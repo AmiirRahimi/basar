@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Model } from 'mongoose';
+import { MAX_CLOTH_IMAGES } from '@/lib/shop-cart';
 
 function modelOf<T>(name: string, schema: Schema, collection?: string): Model<T> {
   return (mongoose.models[name] as Model<T>) || mongoose.model<T>(name, schema, collection);
@@ -236,7 +237,14 @@ const ClothSchema = new Schema(
     wholesalePrice: Number,
     minOrderQty: { type: Number, default: 12 },
     published: { type: Boolean, default: false },
-    images: { type: [String], default: [] },
+    images: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (value: unknown) => !Array.isArray(value) || value.length <= MAX_CLOTH_IMAGES,
+        message: `حداکثر ${MAX_CLOTH_IMAGES} تصویر برای هر لباس مجاز است`,
+      },
+    },
     onSale: { type: Boolean, default: false },
     discountPercent: { type: Number, default: 0 },
     saleEndsAt: { type: Date, default: null },

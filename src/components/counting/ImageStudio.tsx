@@ -91,16 +91,20 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
 export function ImageEditModal({
   clothId,
   images,
+  initialImageUrl,
   onClose,
+  onSuccess,
 }: {
   clothId: string;
   images: string[];
+  initialImageUrl?: string;
   onClose: () => void;
+  onSuccess?: (images: string[]) => void;
 }) {
   const router = useRouter();
   const workspace = useWorkspace();
   const [pending, start] = useTransition();
-  const [imageUrl, setImageUrl] = useState(images[0] || '');
+  const [imageUrl, setImageUrl] = useState(initialImageUrl && images.includes(initialImageUrl) ? initialImageUrl : images[0] || '');
   const [styleId, setStyleId] = useState(IMAGE_EDIT_STYLES[0].id);
   const tokens = Number(workspace?.imageTokens || 0);
   const unlimited = Boolean(workspace?.imageTokensUnlimited);
@@ -111,7 +115,11 @@ export function ImageEditModal({
       const res = await editProductImage({ clothId, imageUrl, styleId });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
+        const nextImages = Array.isArray((res.data as { images?: string[] } | null)?.images)
+          ? ((res.data as { images: string[] }).images)
+          : [];
         toast.success(res.message || 'تصویر آماده شد');
+        onSuccess?.(nextImages);
         onClose();
         router.refresh();
       } else {
@@ -178,7 +186,23 @@ export function ImageEditModal({
   );
 }
 
-export function ClothImageStudio({ clothId, images }: { clothId: string; images: string[] }) {
+export function ClothImageStudio({
+  clothId,
+  images,
+  imageUrl,
+  label = 'ویرایش با هوش مصنوعی',
+  className,
+  compact,
+  onSuccess,
+}: {
+  clothId: string;
+  images: string[];
+  imageUrl?: string;
+  label?: string;
+  className?: string;
+  compact?: boolean;
+  onSuccess?: (images: string[]) => void;
+}) {
   const [open, setOpen] = useState(false);
   const list = useMemo(() => parseImageList(images), [images]);
   if (!list.length) return null;
@@ -187,12 +211,23 @@ export function ClothImageStudio({ clothId, images }: { clothId: string; images:
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:border-gray-300"
+        className={
+          className ||
+          'inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:border-gray-300'
+        }
       >
-        <Sparkles className="size-4" />
-        ویرایش با هوش مصنوعی
+        <Sparkles className={compact ? 'size-3' : 'size-4'} />
+        {label}
       </button>
-      {open ? <ImageEditModal clothId={clothId} images={list} onClose={() => setOpen(false)} /> : null}
+      {open ? (
+        <ImageEditModal
+          clothId={clothId}
+          images={list}
+          initialImageUrl={imageUrl}
+          onClose={() => setOpen(false)}
+          onSuccess={onSuccess}
+        />
+      ) : null}
     </>
   );
 }

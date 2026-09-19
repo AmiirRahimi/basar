@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { canWriteResource } from '@/lib/roles';
 import { imageEditStyleById, imageTokenPackById, type ImageEditStyleId } from '@/lib/image-tokens';
-import { parseImageList } from '@/lib/shop-cart';
+import { MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
@@ -145,7 +145,10 @@ export async function editProductImage(payload: {
     const source = await readSourceImage(sourceUrl);
     const rendered = await renderProductEdit(source, style.id as ImageEditStyleId);
     const resultUrl = await saveProductImage(rendered, 'jpg');
-    const nextImages = [resultUrl, ...images.filter((item) => item !== resultUrl)];
+    const nextImages = images
+      .map((item) => (item === sourceUrl ? resultUrl : item))
+      .filter((item, index, list) => item && list.indexOf(item) === index)
+      .slice(0, MAX_CLOTH_IMAGES);
     await M().Cloth.findByIdAndUpdate(payload.clothId, { images: nextImages });
     if (!access.session.isPlatformAdmin) {
       await M().User.findByIdAndUpdate(ownerId, { imageTokens: Math.max(0, balance - style.tokenCost) });

@@ -10,6 +10,7 @@ import { RowActions } from './RowActions';
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { ClothImagesEditor } from './ClothImagesEditor';
 import { ClothPacksEditor } from './ClothPacksEditor';
 import { SearchableTable } from './SearchableTable';
 import { AddPlusButton, usePageAddButton } from './PageAction';
@@ -22,6 +23,7 @@ import {
   totalItems,
   validatePacksEditor,
 } from '@/lib/packs';
+import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import type { FieldOption } from '@/lib/types';
 
 export type { FieldOption };
@@ -29,7 +31,7 @@ export type { FieldOption };
 export type Field = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'packs' | 'boolean' | 'datetime';
+  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'packs' | 'boolean' | 'datetime' | 'images';
   options?: FieldOption[];
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
@@ -146,6 +148,12 @@ export function ResourceCrud({
                         next[f.name] = toDateTimeLocal(value);
                         return;
                       }
+                      if (f.type === 'images') {
+                        next[f.name] = Array.isArray(value)
+                          ? value.filter(Boolean).join('\n')
+                          : String(value ?? '');
+                        return;
+                      }
                       next[f.name] =
                         Array.isArray(value)
                           ? value.filter(Boolean).join('\n')
@@ -224,6 +232,9 @@ export function ResourceCrud({
     if (field.type === 'packs') {
       return Boolean(field.required) && Boolean(validatePacksEditor(parsePacksEditorValue(form[field.name])));
     }
+    if (field.type === 'images') {
+      return Boolean(clothImageLimitMessage(parseImageList(form[field.name]).length));
+    }
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
 
@@ -257,8 +268,12 @@ export function ResourceCrud({
     if (missing.length) {
       setShowErrors(true);
       const packField = missing.find((f) => f.type === 'packs');
+      const imagesField = missing.find((f) => f.type === 'images');
       const packError = packField ? validatePacksEditor(parsePacksEditorValue(form[packField.name])) : null;
-      toast.error(packError || `تکمیل این موارد الزامی است: ${missing.map((f) => f.label).join('، ')}`);
+      const imagesError = imagesField
+        ? clothImageLimitMessage(parseImageList(form[imagesField.name]).length)
+        : null;
+      toast.error(packError || imagesError || `تکمیل این موارد الزامی است: ${missing.map((f) => f.label).join('، ')}`);
       return;
     }
     setShowErrors(false);
@@ -279,6 +294,10 @@ export function ResourceCrud({
         }
         if (f.type === 'datetime') {
           payload[f.name] = form[f.name] || null;
+          return;
+        }
+        if (f.type === 'images') {
+          payload[f.name] = parseImageList(form[f.name]);
           return;
         }
         payload[f.name] = f.type === 'number' ? Number(form[f.name]) : form[f.name];
@@ -384,6 +403,22 @@ export function ResourceCrud({
                     type="datetime-local"
                     value={form[field.name] || ''}
                     onChange={(e) => setValue(field, e.target.value)}
+                  />
+                );
+              }
+
+              if (field.type === 'images') {
+                const imagesError = showErrors
+                  ? clothImageLimitMessage(parseImageList(form[field.name]).length)
+                  : undefined;
+                return (
+                  <ClothImagesEditor
+                    key={field.name}
+                    label={label}
+                    value={form[field.name] || ''}
+                    onChange={(next) => setValue(field, next)}
+                    clothId={editing?._id ? String(editing._id) : undefined}
+                    error={imagesError || undefined}
                   />
                 );
               }

@@ -29,7 +29,7 @@ import { allocateIncome, partnersForStore } from '@/lib/partners';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
-import { parseImageList } from '@/lib/shop-cart';
+import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import { clampDiscountPercent, isTruthyFlag, saleState } from '@/lib/product-sale';
 import { fail, failDb, ok, type ActionResult } from './result';
 import type { PublicOrderSummary } from '@/lib/types';
@@ -445,7 +445,12 @@ function applyClothInventory(body: Record<string, unknown>): ActionResult<Record
 }
 
 function applyClothShopFields(body: Record<string, unknown>): ActionResult<Record<string, unknown> | null> {
-  if (body.images != null) body.images = parseImageList(body.images);
+  if (body.images != null) {
+    const images = parseImageList(body.images);
+    const limitError = clothImageLimitMessage(images.length);
+    if (limitError) return fail(limitError);
+    body.images = images;
+  }
   if (body.minOrderQty != null && body.minOrderQty !== '') {
     const qty = Math.trunc(Number(body.minOrderQty));
     body.minOrderQty = qty > 0 ? qty : DEFAULT_MOQ;
