@@ -21,7 +21,11 @@ function withHeaders(response: NextResponse) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (!pathname.startsWith('/counting') || pathname.startsWith('/counting/login')) {
+  const isPublicCounting =
+    pathname === '/counting' ||
+    pathname === '/counting/' ||
+    pathname.startsWith('/counting/login');
+  if (!pathname.startsWith('/counting') || isPublicCounting) {
     return withHeaders(NextResponse.next());
   }
   const access = request.cookies.get(ACCESS_COOKIE)?.value || '';

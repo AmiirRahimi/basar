@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Input, SignInShell, toast } from '@/ui';
 import { loginWithOtp, sendOtp } from '@/actions/auth';
@@ -98,6 +99,11 @@ export function CountingLogin() {
           {step === 'phone' ? 'ادامه' : 'ورود'}
         </Button>
       </form>
+      <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+        <Link href="/counting" className="font-medium text-primary hover:underline">
+          آشنایی با پنل
+        </Link>
+      </p>
     </SignInShell>
   );
 }
