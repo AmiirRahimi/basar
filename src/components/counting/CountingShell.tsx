@@ -78,15 +78,14 @@ export function CountingShell({
   }, [pathname]);
 
   return (
-    <main className="flex min-h-screen gap-4 bg-gray-50 p-3 md:p-4" dir="rtl">
-      <div className="hidden w-[264px] shrink-0 md:block" aria-hidden />
+    <main className="relative min-h-screen overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
       <CountingSidebar
         pathname={pathname}
         menuSections={visibleMenu}
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />
-      <div className="flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-1 flex-col gap-3">
+      <div className="relative z-10 flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-col gap-3 md:min-h-[calc(100vh-2.5rem)] md:ms-[16.75rem]">
         <div className="flex items-center gap-2 rounded-2xl bg-sidebar-gradient px-3 py-2 text-white md:hidden">
           <button
             type="button"
@@ -100,7 +99,7 @@ export function CountingShell({
             <SidebarWorkspace compact />
           </button>
         </div>
-        <MainWrapper>
+        <MainWrapper className="min-h-0 flex-1 rounded-[28px] border-white/80 bg-white shadow-[0_24px_60px_-28px_rgba(15,23,42,0.38)] ring-1 ring-black/[0.04]">
           <PageHeader title={title} subtitle={contextLabel || undefined}>
             {headerAction}
           </PageHeader>

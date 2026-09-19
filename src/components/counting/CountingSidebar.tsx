@@ -113,16 +113,21 @@ export function CountingSidebar({
         role="navigation"
         aria-label="منوی شمارش"
         className={cn(
-          'fixed z-[60] flex h-[96vh] w-[264px] flex-col overflow-hidden rounded-2xl bg-sidebar-gradient py-3 text-white shadow-xl shadow-black/20',
-          'start-3 top-4',
-          'max-md:start-0 max-md:top-0 max-md:h-full max-md:w-[min(320px,88vw)] max-md:rounded-none max-md:transition-transform max-md:duration-200',
+          'fixed z-30 flex w-[256px] flex-col overflow-hidden rounded-3xl bg-sidebar-gradient py-3 text-white shadow-lg shadow-black/15',
+          'start-5 top-14 bottom-16',
+          'max-md:z-[60] max-md:start-0 max-md:top-0 max-md:bottom-0 max-md:h-full max-md:w-[min(320px,88vw)] max-md:rounded-none max-md:shadow-xl max-md:transition-transform max-md:duration-200',
           mobileOpen ? 'max-md:translate-x-0' : 'max-md:pointer-events-none max-md:translate-x-full',
         )}
       >
-        <div className="shrink-0 px-3 pb-3">
-          <div className="mb-3 px-1">
-            <p className="text-[11px] text-white/40">پنل شمارش</p>
-            <p className="text-sm font-semibold tracking-tight">باسار</p>
+        <div className="shrink-0 px-2.5 pb-2">
+          <div className="mb-2 flex items-center gap-2.5 rounded-2xl bg-white/[0.07] px-2 py-2 ring-1 ring-white/10">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-bold text-slate-900 shadow-sm">
+              ب
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold leading-5 tracking-tight">باسار</p>
+              <p className="truncate text-[10px] leading-4 text-white/45">پنل شمارش</p>
+            </div>
           </div>
           <SidebarWorkspace />
         </div>
@@ -172,7 +177,7 @@ export function CountingSidebar({
           ))}
         </nav>
 
-        <div className="shrink-0 border-t border-white/10 px-2 pt-2">
+        <div className="shrink-0 px-2.5 pb-1 pt-1">
           <SidebarUser />
         </div>
       </aside>
