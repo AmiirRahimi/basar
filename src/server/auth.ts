@@ -24,8 +24,16 @@ function isAdminPhone(phonenumber: string) {
   return Boolean(admin) && phonenumber === admin;
 }
 
+function readAdminPassword() {
+  return (process.env.ADMIN_PASSWORD || '')
+    .trim()
+    .replace(/\r/g, '')
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\\$/g, '$');
+}
+
 async function adminPasswordMatches(password: string) {
-  const stored = (process.env.ADMIN_PASSWORD || '').trim().replace(/^["']|["']$/g, '').replace(/\\\$/g, '$');
+  const stored = readAdminPassword();
   if (!stored) return false;
   if (stored.startsWith('$argon2')) {
     try {
