@@ -14,7 +14,7 @@ export default async function SharesPage() {
   return (
     <CountingShell
       title="لینک محصول"
-      description="لباس‌های انتخابی را در یک لینک بگذارید و برای مشتری بفرستید."
+      description="با اشتراک فعال لینک بسازید و در طرح‌های بالاتر همان لینک را با پیامک بفرستید."
       error={errorMessage(clothesRes) || errorMessage(sharesRes)}
     >
       <ShareLinksBoard clothes={clothes} shares={shares} />

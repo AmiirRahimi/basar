@@ -36,6 +36,8 @@ import { fail, failDb, ok, type ActionResult } from './result';
 import type { PublicOrderSummary } from '@/lib/types';
 import type { Session } from './session';
 import { withWorkspace, accessibleStores } from './workspace';
+import { denyPlanFeature, subscriptionForSession } from './subscription';
+import { publicAppOrigin, sendSmsText, shareUrl } from './sms';
 import { clampPage, MAX_LIST_SCAN } from './paging';
 import { clientIp, rateLimit } from './rate-limit';
 
@@ -666,6 +668,9 @@ export async function createResource(resource: string, payload: unknown): Promis
       _changedItemId: created._id,
     });
   }
+  if (resource === 'cloth') {
+    void notifyCustomersOfNewCloth(auth.session, created);
+  }
   return ok(serialize(created.toObject ? created.toObject() : created), 'ثبت شد');
 }
 
@@ -749,9 +754,18 @@ export async function updateResource(resource: string, id: string, payload: unkn
       : resource === 'cloth'
         ? { _id: id, ...clothVisibleFilter(auth.session) }
         : { _id: id, _storeId: oid(auth.session._storeId) };
+  const previous = resource === 'cloth' ? await cfg.model.findOne(filter).lean() : null;
   const updated = await cfg.model.findOneAndUpdate(filter, body, { new: true });
   if (!updated) return fail('پیدا نشد', 404);
   if (cfg.populate) await updated.populate(cfg.populate);
+  if (
+    resource === 'cloth' &&
+    isTruthyFlag((updated as any).published) &&
+    previous &&
+    !isTruthyFlag((previous as any).published)
+  ) {
+    void notifyCustomersOfNewCloth(auth.session, updated);
+  }
   return ok(serialize(updated.toObject()), 'ویرایش شد');
 }
 
@@ -841,11 +855,38 @@ function shareClothIds(value: unknown) {
   return ids;
 }
 
-export async function createProductShare(payload: { title?: string; clothIds: unknown }): Promise<ActionResult> {
+async function insertProductShare(session: Session, title: string, clothIds: string[]) {
+  const token = publicOrderToken();
+  const created = await M().ProductShare.create({
+    token,
+    title: title.trim().slice(0, 80),
+    _clothIds: clothIds.map((id) => oid(id)),
+    _storeId: oid(session._storeId),
+    _brandId: oid(session._brandId),
+    _userId: oid(session._id),
+    isDeleted: false,
+    timeStamp: new Date(),
+  });
+  return { token, created, clothIds };
+}
+
+export async function createProductShare(payload: {
+  title?: string;
+  clothIds: unknown;
+  phone?: string;
+}): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
   const denied = denyWrite(access.session, 'product-share');
   if (denied) return denied;
+  const sub = await subscriptionForSession(access.session);
+  const blocked = denyPlanFeature(sub, 'share');
+  if (blocked) return blocked;
+  const phone = String(payload.phone || '').trim();
+  if (phone) {
+    const smsBlocked = denyPlanFeature(sub, 'share-sms');
+    if (smsBlocked) return smsBlocked;
+  }
   const clothIds = shareClothIds(payload.clothIds);
   if (!clothIds.length) return fail('حداقل یک لباس انتخاب کنید');
   if (clothIds.length > MAX_SHARE_CLOTHES) return fail(`حداکثر ${MAX_SHARE_CLOTHES} لباس در هر لینک مجاز است`);
@@ -857,17 +898,13 @@ export async function createProductShare(payload: { title?: string; clothIds: un
   const allowed = new Set((clothes as any[]).map((row) => String(row._id)));
   const kept = clothIds.filter((id) => allowed.has(id));
   if (!kept.length) return fail('لباس معتبری انتخاب نشده');
-  const token = publicOrderToken();
-  const created = await M().ProductShare.create({
-    token,
-    title: String(payload.title || '').trim().slice(0, 80),
-    _clothIds: kept.map((id) => oid(id)),
-    _storeId: oid(access.session._storeId),
-    _brandId: oid(access.session._brandId),
-    _userId: oid(access.session._id),
-    isDeleted: false,
-    timeStamp: new Date(),
-  });
+  const { token, created } = await insertProductShare(access.session, String(payload.title || ''), kept);
+  let smsMessage = '';
+  if (phone) {
+    const sent = await dispatchShareSms(access.session, token, phone);
+    if (!sent.ok) return fail(sent.message);
+    smsMessage = sent.message;
+  }
   return ok(
     serialize({
       _id: created._id,
@@ -876,8 +913,75 @@ export async function createProductShare(payload: { title?: string; clothIds: un
       _clothIds: kept,
       clothCount: kept.length,
     }),
-    'لینک ساخته شد',
+    smsMessage || 'لینک ساخته شد',
   );
+}
+
+export async function sendProductShareSms(payload: { shareId?: string; phone: string }): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const denied = denyWrite(access.session, 'product-share');
+  if (denied) return denied;
+  const sub = await subscriptionForSession(access.session);
+  const blocked = denyPlanFeature(sub, 'share-sms');
+  if (blocked) return blocked;
+  const phone = String(payload.phone || '').trim();
+  await db();
+  const row = await M().ProductShare.findOne({
+    _id: oid(payload.shareId),
+    _storeId: oid(access.session._storeId),
+    isDeleted: false,
+  }).lean();
+  if (!row) return fail('لینک پیدا نشد', 404);
+  const sent = await dispatchShareSms(access.session, String(row.token), phone);
+  if (!sent.ok) return fail(sent.message);
+  return ok({ _id: String(row._id), token: row.token }, sent.message);
+}
+
+async function dispatchShareSms(session: Session, token: string, phone: string) {
+  if (!PHONE_RE.test(phone)) return { ok: false, message: 'شماره موبایل معتبر نیست' };
+  const ip = await clientIp();
+  if (
+    !rateLimit(`share-sms:${session._storeId}:${phone}`, 8, 60 * 60 * 1000) ||
+    !rateLimit(`share-sms-ip:${ip}`, 30, 60 * 60 * 1000)
+  ) {
+    return { ok: false, message: 'تعداد پیامک‌ها زیاد است. کمی بعد دوباره تلاش کنید' };
+  }
+  const origin = await publicAppOrigin();
+  if (!origin) return { ok: false, message: 'آدرس سایت برای ساخت لینک مشخص نیست' };
+  const url = shareUrl(token, origin);
+  return sendSmsText(phone, `لینک محصولات: ${url}`);
+}
+
+async function notifyCustomersOfNewCloth(session: Session, cloth: any) {
+  try {
+    if (!isTruthyFlag(cloth?.published)) return;
+    const sub = await subscriptionForSession(session);
+    if (denyPlanFeature(sub, 'product-sms')) return;
+    const origin = await publicAppOrigin();
+    if (!origin) return;
+    const clothId = String(cloth?._id || '');
+    if (!clothId) return;
+    const { token } = await insertProductShare(session, String(cloth?.code || 'محصول جدید'), [clothId]);
+    const url = shareUrl(token, origin);
+    const customers = await M()
+      .Person.find({
+        _storeId: oid(session._storeId),
+        role: '1',
+        isDeleted: false,
+      })
+      .select('phoneNumber')
+      .limit(80)
+      .lean();
+    for (const person of customers as any[]) {
+      const phone = String(person.phoneNumber || '').trim();
+      if (!PHONE_RE.test(phone)) continue;
+      if (!rateLimit(`new-product-sms:${session._storeId}:${phone}`, 3, 24 * 60 * 60 * 1000)) continue;
+      await sendSmsText(phone, `محصول جدید اضافه شد. مشاهده: ${url}`);
+    }
+  } catch {
+    /* never block cloth create */
+  }
 }
 
 export async function listProductShares(): Promise<ActionResult> {

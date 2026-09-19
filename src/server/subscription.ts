@@ -3,6 +3,7 @@ import {
   cycleDays,
   cycleFromLegacy,
   planById,
+  planFeatureFlags,
   planFromLegacy,
   planPrice,
   type BillingCycle,
@@ -36,6 +37,9 @@ export type SubscriptionSnapshot = {
   maxBrands: number;
   maxStores: number;
   allowPartners: boolean;
+  allowProductShare: boolean;
+  allowShareSms: boolean;
+  notifyCustomersOnNewProduct: boolean;
 };
 
 const INACTIVE: SubscriptionSnapshot = {
@@ -47,6 +51,9 @@ const INACTIVE: SubscriptionSnapshot = {
   maxBrands: 0,
   maxStores: 0,
   allowPartners: false,
+  allowProductShare: false,
+  allowShareSms: false,
+  notifyCustomersOnNewProduct: false,
 };
 
 export function snapshotFromRow(row: any): SubscriptionSnapshot {
@@ -66,7 +73,25 @@ export function snapshotFromRow(row: any): SubscriptionSnapshot {
     maxBrands: plan.maxBrands,
     maxStores: plan.maxStores,
     allowPartners: plan.allowPartners,
+    ...planFeatureFlags(plan),
   };
+}
+
+export function denyPlanFeature(
+  sub: SubscriptionSnapshot,
+  feature: 'share' | 'share-sms' | 'product-sms',
+) {
+  if (!sub.active) return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
+  if (feature === 'share' && !sub.allowProductShare) {
+    return fail('ساخت لینک محصول در طرح اشتراک شما نیست. از تنظیمات طرح را ارتقا دهید.');
+  }
+  if (feature === 'share-sms' && !sub.allowShareSms) {
+    return fail('ارسال لینک با پیامک در طرح فروشگاه‌ها و بالاتر است.');
+  }
+  if (feature === 'product-sms' && !sub.notifyCustomersOnNewProduct) {
+    return fail('پیامک محصول جدید به مشتری در طرح شرکا و برندها است.');
+  }
+  return null;
 }
 
 export async function remainingDays(userId: string) {
@@ -95,6 +120,7 @@ export async function subscriptionForSession(session: Session): Promise<Subscrip
       maxBrands: plan.maxBrands,
       maxStores: plan.maxStores,
       allowPartners: true,
+      ...planFeatureFlags(plan),
     };
   }
   const brand = session._brandId

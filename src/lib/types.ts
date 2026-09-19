@@ -132,6 +132,9 @@ export type Workspace = {
     maxBrands?: number;
     maxStores?: number;
     allowPartners?: boolean;
+    allowProductShare?: boolean;
+    allowShareSms?: boolean;
+    notifyCustomersOnNewProduct?: boolean;
   };
   imageTokens?: number;
   imageTokensUnlimited?: boolean;

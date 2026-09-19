@@ -2,10 +2,12 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Check, X } from 'lucide-react';
 import { activateSubscription } from '@/actions/auth';
 import {
   ANNUAL_DISCOUNT,
+  MONTHLY_BASE_TOMAN,
   SUBSCRIPTION_PLANS,
   cycleLabel,
   planPrice,
@@ -104,11 +106,26 @@ export function SubscriptionPanel({
         </section>
       ) : null}
 
+      <section className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4 text-sm text-teal-950">
+        <p className="font-medium">لینک محصول و پیامک مشتری</p>
+        <p className="mt-1 text-teal-900/80">
+          از صفحه{' '}
+          <Link href="/counting/shares" className="underline">
+            لینک محصول
+          </Link>{' '}
+          برای انتخاب لباس‌ها، ساخت لینک و ارسال به شماره موبایل استفاده کنید. در طرح شرکا و برندها، با انتشار محصول جدید
+          لینک همان محصول برای مشتری‌های عمده پیامک می‌شود.
+        </p>
+      </section>
+
       <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">{active ? 'تمدید یا ارتقا' : 'خرید اشتراک'}</h3>
-              <p className="text-xs text-gray-500">ماهانه از {toman(100_000)}. سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪ تخفیف دارد.</p>
+              <p className="text-xs text-gray-500">
+                ماهانه از {toman(MONTHLY_BASE_TOMAN)}. سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪ تخفیف دارد. ساخت لینک
+                محصول در همه طرح‌هاست؛ ارسال پیامک و اطلاع محصول جدید در طرح‌های بالاتر.
+              </p>
             </div>
             <div className="flex rounded-xl bg-gray-100 p-1">
               <button
