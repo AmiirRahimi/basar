@@ -425,6 +425,38 @@ const ProductShareSchema = new Schema(
   { collection: 'productshares' },
 );
 
+const TelegramPublishSchema = new Schema(
+  {
+    _clothId: { type: Schema.Types.ObjectId, ref: 'Cloth', required: true, index: true },
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    code: { type: String, default: '' },
+    sizeName: { type: String, default: '' },
+    colorName: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
+    orderUrl: { type: String, default: '' },
+    caption: { type: String, default: '' },
+    channelId: { type: String, default: '' },
+    telegramMessageId: { type: Number, default: null },
+    status: { type: String, enum: ['sent', 'failed'], default: 'sent' },
+    error: { type: String, default: '' },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'telegrampublishes' },
+);
+
+const TelegramInviteSchema = new Schema(
+  {
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    _personIds: { type: [Schema.Types.ObjectId], ref: 'Person', default: [] },
+    inviteLink: { type: String, default: '' },
+    phones: { type: [String], default: [] },
+    sentCount: { type: Number, default: 0 },
+    failedCount: { type: Number, default: 0 },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'telegraminvites' },
+);
+
 const AttachmentSchema = new Schema(
   {
     size: Number,
@@ -469,6 +501,8 @@ export const UserPermision = modelOf<any>('UserPermision', UserPermisionSchema);
 export const ImageTokenPurchase = modelOf<any>('ImageTokenPurchase', ImageTokenPurchaseSchema);
 export const ImageEdit = modelOf<any>('ImageEdit', ImageEditSchema);
 export const ProductShare = modelOf<any>('ProductShare', ProductShareSchema);
+export const TelegramPublish = modelOf<any>('TelegramPublish', TelegramPublishSchema);
+export const TelegramInvite = modelOf<any>('TelegramInvite', TelegramInviteSchema);
 export const Attachment = modelOf<any>('Attachment', AttachmentSchema);
 
 export const PERSON_POPULATE = personSelect;

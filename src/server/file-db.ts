@@ -359,4 +359,6 @@ export const fileModels = {
   ImageTokenPurchase: new FileModel('imagetokenpurchases'),
   ImageEdit: new FileModel('imageedits'),
   ProductShare: new FileModel('productshares'),
+  TelegramPublish: new FileModel('telegrampublishes'),
+  TelegramInvite: new FileModel('telegraminvites'),
 };

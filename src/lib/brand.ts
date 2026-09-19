@@ -26,6 +26,13 @@ export const BRAND_ADDRESSES = [
   },
 ] as const;
 
+/** Social profile URLs — override with NEXT_PUBLIC_* in env when ready. */
+export const BRAND_SOCIAL = {
+  instagram: process.env.NEXT_PUBLIC_INSTAGRAM_URL || 'https://instagram.com/jeanpoosh',
+  telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || 'https://t.me/jeanpoosh',
+  linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || 'https://www.linkedin.com/company/jeanpoosh',
+} as const;
+
 const COLOR_SWATCHES: Array<[string, string]> = [
   ['سرمه', '#1b365d'],
   ['زغال', '#3a3a3a'],

@@ -1,8 +1,8 @@
 'use client';
 
-import { BRAND, BRAND_ADDRESSES, BRAND_PHONES } from '@/lib/brand';
+import { BRAND, BRAND_ADDRESSES, BRAND_PHONES, BRAND_SOCIAL } from '@/lib/brand';
 import { cn } from '@/ui/lib/cn';
-import { Menu, Phone, X } from 'lucide-react';
+import { Instagram, Linkedin, Menu, Phone, Send, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -130,6 +130,38 @@ export function ShopFooter() {
               {address.line}
             </p>
           ))}
+          <div className="pt-2">
+            <p className="mb-2 text-xs tracking-[0.18em] text-shop-saffron">شبکه‌های اجتماعی</p>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={BRAND_SOCIAL.instagram}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs text-shop-bone/85 hover:bg-white/5 hover:text-shop-saffron"
+              >
+                <Instagram className="h-3.5 w-3.5" />
+                اینستاگرام
+              </a>
+              <a
+                href={BRAND_SOCIAL.telegram}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs text-shop-bone/85 hover:bg-white/5 hover:text-shop-saffron"
+              >
+                <Send className="h-3.5 w-3.5" />
+                تلگرام
+              </a>
+              <a
+                href={BRAND_SOCIAL.linkedin}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs text-shop-bone/85 hover:bg-white/5 hover:text-shop-saffron"
+              >
+                <Linkedin className="h-3.5 w-3.5" />
+                لینکدین
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

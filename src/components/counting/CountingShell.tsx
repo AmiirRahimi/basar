@@ -44,6 +44,7 @@ const menuSections = [
     icon: Shield,
     menuItems: [
       { name: 'کاربران و اشتراک', href: '/counting/admin/users' },
+      { name: 'تلگرام', href: '/counting/admin/telegram' },
       { name: 'لیست‌های کمکی', href: '/counting/admin/dropdowns' },
     ],
   },
