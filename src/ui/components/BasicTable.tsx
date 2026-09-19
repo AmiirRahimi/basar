@@ -9,6 +9,12 @@ import { ClipLoader } from 'react-spinners';
 import { cn } from '../lib/cn';
 import { Button } from './Button';
 import { EmptyState } from './EmptyState';
+import { TableOverflowText } from './TableOverflowText';
+
+function isCompactColumn(columnId: string, header: unknown) {
+  if (columnId === 'actions' || columnId === 'select') return true;
+  return header === 'عملیات';
+}
 
 export type BasicTableLabels = {
   noResults?: string;
@@ -73,7 +79,7 @@ export function BasicTable<TData = any>({
       )}
 
       <Box className="custom-scrollbar w-full overflow-x-auto">
-        <Table className="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
+        <Table className="w-full table-fixed divide-y divide-gray-100 dark:divide-gray-800">
           <Table.Header
             className={cn(
               stickyHeader ? 'sticky top-0 z-10' : '',
@@ -86,7 +92,7 @@ export function BasicTable<TData = any>({
                   <Table.Head
                     key={header.id}
                     style={{ width: header.getSize() }}
-                    className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 ltr:text-left rtl:text-right"
+                    className="overflow-hidden px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 ltr:text-left rtl:text-right"
                   >
                     <div
                       className={cn(
@@ -104,9 +110,9 @@ export function BasicTable<TData = any>({
                     >
                       {header.isPlaceholder ? null : (
                         <>
-                          <span>
+                          <TableOverflowText className="font-medium">
                             {flexRender(header.column.columnDef.header, header.getContext())}
-                          </span>
+                          </TableOverflowText>
                           {header.column.getCanSort() && !sorting?.remove && (
                             <div className="flex items-center">
                               {header.column.getIsSorted() === 'asc' ? (
@@ -157,14 +163,26 @@ export function BasicTable<TData = any>({
                       'bg-primary/5 shadow-[inset_3px_0_0_0_rgb(var(--primary-default)/0.45)] hover:bg-primary/8 dark:bg-primary/[0.04] dark:hover:bg-primary/[0.06]'
                   )}
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getVisibleCells().map((cell) => {
+                    const compact = isCompactColumn(cell.column.id, cell.column.columnDef.header);
+                    return (
                     <Table.Cell
                       key={cell.id}
-                      className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300"
+                      className={cn(
+                        'px-4 py-3 text-sm text-gray-600 dark:text-gray-300',
+                        compact ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden',
+                      )}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {compact ? (
+                        flexRender(cell.column.columnDef.cell, cell.getContext())
+                      ) : (
+                        <TableOverflowText>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableOverflowText>
+                      )}
                     </Table.Cell>
-                  ))}
+                    );
+                  })}
                 </Table.Row>
               );
             })}

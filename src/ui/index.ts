@@ -71,6 +71,7 @@ export {
   type BasicTableProps,
   type BasicTableLabels,
 } from './components/BasicTable';
+export { TableOverflowText } from './components/TableOverflowText';
 export {
   TableFilter,
   type TableFilterProps,

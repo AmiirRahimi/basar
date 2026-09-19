@@ -14,7 +14,7 @@ import {
   User,
   Wallet,
 } from 'lucide-react';
-import { InfoRow, SectionCard } from '@/ui';
+import { InfoRow, SectionCard, TableOverflowText } from '@/ui';
 import { AdminUserEditTrigger } from './AdminUserEditor';
 import { ClothImageGallery } from './ClothImageGallery';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
@@ -386,7 +386,7 @@ export function RecordDetail({
       {Array.isArray(extras?.lines) && extras.lines.length ? (
         <SectionCard title="اقلام فاکتور" flush={false}>
           <div className="overflow-hidden rounded-2xl border border-gray-100">
-            <table className="min-w-full divide-y divide-gray-100 text-sm">
+            <table className="w-full table-fixed divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500">
                 <tr>
                   <th className="px-4 py-2.5 text-right font-medium">لباس</th>
@@ -408,16 +408,20 @@ export function RecordDetail({
                       : 'لباس');
                   return (
                     <tr key={String(line._id || index)}>
-                      <td className="px-4 py-3">
-                        {clothId ? (
-                          <Link href={recordViewPath('cloth', clothId)} className="text-primary hover:underline">
-                            {label}
-                          </Link>
-                        ) : (
-                          label
-                        )}
+                      <td className="max-w-0 overflow-hidden px-4 py-3">
+                        <TableOverflowText>
+                          {clothId ? (
+                            <Link href={recordViewPath('cloth', clothId)} className="text-primary hover:underline">
+                              {label}
+                            </Link>
+                          ) : (
+                            label
+                          )}
+                        </TableOverflowText>
                         {Array.isArray(line.packs) && line.packs.length ? (
-                          <p className="mt-0.5 text-xs text-gray-400">{formatPacksFa(line.packs as any)}</p>
+                          <TableOverflowText className="mt-0.5 text-xs text-gray-400">
+                            {formatPacksFa(line.packs as any)}
+                          </TableOverflowText>
                         ) : null}
                       </td>
                       <td className="px-4 py-3">{faNumber(count)}</td>

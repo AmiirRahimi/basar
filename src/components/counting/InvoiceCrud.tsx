@@ -11,6 +11,7 @@ import {
   Input,
   Modal,
   Select,
+  TableOverflowText,
   toast,
 } from '@/ui';
 import {
@@ -574,7 +575,7 @@ export function InvoiceCrud({
                 <p>آدرس: {summary.address || '—'}</p>
               </div>
               <div className="overflow-hidden rounded-xl border">
-                <table className="w-full text-sm">
+                <table className="w-full table-fixed text-sm">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-3 text-right">محصول</th>
@@ -587,8 +588,12 @@ export function InvoiceCrud({
                   <tbody>
                     {summary.items.map((item, index) => (
                       <tr key={`${item.label}-${index}`} className="border-t">
-                        <td className="p-3">{item.label}</td>
-                        <td className="p-3">{formatPacksFa(item.packs || [])}</td>
+                        <td className="max-w-0 overflow-hidden p-3">
+                          <TableOverflowText>{item.label}</TableOverflowText>
+                        </td>
+                        <td className="max-w-0 overflow-hidden p-3">
+                          <TableOverflowText>{formatPacksFa(item.packs || [])}</TableOverflowText>
+                        </td>
                         <td className="p-3">{item.count}</td>
                         <td className="p-3">{toman(item.price)}</td>
                         <td className="p-3">{toman(item.count * item.price)}</td>
