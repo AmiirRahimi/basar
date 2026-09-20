@@ -52,6 +52,7 @@ export function StorefrontOrdersPanel({ board }: { board: StorefrontOrderBoard }
                 <th className="px-2 py-2 font-medium">تاریخ</th>
                 <th className="px-2 py-2 font-medium">مشتری</th>
                 <th className="px-2 py-2 font-medium">فروشنده</th>
+                <th className="px-2 py-2 font-medium">لباس‌ها</th>
                 <th className="px-2 py-2 font-medium">فروشگاه</th>
                 <th className="px-2 py-2 font-medium">مبلغ</th>
                 <th className="px-2 py-2 font-medium">سهم باسار</th>
@@ -77,6 +78,11 @@ export function StorefrontOrdersPanel({ board }: { board: StorefrontOrderBoard }
                           {row.sellerPhone}
                         </p>
                       ) : null}
+                    </td>
+                    <td className="px-2 py-2 text-gray-700">
+                      {(row.lines || []).length
+                        ? row.lines.map((line) => line.name).join('، ')
+                        : '—'}
                     </td>
                   <td className="px-2 py-2 text-gray-700">
                     {[row.brandName, row.storeName].filter(Boolean).join(' · ')}

@@ -325,6 +325,7 @@ export type StorefrontOrder = {
   feePercent: number;
   platformFee: number;
   sellerPayout: number;
+  lines: PublicOrderLine[];
 };
 
 export type StorefrontOrderBoard = {

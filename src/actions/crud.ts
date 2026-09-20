@@ -28,6 +28,7 @@ import {
   clothProfitSummary,
   updateResource as update,
   listStorefrontOrders,
+  listSellerStorefrontOrders,
 } from '@/server/domain';
 import { listUsers as usersDb } from '@/server/auth';
 
@@ -77,6 +78,10 @@ export async function loadPublicOrders(ids: string[]) {
 
 export async function loadStorefrontOrders() {
   return listStorefrontOrders();
+}
+
+export async function loadSellerStorefrontOrders() {
+  return listSellerStorefrontOrders();
 }
 
 export async function listPeople(page = 1, skip = 200) {

@@ -38,7 +38,7 @@ import * as mongo from './models';
 import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import { clampDiscountPercent, isTruthyFlag, saleState } from '@/lib/product-sale';
 import { fail, failDb, ok, type ActionResult } from './result';
-import type { PublicOrderSummary, StorefrontOrderBoard } from '@/lib/types';
+import type { PublicOrderSummary, StorefrontOrder, StorefrontOrderBoard } from '@/lib/types';
 import { GATEWAY_FEE_PERCENT, splitGatewayAmount, STOREFRONT_CHANNEL } from '@/lib/storefront';
 import type { Session } from './session';
 import { withWorkspace, accessibleStores } from './workspace';
@@ -1468,6 +1468,74 @@ function personPhone(row: any) {
   return String(raw || '').trim();
 }
 
+async function mapStorefrontInvoices(rows: any[]): Promise<StorefrontOrder[]> {
+  const invoices = Array.isArray(rows) ? rows : [];
+  const ids = invoices.map((row) => row._id).filter(Boolean);
+  const lineRows = ids.length
+    ? await (M().CustomerCart.find({ _invoice: { $in: ids }, isDeleted: false }) as any)
+        .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
+        .lean()
+    : [];
+  const byInvoice = new Map<string, any[]>();
+  for (const line of Array.isArray(lineRows) ? lineRows : []) {
+    const key = String(line._invoice);
+    const list = byInvoice.get(key) || [];
+    list.push(line);
+    byInvoice.set(key, list);
+  }
+  return invoices.map((row: any) => {
+    const platformFee = Math.max(0, Number(row.platformFee || 0));
+    const sellerPayout = Math.max(0, Number(row.sellerPayout || 0));
+    const store = row._storeId && typeof row._storeId === 'object' ? row._storeId : null;
+    const brand = row._brandId && typeof row._brandId === 'object' ? row._brandId : null;
+    const seller = row._sellerUserId && typeof row._sellerUserId === 'object' ? row._sellerUserId : null;
+    const customer = row._client && typeof row._client === 'object' ? row._client : null;
+    const mapped = (byInvoice.get(String(row._id)) || []).map((line: any) => {
+      const count = Number(line.count || 0);
+      const price = Number(line.price || 0);
+      return {
+        name: clothDisplayName(line._cloth),
+        packsLabel: mergePacks(parsePacks(line.packs))
+          .map((pack) => `${pack.count} بسته ${pack.items} تایی`)
+          .join('، '),
+        count,
+        price,
+        total: count * price,
+      };
+    });
+    const paid = platformFee + sellerPayout;
+    return {
+      _id: String(row._id),
+      invoiceNumber: row.invoiceNumber,
+      timeStamp: row.timeStamp,
+      customerName: personLabel(customer) || 'مشتری',
+      customerPhone: personPhone(customer),
+      sellerName: personLabel(seller) || 'فروشنده',
+      sellerPhone: personPhone(seller),
+      storeName: store?.name || 'فروشگاه',
+      brandName: brand?.name || '',
+      shareToken: String(row.shareToken || ''),
+      total: paid || mapped.reduce((sum: number, line: { total: number }) => sum + line.total, 0),
+      feePercent: Number(row.platformFeePercent || GATEWAY_FEE_PERCENT),
+      platformFee,
+      sellerPayout,
+      lines: mapped,
+    };
+  });
+}
+
+function storefrontTotals(orders: StorefrontOrder[]) {
+  return orders.reduce(
+    (sum, row) => ({
+      total: sum.total + row.total,
+      platformFee: sum.platformFee + row.platformFee,
+      sellerPayout: sum.sellerPayout + row.sellerPayout,
+      count: sum.count + 1,
+    }),
+    { total: 0, platformFee: 0, sellerPayout: 0, count: 0 },
+  );
+}
+
 export async function listStorefrontOrders(): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
@@ -1481,44 +1549,40 @@ export async function listStorefrontOrders(): Promise<ActionResult> {
     .sort({ timeStamp: -1 })
     .limit(200)
     .lean();
-  const orders = (Array.isArray(rows) ? rows : []).map((row: any) => {
-    const platformFee = Math.max(0, Number(row.platformFee || 0));
-    const sellerPayout = Math.max(0, Number(row.sellerPayout || 0));
-    const store = row._storeId && typeof row._storeId === 'object' ? row._storeId : null;
-    const brand = row._brandId && typeof row._brandId === 'object' ? row._brandId : null;
-    const seller = row._sellerUserId && typeof row._sellerUserId === 'object' ? row._sellerUserId : null;
-    const customer = row._client && typeof row._client === 'object' ? row._client : null;
-    return {
-      _id: String(row._id),
-      invoiceNumber: row.invoiceNumber,
-      timeStamp: row.timeStamp,
-      customerName: personLabel(customer) || 'مشتری',
-      customerPhone: personPhone(customer),
-      sellerName: personLabel(seller) || 'فروشنده',
-      sellerPhone: personPhone(seller),
-      storeName: store?.name || 'فروشگاه',
-      brandName: brand?.name || '',
-      shareToken: String(row.shareToken || ''),
-      total: platformFee + sellerPayout,
-      feePercent: Number(row.platformFeePercent || GATEWAY_FEE_PERCENT),
-      platformFee,
-      sellerPayout,
-    };
-  });
-  const totals = orders.reduce(
-    (sum, row) => ({
-      total: sum.total + row.total,
-      platformFee: sum.platformFee + row.platformFee,
-      sellerPayout: sum.sellerPayout + row.sellerPayout,
-      count: sum.count + 1,
-    }),
-    { total: 0, platformFee: 0, sellerPayout: 0, count: 0 },
-  );
+  const orders = await mapStorefrontInvoices(rows);
   const board: StorefrontOrderBoard = {
     orders,
-    totals,
+    totals: storefrontTotals(orders),
     feePercent: GATEWAY_FEE_PERCENT,
     isPlatformAdmin: true,
+  };
+  return ok(serialize(board));
+}
+
+export async function listSellerStorefrontOrders(): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const denied = denyRead(access.session, 'product-share');
+  if (denied) return denied;
+  await db();
+  const rows = await (M().Invoice.find({
+    channel: STOREFRONT_CHANNEL,
+    _storeId: oid(access.session._storeId),
+    isDeleted: false,
+  }) as any)
+    .populate('_client', 'fullName phoneNumber')
+    .populate('_storeId', 'name _userId _brandId')
+    .populate('_brandId', 'name')
+    .populate('_sellerUserId', 'fullName phonenumber')
+    .sort({ timeStamp: -1 })
+    .limit(100)
+    .lean();
+  const orders = await mapStorefrontInvoices(rows);
+  const board: StorefrontOrderBoard = {
+    orders,
+    totals: storefrontTotals(orders),
+    feePercent: GATEWAY_FEE_PERCENT,
+    isPlatformAdmin: false,
   };
   return ok(serialize(board));
 }

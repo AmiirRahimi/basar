@@ -12,6 +12,7 @@ import {
   getShopCartProduct,
   listPublicCatalog,
   loadPublicOrders,
+  loadSellerStorefrontOrders,
   loadStorefrontOrders,
   placePublicWholesaleOrder,
 } from './crud';
@@ -193,4 +194,8 @@ export async function getPublicOrders(ids: string[]) {
 
 export async function getStorefrontOrderBoard() {
   return loadStorefrontOrders();
+}
+
+export async function getSellerStorefrontOrders() {
+  return loadSellerStorefrontOrders();
 }
