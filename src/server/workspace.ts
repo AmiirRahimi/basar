@@ -145,20 +145,6 @@ export async function ensureOwnerWorkspace(userId: string, fullName?: string, ph
       isDeleted: false,
     });
   }
-  await seedOwnedStores(userId);
-}
-
-async function seedOwnedStores(userId: string) {
-  const { seedStoreIfEmpty } = await import('./seed');
-  const brands = await M().Brand.find({ _userId: oid(userId), isDeleted: false }).lean();
-  const brandIds = (brands || []).map((brand: any) => brand._id);
-  const stores = await M().Store.find({
-    isDeleted: false,
-    $or: [{ _userId: oid(userId) }, ...(brandIds.length ? [{ _brandId: { $in: brandIds } }] : [])],
-  }).lean();
-  for (const store of stores || []) {
-    await seedStoreIfEmpty(store._id, store._brandId, userId);
-  }
 }
 
 export async function accessibleStores(userId: string, phonenumber: string) {
