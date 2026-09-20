@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Printer } from 'lucide-react';
-import { Button } from '@/ui';
+import { Button, Checkbox } from '@/ui';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { paymentApplied } from '@/lib/checks';
 import {
@@ -204,14 +204,11 @@ export function PersonPaymentsView({
 
       {canSelect ? (
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selectedIds.length > 0 && selectedIds.length === groups.length}
-              onChange={toggleAll}
-            />
-            انتخاب همه فاکتورها برای چاپ
-          </label>
+          <Checkbox
+            checked={selectedIds.length > 0 && selectedIds.length === groups.length}
+            onChange={toggleAll}
+            label="انتخاب همه فاکتورها برای چاپ"
+          />
           <span className="text-xs text-gray-400">{faNumber(selectedIds.length)} فاکتور انتخاب شده</span>
         </div>
       ) : null}
@@ -247,16 +244,7 @@ export function PersonPaymentsView({
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-start gap-3">
-                      {canSelect ? (
-                        <input
-                          type="checkbox"
-                          className="mt-1"
-                          checked={selectedIds.includes(id)}
-                          onChange={() => toggleSelected(id)}
-                          aria-label={`انتخاب فاکتور ${group.invoice.invoiceNumber || id}`}
-                        />
-                      ) : null}
+                    <div className="min-w-0 flex-1 space-y-2">
                       <div>
                         <p className="text-[11px] font-medium text-gray-500">
                           فاکتور {faNumber(index + 1)} از {faNumber(groups.length)}
@@ -265,6 +253,13 @@ export function PersonPaymentsView({
                           فاکتور {group.invoice.invoiceNumber || '—'}
                         </h3>
                       </div>
+                      {canSelect ? (
+                        <Checkbox
+                          checked={selectedIds.includes(id)}
+                          onChange={() => toggleSelected(id)}
+                          label="انتخاب برای چاپ"
+                        />
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {settled ? (
