@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { fabricLotTotal, fabricUnitCost, clothFinishedUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
 import { sanitizeClothExtras } from '@/lib/cloth-extras';
 import { sanitizeFabricExtras } from '@/lib/fabric-extras';
+import { parseGroupedNumber } from '@/lib/format';
 import {
   addPacks,
   formatPacksFa,
@@ -134,6 +135,24 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
   'cloth-kind': ['name'],
   'cloth-style': ['name', '_clothKind'],
 };
+
+const NUMBER_FIELDS = new Set([
+  'amount',
+  'priceForUnit',
+  'priceForShipingForUnit',
+  'discount',
+  'sewingFee',
+  'amountUsed',
+  'boughtFee',
+  'tailorFee',
+  'washFee',
+  'trimFee',
+  'printFee',
+  'count',
+  'packSize',
+  'discountPercent',
+  'price',
+]);
 
 function sanitizeFilter(filters: Record<string, unknown>) {
   const next: Record<string, unknown> = {};
@@ -420,6 +439,9 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
     next._storeId = oid(session._storeId);
     if (session._brandId) next._brandId = oid(session._brandId);
     next.isDeleted = false;
+  }
+  for (const key of NUMBER_FIELDS) {
+    if (next[key] !== undefined) next[key] = parseGroupedNumber(next[key]);
   }
   if (resource === 'fabric' && next.extras !== undefined) {
     next.extras = sanitizeFabricExtras(next.extras);

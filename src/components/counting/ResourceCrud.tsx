@@ -10,7 +10,7 @@ import { RowActions } from './RowActions';
 import { Price, PriceField, PriceSection } from './Price';
 import { PersonRolePicker } from './PersonRolePicker';
 
-import { displayName, faDate, toman } from '@/lib/format';
+import { displayName, faDate, parseGroupedNumber, toman } from '@/lib/format';
 import { normalizePersonRoles, personRolesLabel } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { ClothImagesEditor } from './ClothImagesEditor';
@@ -490,7 +490,8 @@ export function ResourceCrud({
           payload[f.name] = parseImageList(form[f.name]);
           return;
         }
-        payload[f.name] = f.type === 'number' || f.type === 'price' ? Number(form[f.name]) : form[f.name];
+        payload[f.name] =
+          f.type === 'number' || f.type === 'price' ? parseGroupedNumber(form[f.name]) : form[f.name];
       });
       const res = editing
         ? await updateResource(resource, editing._id, payload)
@@ -640,7 +641,7 @@ export function ResourceCrud({
           label={label}
           error={error}
           value={form[field.name] ?? ''}
-          onChange={(next) => setValue(field, next ? String(next) : '')}
+          onChange={(next) => setValue(field, String(parseGroupedNumber(next)))}
         />
       );
     }
