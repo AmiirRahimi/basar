@@ -85,7 +85,11 @@ export function paymentPartTiles(row: AccountPayment): PaymentPartTile[] {
       tiles.push({
         key: `check-${check._id || index}`,
         label: checks.length > 1 ? `چک ${index + 1}` : 'چک',
-        amount: Number(check.amount || 0) || Number(row.checkAmount || 0),
+        // When one check is split across invoice payments, prefer this row's share.
+        amount:
+          checks.length === 1
+            ? Number(row.checkAmount || check.amount || 0)
+            : Number(check.amount || 0) || Number(row.checkAmount || 0),
         note: checkNote(check),
         className: 'bg-sky-50 text-sky-900',
       });

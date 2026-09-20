@@ -1447,21 +1447,67 @@ export async function createPayment(info: unknown): Promise<ActionResult> {
     if (!cash && !checkAmount && !discount && !creditAmount) {
       return fail('مبلغ نقد، چک، تخفیف یا نسیه را وارد کنید');
     }
-    const doc = {
+
+    const base = {
       _storeId: oid(auth.session._storeId),
-      _invoice: item._invoice ? oid(item._invoice) : undefined,
       _person: oid(item._person),
-      _check: oid(checkIds[0]),
-      _checks: checkIds.map((id) => oid(id)),
-      cash,
-      cashAmount: cash,
-      checkAmount,
-      creditAmount,
-      discount,
       description: item.description,
       isDeleted: false,
     };
-    created.push(doc);
+    const withChecks = (slice: { cash: number; checkAmount: number; discount: number; creditAmount: number }) => {
+      const useChecks = slice.checkAmount > 0 && checkIds.length > 0;
+      return {
+        ...base,
+        _check: useChecks ? oid(checkIds[0]) : undefined,
+        _checks: useChecks ? checkIds.map((id) => oid(id)) : [],
+        cash: slice.cash,
+        cashAmount: slice.cash,
+        checkAmount: slice.checkAmount,
+        creditAmount: slice.creditAmount,
+        discount: slice.discount,
+      };
+    };
+
+    // Pay toward a specific invoice — keep as one row.
+    if (item._invoice) {
+      created.push({
+        ...withChecks({ cash, checkAmount, discount, creditAmount }),
+        _invoice: oid(item._invoice),
+      });
+      continue;
+    }
+
+    // Pay toward all invoices: assign FIFO to open remainings so each invoice badge updates.
+    const applied = cash + checkAmount + discount;
+    const isCustomer = personIsCustomer((person as { role?: unknown }).role);
+    if (isCustomer && applied > 0) {
+      const openNeeds = await customerOpenInvoiceNeeds(auth.session, String(item._person));
+      if (openNeeds.length) {
+        let left = applied;
+        const needs: Array<{ invoiceId: string; amount: number }> = [];
+        for (const row of openNeeds) {
+          if (left <= 0) break;
+          const take = Math.min(left, row.amount);
+          if (take > 0) {
+            needs.push({ invoiceId: row.invoiceId, amount: take });
+            left -= take;
+          }
+        }
+        const slices = splitPaymentPartsAcrossNeeds({ cash, checkAmount, discount, creditAmount }, needs);
+        for (const slice of slices) {
+          created.push({
+            ...withChecks(slice),
+            _invoice: slice.invoiceId ? oid(slice.invoiceId) : undefined,
+          });
+        }
+        continue;
+      }
+    }
+
+    created.push({
+      ...withChecks({ cash, checkAmount, discount, creditAmount }),
+      _invoice: undefined,
+    });
   }
   await M().Payment.insertMany(created);
   return ok(serialize(created[0] || null), 'پرداخت ثبت شد');
@@ -1780,6 +1826,121 @@ function paymentMethodCounts(payments: any[]) {
   return { paymentCount: payments.length, cashCount, checkCount };
 }
 
+/** Spread cash → discount → check across invoice needs (oldest first); leftover stays unassigned. */
+function splitPaymentPartsAcrossNeeds(
+  parts: { cash: number; checkAmount: number; discount: number; creditAmount: number },
+  needs: Array<{ invoiceId: string; amount: number }>,
+) {
+  let cash = Math.max(0, Number(parts.cash || 0));
+  let checkAmount = Math.max(0, Number(parts.checkAmount || 0));
+  let discount = Math.max(0, Number(parts.discount || 0));
+  let creditAmount = Math.max(0, Number(parts.creditAmount || 0));
+  const slices: Array<{
+    invoiceId: string;
+    cash: number;
+    checkAmount: number;
+    discount: number;
+    creditAmount: number;
+  }> = [];
+
+  const take = (want: number) => {
+    let left = Math.max(0, want);
+    const cashTake = Math.min(left, cash);
+    cash -= cashTake;
+    left -= cashTake;
+    const discountTake = Math.min(left, discount);
+    discount -= discountTake;
+    left -= discountTake;
+    const checkTake = Math.min(left, checkAmount);
+    checkAmount -= checkTake;
+    return { cash: cashTake, checkAmount: checkTake, discount: discountTake, creditAmount: 0 };
+  };
+
+  for (const need of needs) {
+    if (need.amount <= 0) continue;
+    slices.push({ invoiceId: need.invoiceId, ...take(need.amount) });
+  }
+  if (cash > 0 || checkAmount > 0 || discount > 0 || creditAmount > 0) {
+    slices.push({ invoiceId: '', cash, checkAmount, discount, creditAmount });
+  }
+  return slices.filter(
+    (slice) => slice.cash > 0 || slice.checkAmount > 0 || slice.discount > 0 || slice.creditAmount > 0,
+  );
+}
+
+/** Apply person-level (no invoice) payments onto invoice remainings, oldest invoice first. */
+function allocateUnassignedToInvoices<
+  T extends { _id: unknown; timeStamp?: string; total: number; paid: number; returnTotal: number },
+>(invoiceRows: T[], unassignedApplied: number) {
+  let pool = Math.max(0, unassignedApplied);
+  if (!pool || !invoiceRows.length) {
+    return invoiceRows.map((row) => ({
+      ...row,
+      remaining: Math.max(0, row.total - row.paid - row.returnTotal),
+    }));
+  }
+  const extra = new Map<string, number>();
+  const oldestFirst = [...invoiceRows].sort(
+    (a, b) => new Date(a.timeStamp || 0).getTime() - new Date(b.timeStamp || 0).getTime(),
+  );
+  for (const row of oldestFirst) {
+    if (pool <= 0) break;
+    const before = Math.max(0, row.total - row.paid - row.returnTotal);
+    if (before <= 0) continue;
+    const take = Math.min(pool, before);
+    extra.set(relationKey(row._id), take);
+    pool -= take;
+  }
+  return invoiceRows.map((row) => {
+    const paid = row.paid + (extra.get(relationKey(row._id)) || 0);
+    return {
+      ...row,
+      paid,
+      remaining: Math.max(0, row.total - paid - row.returnTotal),
+    };
+  });
+}
+
+async function customerOpenInvoiceNeeds(session: Session, personId: string) {
+  const [invoices, totals, payments, returnItems] = await Promise.all([
+    M().Invoice.find(storeFilter(session, { _client: oid(personId) })).lean(),
+    cartTotalsMap(session),
+    M().Payment.find(storeFilter(session, { _person: oid(personId) })).lean(),
+    loadPersonReturnItems(session, personId),
+  ]);
+  const returnByInvoice = returnTotalsByInvoice(returnItems);
+  let unassigned = 0;
+  const paidByInvoice = new Map<string, number>();
+  for (const payment of payments as any[]) {
+    const applied = paymentApplied(payment);
+    const invoiceId = relationKey(payment._invoice);
+    if (!invoiceId) {
+      unassigned += applied;
+      continue;
+    }
+    paidByInvoice.set(invoiceId, (paidByInvoice.get(invoiceId) || 0) + applied);
+  }
+  const rows = (invoices as any[]).map((invoice) => {
+    const id = relationKey(invoice._id);
+    const total = totals[id] || 0;
+    const paid = paidByInvoice.get(id) || 0;
+    const returned = returnByInvoice.get(id) || 0;
+    return {
+      _id: invoice._id,
+      timeStamp: invoice.timeStamp,
+      total,
+      paid,
+      returnTotal: returned,
+      remaining: Math.max(0, total - paid - returned),
+    };
+  });
+  const withPool = allocateUnassignedToInvoices(rows, unassigned);
+  return withPool
+    .filter((row) => row.remaining > 0)
+    .sort((a, b) => new Date(a.timeStamp || 0).getTime() - new Date(b.timeStamp || 0).getTime())
+    .map((row) => ({ invoiceId: relationKey(row._id), amount: row.remaining }));
+}
+
 async function withPaymentChecks(payments: any[]) {
   const ids = [...new Set(payments.flatMap((row) => paymentCheckIds(row)))];
   if (!ids.length) return payments.map((row) => ({ ...row, checks: [] }));
@@ -2021,8 +2182,11 @@ export async function personAccount(personId: string): Promise<ActionResult> {
   ]);
   const returnTotal = (returnItems as any[]).reduce((sum, row) => sum + returnItemAmount(row), 0);
   const returnByInvoice = returnTotalsByInvoice(returnItems);
-  const invoiceRows = invoices
-    .map((invoice: any) => {
+  const unassignedApplied = payments
+    .filter((row: any) => !relationKey(row._invoice))
+    .reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
+  const invoiceRows = allocateUnassignedToInvoices(
+    invoices.map((invoice: any) => {
       const total = totals[relationKey(invoice._id)] || 0;
       const related = payments.filter((row: any) => relationKey(row._invoice) === relationKey(invoice._id));
       const paid = related.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
@@ -2034,11 +2198,11 @@ export async function personAccount(personId: string): Promise<ActionResult> {
         total,
         paid,
         returnTotal: returned,
-        remaining: Math.max(0, total - paid - returned),
         ...paymentMethodCounts(related),
       };
-    })
-    .sort((a: any, b: any) => new Date(b.timeStamp).getTime() - new Date(a.timeStamp).getTime());
+    }),
+    unassignedApplied,
+  ).sort((a: any, b: any) => new Date(b.timeStamp).getTime() - new Date(a.timeStamp).getTime());
   const purchaseTotal = invoiceRows.reduce((sum, row) => sum + row.total, 0);
   const vendorTotal = vendorRows.reduce((sum, row) => sum + Number(row.total || 0), 0);
   const net = purchaseTotal - paidTotal - returnTotal;
@@ -2144,16 +2308,51 @@ export async function invoiceBalance(invoiceId: string): Promise<ActionResult> {
     .populate('_client', '_id fullName')
     .lean();
   if (!invoice) return fail('فاکتور پیدا نشد', 404);
-  const [lines, payments, returnItems] = await Promise.all([
+  const clientId = relationKey((invoice as any)._client);
+  const [lines, payments, siblingInvoices, totals, allReturnItems] = await Promise.all([
     M().CustomerCart.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).lean(),
     withPaymentChecks(
-      await M().Payment.find(storeFilter(auth.session, { _invoice: oid(invoiceId) })).populate('_check').lean(),
+      await M().Payment.find(
+        storeFilter(
+          auth.session,
+          clientId ? { _person: oid(clientId) } : { _invoice: oid(invoiceId) },
+        ),
+      )
+        .populate('_check')
+        .lean(),
     ),
-    M().ReturnedItems.find({ _invoice: oid(invoiceId), isDeleted: false }).lean(),
+    clientId
+      ? M().Invoice.find(storeFilter(auth.session, { _client: oid(clientId) })).lean()
+      : Promise.resolve([invoice]),
+    cartTotalsMap(auth.session),
+    clientId ? loadPersonReturnItems(auth.session, clientId) : Promise.resolve([] as any[]),
   ]);
+  const allReturnByInvoice = returnTotalsByInvoice(allReturnItems as any[]);
+  const unassignedApplied = (payments as any[])
+    .filter((row) => !relationKey(row._invoice))
+    .reduce((sum, row) => sum + paymentApplied(row), 0);
+  const siblingRows = allocateUnassignedToInvoices(
+    (siblingInvoices as any[]).map((row) => {
+      const id = relationKey(row._id);
+      const related = (payments as any[]).filter((payment) => relationKey(payment._invoice) === id);
+      const paid = related.reduce((sum, payment) => sum + paymentApplied(payment), 0);
+      return {
+        _id: row._id,
+        timeStamp: row.timeStamp,
+        total: totals[id] || 0,
+        paid,
+        returnTotal: allReturnByInvoice.get(id) || 0,
+      };
+    }),
+    unassignedApplied,
+  );
+  const thisRow = siblingRows.find((row) => relationKey(row._id) === relationKey(invoiceId));
+  const invoicePayments = (payments as any[]).filter(
+    (row) => relationKey(row._invoice) === relationKey(invoiceId),
+  );
   const total = lines.reduce((sum: number, line: any) => sum + Number(line.count || 0) * Number(line.price || 0), 0);
-  const paid = payments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
-  const returned = (returnItems as any[]).reduce((sum, row) => sum + returnItemAmount(row), 0);
+  const paid = thisRow?.paid ?? invoicePayments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
+  const returned = thisRow?.returnTotal ?? 0;
   return ok(
     serialize({
       invoice,
@@ -2161,7 +2360,7 @@ export async function invoiceBalance(invoiceId: string): Promise<ActionResult> {
       paid,
       returnTotal: returned,
       remaining: Math.max(0, total - paid - returned),
-      payments,
+      payments: invoicePayments,
     }),
   );
 }
