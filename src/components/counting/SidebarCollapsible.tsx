@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/ui';
 
@@ -53,13 +53,7 @@ export function SidebarCollapsible({
   expanded?: boolean;
 }) {
   const panelId = useId();
-  const [hovered, setHovered] = useState(false);
-
-  useEffect(() => {
-    if (disabled || !expanded) setHovered(false);
-  }, [disabled, expanded]);
-
-  const shown = Boolean(expanded) && !disabled && (open || hovered);
+  const shown = Boolean(expanded) && !disabled && open;
   const panel = (
     <div
       id={panelId}
@@ -76,13 +70,7 @@ export function SidebarCollapsible({
   );
 
   return (
-    <div
-      className="rounded-xl"
-      onMouseEnter={() => {
-        if (expanded && !disabled) setHovered(true);
-      }}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="rounded-xl">
       {expand === 'up' ? panel : null}
       <button
         type="button"

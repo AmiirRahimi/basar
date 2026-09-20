@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createColumnHelper } from '@tanstack/react-table';
-import { BadgePercent, Ban, CircleCheck, LogIn, Receipt, Ticket, UserX, Users } from 'lucide-react';
+import { BadgePercent, Ban, CircleCheck, LogIn, Receipt, Sparkles, Ticket, UserX, Users } from 'lucide-react';
 import { createDiscountCode, deleteDiscountCode, updateDiscountCode } from '@/actions/admin';
 import { cycleLabel } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
@@ -181,7 +181,25 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
           <section className="h-fit rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h3 className="mb-3 text-sm font-semibold">کد تخفیف جدید</h3>
             <div className="grid gap-3">
-              <Input label="کد" value={form.code} onChange={(e) => setForm((s) => ({ ...s, code: e.target.value }))} />
+              <div className="flex items-end gap-2">
+                <div className="min-w-0 flex-1">
+                  <Input
+                    label="کد"
+                    dir="ltr"
+                    value={form.code}
+                    onChange={(e) => setForm((s) => ({ ...s, code: e.target.value }))}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 whitespace-nowrap"
+                  icon={<Sparkles className="h-4 w-4" />}
+                  onClick={() => setForm((s) => ({ ...s, code: randomCode() }))}
+                >
+                  ساخت کد تصادفی
+                </Button>
+              </div>
               <Input
                 label="درصد تخفیف"
                 type="number"
