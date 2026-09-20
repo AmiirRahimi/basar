@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { Pencil, Plus, X } from 'lucide-react';
+import { useRef, useState, useTransition } from 'react';
+import { ImagePlus, Replace, X } from 'lucide-react';
+import { uploadClothImages } from '@/actions/image-upload';
 import { faNumber } from '@/lib/format';
+import { redirectIfUnauthorized } from '@/lib/session-client';
 import { encodeImageList, MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
-import { Button, IconButton, Input, toast } from '@/ui';
+import { Button, FieldGroup, IconButton, toast } from '@/ui';
 
 export function ClothImagesEditor({
   label,
@@ -19,159 +21,156 @@ export function ClothImagesEditor({
   error?: string;
 }) {
   const images = parseImageList(value);
-  const [draft, setDraft] = useState('');
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editDraft, setEditDraft] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const replaceIndexRef = useRef<number | null>(null);
+  const [pending, start] = useTransition();
+  const [dragging, setDragging] = useState(false);
   const atLimit = images.length >= MAX_CLOTH_IMAGES;
+  const remaining = Math.max(0, MAX_CLOTH_IMAGES - images.length);
 
   function emit(next: string[]) {
     onChange(encodeImageList(next));
   }
 
-  function add() {
-    const url = draft.trim();
-    if (!url) {
-      toast.error('آدرس تصویر را وارد کنید');
-      return;
-    }
-    if (atLimit) {
+  function remove(src: string) {
+    emit(images.filter((item) => item !== src));
+  }
+
+  function openPicker(replaceIndex: number | null = null) {
+    if (replaceIndex == null && atLimit) {
       toast.error(`حداکثر ${faNumber(MAX_CLOTH_IMAGES)} تصویر برای هر لباس مجاز است`);
       return;
     }
-    if (images.includes(url)) {
-      toast.error('این تصویر قبلاً اضافه شده');
-      return;
-    }
-    emit([...images, url]);
-    setDraft('');
+    replaceIndexRef.current = replaceIndex;
+    inputRef.current?.click();
   }
 
-  function remove(src: string) {
-    emit(images.filter((item) => item !== src));
-    setEditingIndex(null);
-  }
+  function uploadFiles(fileList: FileList | File[] | null) {
+    const files = fileList ? Array.from(fileList) : [];
+    if (!files.length) return;
 
-  function startEdit(index: number) {
-    setEditingIndex(index);
-    setEditDraft(images[index] || '');
-  }
-
-  function saveEdit() {
-    if (editingIndex == null) return;
-    const url = editDraft.trim();
-    if (!url) {
-      toast.error('آدرس تصویر را وارد کنید');
+    const replaceIndex = replaceIndexRef.current;
+    replaceIndexRef.current = null;
+    const slots = replaceIndex == null ? remaining : 1;
+    if (!slots) {
+      toast.error(`حداکثر ${faNumber(MAX_CLOTH_IMAGES)} تصویر برای هر لباس مجاز است`);
       return;
     }
-    if (images.some((item, index) => index !== editingIndex && item === url)) {
-      toast.error('این تصویر قبلاً اضافه شده');
-      return;
-    }
-    emit(images.map((item, index) => (index === editingIndex ? url : item)));
-    setEditingIndex(null);
-    setEditDraft('');
+
+    const formData = new FormData();
+    formData.set('remaining', String(slots));
+    files.slice(0, slots).forEach((file) => formData.append('files', file));
+
+    start(async () => {
+      const res = await uploadClothImages(formData);
+      if (redirectIfUnauthorized(res)) return;
+      if (!res.ok || !res.data?.urls?.length) {
+        toast.error(res.message || 'بارگذاری تصویر ناموفق بود');
+        return;
+      }
+      const urls = res.data.urls;
+      if (replaceIndex != null) {
+        emit(images.map((item, index) => (index === replaceIndex ? urls[0] : item)));
+      } else {
+        emit([...images, ...urls].slice(0, MAX_CLOTH_IMAGES));
+      }
+      toast.success(res.message || 'تصویر اضافه شد');
+      if (inputRef.current) inputRef.current.value = '';
+    });
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-gray-200 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">{label}</p>
-          <p className="mt-1 text-xs text-gray-500">
-            حداکثر {faNumber(MAX_CLOTH_IMAGES)} تصویر. برای هر تصویر دکمه ویرایش هست.
-          </p>
-        </div>
+    <FieldGroup
+      title={label}
+      description={`فایل تصویر را از دستگاه وارد کنید. حداکثر ${faNumber(MAX_CLOTH_IMAGES)} تصویر (JPG، PNG، WEBP، GIF).`}
+      headerAction={
         <p className="shrink-0 text-xs text-gray-500">
           {faNumber(images.length)} / {faNumber(MAX_CLOTH_IMAGES)}
         </p>
-      </div>
+      }
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+        multiple
+        className="hidden"
+        onChange={(e) => uploadFiles(e.target.files)}
+      />
 
       {images.length ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {images.map((src, index) => (
-            <div key={src + index} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div key={src + index} className="overflow-hidden rounded-xl border border-gray-200 bg-white/80 dark:border-gray-700 dark:bg-gray-900/40">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="h-28 w-full object-cover" />
-              <div className="space-y-2 px-2 py-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-[11px] text-gray-500">تصویر {faNumber(index + 1)}</p>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      icon={<Pencil className="h-3 w-3" />}
-                      onClick={() => startEdit(index)}
-                    >
-                      ویرایش
-                    </Button>
-                    <IconButton
-                      type="button"
-                      size="xs"
-                      variant="ghost"
-                      aria-label="حذف تصویر"
-                      onClick={() => remove(src)}
-                    >
-                      <X className="h-4 w-4" />
-                    </IconButton>
-                  </div>
+              <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                <p className="truncate text-[11px] text-gray-500">تصویر {faNumber(index + 1)}</p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    disabled={pending}
+                    icon={<Replace className="h-3 w-3" />}
+                    onClick={() => openPicker(index)}
+                  >
+                    جایگزینی
+                  </Button>
+                  <IconButton
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    disabled={pending}
+                    aria-label="حذف تصویر"
+                    onClick={() => remove(src)}
+                  >
+                    <X className="h-4 w-4" />
+                  </IconButton>
                 </div>
-                {editingIndex === index ? (
-                  <div className="flex flex-col gap-2">
-                    <Input
-                      label="آدرس جدید تصویر"
-                      value={editDraft}
-                      onChange={(e) => setEditDraft(e.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Button type="button" size="xs" onClick={saveEdit}>
-                        ذخیره تصویر
-                      </Button>
-                      <Button type="button" size="xs" variant="outline" onClick={() => setEditingIndex(null)}>
-                        انصراف
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
           ))}
         </div>
-      ) : (
-        <p className="rounded-lg bg-gray-50 px-3 py-4 text-center text-xs text-gray-500">
-          هنوز تصویری اضافه نشده است
-        </p>
-      )}
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <Input
-          label="آدرس تصویر"
-          value={draft}
-          disabled={atLimit}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              add();
-            }
-          }}
-          placeholder={atLimit ? 'ظرفیت تصاویر پر است' : 'https://...'}
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={atLimit}
-          onClick={add}
-          icon={<Plus className="h-4 w-4" />}
-        >
-          افزودن تصویر
-        </Button>
-      </div>
-      {atLimit ? (
-        <p className="text-xs text-amber-700">نمی‌توان بیش از {faNumber(MAX_CLOTH_IMAGES)} تصویر اضافه کرد.</p>
       ) : null}
+
+      <button
+        type="button"
+        disabled={pending || atLimit}
+        onClick={() => openPicker(null)}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          setDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          if (atLimit || pending) return;
+          replaceIndexRef.current = null;
+          uploadFiles(e.dataTransfer.files);
+        }}
+        className={[
+          'flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-sm transition-colors',
+          atLimit || pending
+            ? 'cursor-not-allowed border-gray-200 text-gray-400 dark:border-gray-700'
+            : dragging
+              ? 'border-primary/50 bg-primary/5 text-primary'
+              : 'border-gray-200 text-gray-500 hover:border-primary/40 hover:text-primary dark:border-gray-700',
+        ].join(' ')}
+      >
+        <ImagePlus className="h-5 w-5" />
+        <span>{pending ? 'در حال بارگذاری…' : atLimit ? 'ظرفیت تصاویر پر است' : 'انتخاب یا رها کردن فایل تصویر'}</span>
+        {!atLimit && !pending ? (
+          <span className="text-xs text-gray-400">{faNumber(remaining)} جای خالی باقی مانده</span>
+        ) : null}
+      </button>
+
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
-    </div>
+    </FieldGroup>
   );
 }

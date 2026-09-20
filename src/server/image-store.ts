@@ -2,9 +2,19 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'product-edits');
 const PUBLIC_ROOT = path.join(process.cwd(), 'public');
-const MAX_BYTES = 8 * 1024 * 1024;
+const UPLOADS_ROOT = path.join(PUBLIC_ROOT, 'uploads');
+const PRODUCT_EDITS_DIR = path.join(UPLOADS_ROOT, 'product-edits');
+const CLOTHES_DIR = path.join(UPLOADS_ROOT, 'clothes');
+export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+const ALLOWED_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
 
 function blockedHost(hostname: string) {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
@@ -17,10 +27,15 @@ function blockedHost(hostname: string) {
   return false;
 }
 
+function isInsideUploads(resolved: string) {
+  const root = UPLOADS_ROOT.endsWith(path.sep) ? UPLOADS_ROOT : `${UPLOADS_ROOT}${path.sep}`;
+  return resolved === UPLOADS_ROOT || resolved.startsWith(root);
+}
+
 export function isSafeImageUrl(raw: string) {
   if (raw.startsWith('/uploads/')) {
     const resolved = path.resolve(PUBLIC_ROOT, `.${raw}`);
-    return resolved.startsWith(UPLOAD_DIR);
+    return isInsideUploads(resolved);
   }
   try {
     const url = new URL(raw);
@@ -37,7 +52,7 @@ export async function readSourceImage(raw: string) {
   if (raw.startsWith('/uploads/')) {
     const file = path.resolve(PUBLIC_ROOT, `.${raw}`);
     const buf = await fs.readFile(file);
-    if (buf.length > MAX_BYTES) throw new Error('حجم تصویر زیاد است');
+    if (buf.length > MAX_UPLOAD_BYTES) throw new Error('حجم تصویر زیاد است');
     return buf;
   }
   const controller = new AbortController();
@@ -50,18 +65,35 @@ export async function readSourceImage(raw: string) {
     });
     if (!res.ok) throw new Error('دانلود تصویر ناموفق بود');
     const length = Number(res.headers.get('content-length') || 0);
-    if (length > MAX_BYTES) throw new Error('حجم تصویر زیاد است');
+    if (length > MAX_UPLOAD_BYTES) throw new Error('حجم تصویر زیاد است');
     const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > MAX_BYTES) throw new Error('حجم تصویر زیاد است');
+    if (buf.length > MAX_UPLOAD_BYTES) throw new Error('حجم تصویر زیاد است');
     return buf;
   } finally {
     clearTimeout(timer);
   }
 }
 
+async function saveInDir(dir: string, publicPrefix: string, buffer: Buffer, ext = 'jpg') {
+  await fs.mkdir(dir, { recursive: true });
+  const safeExt = String(ext || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+  const name = `${Date.now()}-${randomBytes(6).toString('hex')}.${safeExt}`;
+  await fs.writeFile(path.join(dir, name), buffer);
+  return `${publicPrefix}/${name}`;
+}
+
 export async function saveProductImage(buffer: Buffer, ext = 'jpg') {
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
-  const name = `${Date.now()}-${randomBytes(6).toString('hex')}.${ext}`;
-  await fs.writeFile(path.join(UPLOAD_DIR, name), buffer);
-  return `/uploads/product-edits/${name}`;
+  return saveInDir(PRODUCT_EDITS_DIR, '/uploads/product-edits', buffer, ext);
+}
+
+export async function saveClothImage(buffer: Buffer, ext = 'jpg') {
+  return saveInDir(CLOTHES_DIR, '/uploads/clothes', buffer, ext);
+}
+
+export function extensionForMime(mime: string) {
+  return ALLOWED_MIME[mime.toLowerCase()] || '';
+}
+
+export function isAllowedImageMime(mime: string) {
+  return Boolean(extensionForMime(mime));
 }
