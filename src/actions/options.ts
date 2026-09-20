@@ -3,7 +3,7 @@
 import { listResource as listByName } from '@/server/domain';
 import { listPartners, getWorkspace } from '@/actions/workspace';
 import { clothUnitPrice, fabricUnitCost } from '@/lib/cloth-price';
-import { packsFromCloth, totalItems } from '@/lib/packs';
+import { openingFromCloth, packsFromCloth, totalItems } from '@/lib/packs';
 import { partnerScopeLabel, partnersForStore } from '@/lib/partners';
 import type { Cloth, FieldOption, Partner } from '@/lib/types';
 
@@ -43,17 +43,26 @@ export async function clothOptions(): Promise<FieldOption[]> {
   const res = await listByName('cloth', 1, 500);
   if (!Array.isArray(res.data)) return [];
   return res.data.map((row: Cloth) => {
-    const stock = packsFromCloth(row);
+    const current = packsFromCloth(row);
+    const opening = openingFromCloth(row);
+    const remaining = totalItems(current.packs);
+    const registered = totalItems(opening.packs);
     const typeName = typeof row._type === 'object' ? row._type?.name : '';
     const styleName = typeof row._style === 'object' ? row._style?.name : '';
     const code = String(row.code ?? '').trim() || String(row._id);
     const title = [code, typeName, styleName].filter(Boolean).join(' — ');
+    const stockLabel =
+      registered > remaining
+        ? `مانده ${remaining} از ${registered}`
+        : `${remaining} عدد`;
     return {
       value: String(row._id),
-      label: `${title} (${totalItems(stock.packs)} عدد)`,
-      packSize: stock.packSize,
-      packs: stock.packs,
-      count: totalItems(stock.packs),
+      label: `${title} (${stockLabel})`,
+      packSize: current.packSize,
+      packs: current.packs,
+      count: remaining,
+      openingPacks: opening.packs,
+      openingCount: registered,
       price: clothUnitPrice(row),
     };
   });

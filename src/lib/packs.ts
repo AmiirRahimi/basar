@@ -63,6 +63,25 @@ export function packsFromCloth(cloth: {
   return { packSize: 1, packs: [{ items: 1, count }] };
 }
 
+/** Registered (first) inventory. Falls back to current stock when opening was never stored. */
+export function openingFromCloth(cloth: {
+  openingPacks?: unknown;
+  openingCount?: unknown;
+  packs?: unknown;
+  count?: unknown;
+  packSize?: unknown;
+}): { packSize: number; packs: ClothPack[] } {
+  const openingPacks = parsePacks(cloth.openingPacks);
+  if (openingPacks.length || Number(cloth.openingCount || 0) > 0) {
+    return packsFromCloth({
+      packs: openingPacks.length ? openingPacks : undefined,
+      count: cloth.openingCount,
+      packSize: cloth.packSize,
+    });
+  }
+  return packsFromCloth(cloth);
+}
+
 export function itemsToPacks(count: number, packSize: number): ClothPack[] {
   const qty = Math.trunc(Number(count || 0));
   const size = Math.trunc(Number(packSize || 0));

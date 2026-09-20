@@ -26,7 +26,7 @@ import { clothUnitPrice, fabricLotTotal } from '@/lib/cloth-price';
 import { clothExtraKindLabel, parseClothExtras } from '@/lib/cloth-extras';
 import { fabricExtraKindLabel, parseFabricExtras } from '@/lib/fabric-extras';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
-import { formatPacksFa, packsFromCloth, totalItems } from '@/lib/packs';
+import { formatPacksFa, openingFromCloth, packsFromCloth, totalItems } from '@/lib/packs';
 import { parseImageList } from '@/lib/shop-cart';
 import type { AccountPayment } from '@/lib/payment-display';
 import {
@@ -114,12 +114,15 @@ function Chip({
 function decorateRow(resource: string, row: Record<string, any>) {
   if (resource === 'cloth') {
     const stock = packsFromCloth(row);
+    const opening = openingFromCloth(row);
     const extras = parseClothExtras(row.extras);
     return {
       ...row,
       unitPrice: row.unitPrice ?? clothUnitPrice(row),
       count: totalItems(stock.packs) || Number(row.count || 0),
+      openingCount: totalItems(opening.packs) || Number(row.openingCount || 0),
       packSummary: row.packSummary || formatPacksFa(stock.packs),
+      openingSummary: row.openingSummary || formatPacksFa(opening.packs),
       extrasSummary: extras.length
         ? extras
             .map((item) => `${clothExtraKindLabel(item.kind)} ${toman(item.price)}`)

@@ -10,6 +10,7 @@ import {
   formatTakenFa,
   remainingOf,
   subtractPacks,
+  totalItems,
   totalPacks,
   type ClothPack,
 } from '@/lib/packs';
@@ -20,6 +21,7 @@ export function InvoicePackStepper({
   packSize,
   available,
   taken,
+  opening,
   error,
   onTake,
   onUntake,
@@ -27,6 +29,7 @@ export function InvoicePackStepper({
   packSize: number;
   available: ClothPack[];
   taken: ClothPack[];
+  opening?: ClothPack[];
   error?: string;
   onTake: (items: number) => void;
   onUntake: () => void;
@@ -41,6 +44,9 @@ export function InvoicePackStepper({
   const canTake = nextDefault != null;
   const canUntake = totalPacks(taken) > 0;
   const choices = remaining.filter((pack) => pack.count > 0);
+  const openingTotal = totalItems(opening || []);
+  const availableTotal = totalItems(available);
+  const soldBefore = Math.max(0, openingTotal - availableTotal);
 
   function clearHold() {
     if (holdTimer.current != null) {
@@ -74,7 +80,15 @@ export function InvoicePackStepper({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-gray-500">موجودی: {formatStockFa(available)}</p>
+      {openingTotal > 0 ? (
+        <div className="space-y-0.5 text-xs text-gray-500">
+          <p>ثبت اولیه: {formatStockFa(opening || [])}</p>
+          {soldBefore > 0 ? <p>فروش قبلی: {faNumber(soldBefore)}− عدد</p> : null}
+          <p>مانده قابل فروش: {formatStockFa(available)}</p>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-500">موجودی: {formatStockFa(available)}</p>
+      )}
       <div className="flex items-center gap-2">
         <IconButton
           type="button"
@@ -138,7 +152,7 @@ export function InvoicePackStepper({
         </Popover>
       </div>
       <p className="text-xs text-gray-600">{formatTakenFa(taken)}</p>
-      <p className="text-xs text-gray-500">مانده: {formatStockFa(remaining)}</p>
+      <p className="text-xs text-gray-500">مانده بعد از این فاکتور: {formatStockFa(remaining)}</p>
       <p className="text-[11px] text-gray-400">برای انتخاب بسته ناقص، دکمه به‌علاوه را نگه دارید.</p>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </div>

@@ -9,6 +9,7 @@ import {
   itemsToPacks,
   meetsWholesaleMoq,
   mergePacks,
+  openingFromCloth,
   packsFromCloth,
   parsePacks,
   parsePacksEditorValue,
@@ -460,7 +461,46 @@ function applyClothInventory(body: Record<string, unknown>): ActionResult<Record
   body.packSize = size;
   body.packs = packs;
   body.count = totalItems(packs);
+  body.openingPacks = packs;
+  body.openingCount = body.count;
   return applyClothShopFields(body);
+}
+
+/** Form packs = registered opening; keep current remaining in sync by the opening delta. */
+function applyClothInventoryUpdate(
+  body: Record<string, unknown>,
+  previous: Record<string, unknown> | null,
+): ActionResult<Record<string, unknown> | null> {
+  const inventoried = applyClothInventory(body);
+  if (!inventoried.ok) return inventoried;
+  const next = inventoried.data || body;
+  const newOpening = mergePacks(parsePacks(next.packs));
+  const size = Number(next.packSize || 1);
+  if (!previous) {
+    next.openingPacks = newOpening;
+    next.openingCount = totalItems(newOpening);
+    next.packs = newOpening;
+    next.count = totalItems(newOpening);
+    return ok(next);
+  }
+  const prevOpening = openingFromCloth(previous).packs;
+  const prevCurrent = packsFromCloth(previous).packs;
+  const delta = totalItems(newOpening) - totalItems(prevOpening);
+  let nextCurrent = prevCurrent;
+  if (delta > 0) {
+    nextCurrent = addPacks(prevCurrent, itemsToPacks(delta, size));
+  } else if (delta < 0) {
+    const taken = takeItemsAsPacks(prevCurrent, -delta, size);
+    if (!taken) return fail('مانده فعلی کمتر از کاهش موجودی ثبت‌شده است');
+    const reduced = subtractPacks(prevCurrent, taken);
+    if (!reduced) return fail('مانده فعلی کمتر از کاهش موجودی ثبت‌شده است');
+    nextCurrent = reduced;
+  }
+  next.openingPacks = newOpening;
+  next.openingCount = totalItems(newOpening);
+  next.packs = nextCurrent;
+  next.count = totalItems(nextCurrent);
+  return ok(next);
 }
 
 function applyClothShopFields(body: Record<string, unknown>): ActionResult<Record<string, unknown> | null> {
@@ -577,9 +617,22 @@ function clothSellsInStore(cloth: any, session: Session) {
   return String(cloth._storeId) === String(session._storeId);
 }
 
-async function writeStock(clothId: unknown, packs: ClothPack[]) {
+async function writeStock(
+  clothId: unknown,
+  packs: ClothPack[],
+  opening?: { packs: ClothPack[]; count: number },
+) {
   const id = typeof clothId === 'object' && clothId && '_id' in (clothId as object) ? (clothId as { _id: unknown })._id : clothId;
-  await M().Cloth.updateOne({ _id: oid(id) }, { packs, count: totalItems(packs) });
+  const update: Record<string, unknown> = { packs, count: totalItems(packs) };
+  if (opening) {
+    update.openingPacks = opening.packs;
+    update.openingCount = opening.count;
+  }
+  await M().Cloth.updateOne({ _id: oid(id) }, update);
+}
+
+function clothHasOpening(cloth: { openingPacks?: unknown; openingCount?: unknown }) {
+  return parsePacks(cloth.openingPacks).length > 0 || Number(cloth.openingCount || 0) > 0;
 }
 
 async function changeStock(clothId: unknown, delta: number) {
@@ -616,16 +669,26 @@ async function sellItems(session: Session, items: any[]): Promise<ActionResult<a
     prepared.push({ ...item, packs: taken, count: totalItems(taken) });
     needed.set(id, addPacks(needed.get(id) || [], taken));
   }
-  const nextById = new Map<string, ClothPack[]>();
+  const nextById = new Map<string, { packs: ClothPack[]; freezeOpening?: ClothPack[] }>();
   for (const [id, taken] of needed) {
     const cloth = await M().Cloth.findOne({ _id: oid(id), isDeleted: false }).lean();
     if (!cloth) return fail('لباس پیدا نشد');
-    const next = subtractPacks(packsFromCloth(cloth).packs, taken);
+    const stock = packsFromCloth(cloth);
+    const next = subtractPacks(stock.packs, taken);
     if (!next) return fail('موجودی این لباس کافی نیست');
-    nextById.set(id, next);
+    nextById.set(id, {
+      packs: next,
+      freezeOpening: clothHasOpening(cloth) ? undefined : stock.packs,
+    });
   }
-  for (const [id, packs] of nextById) {
-    await writeStock(id, packs);
+  for (const [id, row] of nextById) {
+    await writeStock(
+      id,
+      row.packs,
+      row.freezeOpening
+        ? { packs: row.freezeOpening, count: totalItems(row.freezeOpening) }
+        : undefined,
+    );
   }
   return ok(prepared);
 }
@@ -781,9 +844,18 @@ export async function updateResource(resource: string, id: string, payload: unkn
   const requestedStoreId = String(raw._storeId || '');
   let body = preparePayload(auth.session, resource, raw);
   delete body._storeId;
+  const cfg = resource === 'customer-cart' ? { model: M().CustomerCart, populate: { path: '_cloth' } } : lookups()[resource];
+  if (!cfg) return fail('منبع ناشناخته');
+  const filter =
+    'global' in cfg && cfg.global
+      ? { _id: id }
+      : resource === 'cloth'
+        ? { _id: id, ...clothVisibleFilter(auth.session) }
+        : { _id: id, _storeId: oid(auth.session._storeId) };
+  const previous = resource === 'cloth' ? await cfg.model.findOne(filter).lean() : null;
   if (resource === 'cloth') {
     body = await applyClothAvailability(auth.session, body, requestedStoreId, false);
-    const inventoried = applyClothInventory(body);
+    const inventoried = applyClothInventoryUpdate(body, previous as Record<string, unknown> | null);
     if (!inventoried.ok) return inventoried;
     body = inventoried.data || body;
     restrictClothPublish(auth.session, body, false);
@@ -794,15 +866,6 @@ export async function updateResource(resource: string, id: string, payload: unkn
     if (!checked.ok) return checked;
     body = (checked.data || body) as Record<string, unknown>;
   }
-  const cfg = resource === 'customer-cart' ? { model: M().CustomerCart, populate: { path: '_cloth' } } : lookups()[resource];
-  if (!cfg) return fail('منبع ناشناخته');
-  const filter =
-    'global' in cfg && cfg.global
-      ? { _id: id }
-      : resource === 'cloth'
-        ? { _id: id, ...clothVisibleFilter(auth.session) }
-        : { _id: id, _storeId: oid(auth.session._storeId) };
-  const previous = resource === 'cloth' ? await cfg.model.findOne(filter).lean() : null;
   const updated = await cfg.model.findOneAndUpdate(filter, body, { new: true });
   if (!updated) return fail('پیدا نشد', 404);
   if (cfg.populate) await updated.populate(cfg.populate);

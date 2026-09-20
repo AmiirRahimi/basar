@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
 import { Banknote, Minus, Plus, Printer } from 'lucide-react';
@@ -82,6 +82,19 @@ function emptyItem(): DraftItem {
   return { key: crypto.randomUUID(), _cloth: '', count: 0, packs: [], takenOrder: [], price: 0 };
 }
 
+function clothStockLabel(option: FieldOption) {
+  const remaining = totalItems(option.packs || []);
+  const registered = Number(option.openingCount || 0) || totalItems(option.openingPacks || []);
+  const typeLabel = option.label.replace(/\s*\([^)]*\)\s*$/, '');
+  const stockLabel =
+    registered > remaining ? `مانده ${remaining} از ${registered}` : `${remaining} عدد`;
+  return `${typeLabel} (${stockLabel})`;
+}
+
+function withStockLabel(option: FieldOption): FieldOption {
+  return { ...option, label: clothStockLabel(option) };
+}
+
 function lineFromCloth(option: FieldOption | undefined, packs: ClothPack[], price?: number): Pick<DraftItem, 'count' | 'packs' | 'takenOrder' | 'price'> {
   const stock = option ? packsFromCloth(option) : { packSize: 1, packs: [] };
   return {
@@ -107,7 +120,7 @@ function optionLabel(options: FieldOption[], value: string) {
 export function InvoiceCrud({
   invoices,
   people,
-  clothes,
+  clothes: initialClothes,
   checks,
 }: {
   invoices: Invoice[];
@@ -118,6 +131,37 @@ export function InvoiceCrud({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [summary, setSummary] = useState<SummaryState | null>(null);
+  const [clothes, setClothes] = useState(initialClothes);
+
+  useEffect(() => {
+    setClothes(initialClothes);
+  }, [initialClothes]);
+
+  function applyLocalStockDelta(
+    sold: Array<{ _cloth: string; packs: ClothPack[] }>,
+    restored: Array<{ _cloth: string; packs: ClothPack[] }> = [],
+  ) {
+    setClothes((rows) =>
+      rows.map((option) => {
+        let packs = mergePacks(option.packs || []);
+        for (const line of restored) {
+          if (line._cloth !== option.value) continue;
+          packs = addPacks(packs, line.packs);
+        }
+        for (const line of sold) {
+          if (line._cloth !== option.value) continue;
+          packs = subtractPacks(packs, line.packs) || [];
+        }
+        return withStockLabel({
+          ...option,
+          packs,
+          count: totalItems(packs),
+          openingPacks: option.openingPacks,
+          openingCount: option.openingCount,
+        });
+      }),
+    );
+  }
   const [payFor, setPayFor] = useState<PayState | null>(null);
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [client, setClient] = useState('');
@@ -415,6 +459,8 @@ export function InvoiceCrud({
       }
       toast.success(res.message || 'ثبت شد');
       const saved = (res.data || {}) as Invoice;
+      const soldLines = items.map(({ _cloth, packs }) => ({ _cloth, packs }));
+      applyLocalStockDelta(soldLines, originalLines.map(({ _cloth, packs }) => ({ _cloth, packs })));
       setSummary({
         id: String(saved._id || editing?._id || ''),
         personId: client,
@@ -524,6 +570,7 @@ export function InvoiceCrud({
                         packSize={stock.packSize}
                         available={availableFor(item)}
                         taken={item.packs}
+                        opening={option?.openingPacks}
                         error={itemError && Number(item.count) < 1 ? 'حداقل یک بسته اضافه کنید' : undefined}
                         onTake={(itemsInPack) => takePackOnLine(item.key, itemsInPack)}
                         onUntake={() => untakePackOnLine(item.key)}

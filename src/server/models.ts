@@ -261,6 +261,18 @@ const ClothSchema = new Schema(
       ],
       default: [],
     },
+    /** First registered inventory; sales only change `packs` / `count`. */
+    openingCount: { type: Number },
+    openingPacks: {
+      type: [
+        {
+          items: { type: Number, required: true },
+          count: { type: Number, required: true },
+          _id: false,
+        },
+      ],
+      default: undefined,
+    },
     description: String,
     published: { type: Boolean, default: false },
     images: {

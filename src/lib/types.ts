@@ -156,6 +156,9 @@ export type Cloth = {
   count?: number;
   packSize?: number;
   packs?: ClothPack[];
+  /** Registered inventory when the cloth was entered / last restocked (first state). */
+  openingCount?: number;
+  openingPacks?: ClothPack[];
   isProduced?: boolean;
   fromPastStock?: boolean;
   amountUsed?: number;
@@ -313,6 +316,10 @@ export type FieldOption = {
   address?: string;
   price?: number;
   packSize?: number;
+  /** Current remaining stock (after sales). */
   packs?: ClothPack[];
   count?: number;
+  /** Registered / first inventory. */
+  openingPacks?: ClothPack[];
+  openingCount?: number;
 };

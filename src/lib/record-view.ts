@@ -120,8 +120,10 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
     {
       title: 'موجودی و قیمت',
       fields: [
-        { key: 'count', label: 'تعداد' },
-        { key: 'packSummary', label: 'بسته‌ها' },
+        { key: 'count', label: 'مانده' },
+        { key: 'openingCount', label: 'ثبت اولیه' },
+        { key: 'packSummary', label: 'بسته‌های مانده' },
+        { key: 'openingSummary', label: 'بسته‌های ثبت‌شده' },
         { key: 'unitPrice', label: 'قیمت واحد', kind: 'toman' },
         { key: 'boughtFee', label: 'قیمت هر عدد', kind: 'toman' },
         { key: 'onSale', label: 'حراج', kind: 'bool' },

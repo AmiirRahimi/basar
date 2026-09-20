@@ -12,7 +12,7 @@ import {
 } from '@/actions/options';
 import { CrudPage } from '@/components/counting/CrudPage';
 import { clothUnitPrice } from '@/lib/cloth-price';
-import { formatPacksFa, packsFromCloth, totalItems } from '@/lib/packs';
+import { formatPacksFa, openingFromCloth, packsFromCloth, totalItems } from '@/lib/packs';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { saleState } from '@/lib/product-sale';
 import { canWriteResource } from '@/lib/roles';
@@ -36,13 +36,19 @@ export default async function ClothesPage() {
     ]);
   guardSession(res);
   const rows = (Array.isArray(res.data) ? res.data : []).map((row: Record<string, any>) => {
-    const stock = packsFromCloth(row);
+    const current = packsFromCloth(row);
+    const opening = openingFromCloth(row);
     const sale = saleState(row);
     return {
       ...row,
+      // Form edits registered (opening) inventory; sales keep current packs/count on the server.
+      packs: opening.packs,
+      packSize: opening.packSize,
       unitPrice: clothUnitPrice(row),
-      count: totalItems(stock.packs) || Number(row.count || 0),
-      packSummary: formatPacksFa(stock.packs),
+      count: totalItems(current.packs) || Number(row.count || 0),
+      openingCount: totalItems(opening.packs),
+      packSummary: formatPacksFa(current.packs),
+      openingSummary: formatPacksFa(opening.packs),
       saleLabel: sale.active ? `${sale.percent}٪` : '—',
       collectionLabel: row.newCollection ? 'جدید' : '—',
       publishLabel: row.published ? 'منتشر' : '—',
@@ -70,13 +76,15 @@ export default async function ClothesPage() {
           { header: 'نوع', accessor: '_type', format: 'name' },
           { header: 'مدل', accessor: '_style', format: 'name' },
           { header: 'سایز', accessor: '_size', format: 'name' },
-          { header: 'تعداد', accessor: 'count' },
+          { header: 'مانده', accessor: 'count' },
+          { header: 'ثبت اولیه', accessor: 'openingCount' },
           { header: 'قیمت', accessor: 'unitPrice', format: 'toman' },
           { header: 'حراج', accessor: 'saleLabel' },
           { header: 'کالکشن', accessor: 'collectionLabel' },
           { header: 'وب‌سایت', accessor: 'publishLabel' },
           { header: 'فروشگاه', accessor: '_storeId', format: 'name' },
-          { header: 'بسته‌ها', accessor: 'packSummary' },
+          { header: 'مانده بسته‌ها', accessor: 'packSummary' },
+          { header: 'بسته‌های ثبت‌شده', accessor: 'openingSummary' },
           { header: 'رنگ', accessor: '_color', format: 'name' },
           { header: 'پارچه', accessor: '_producedFrom', format: 'name' },
           { header: 'مصرف پارچه', accessor: 'amountUsed' },
@@ -95,7 +103,7 @@ export default async function ClothesPage() {
           { name: '_storeId', label: 'فروشگاه', type: 'relation', options: storeOptions, required: true },
           { name: 'code', label: 'کد', required: true },
           { name: '_partner', label: 'شریک فروش این لباس', type: 'relation', options: partners },
-          { name: 'packs', label: 'موجودی بسته‌ها', type: 'packs', required: true },
+          { name: 'packs', label: 'موجودی ثبت‌شده (اولیه)', type: 'packs', required: true },
           {
             name: '_type',
             label: 'نوع',
