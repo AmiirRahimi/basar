@@ -323,9 +323,8 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
         isLoading={pending}
         emptyMessage="هنوز چکی ثبت نشده"
       />
-      <Modal isOpen={open} onClose={() => setOpen(false)} size="lg">
+      <Modal isOpen={open} onClose={() => setOpen(false)} size="lg" title={editing ? 'ویرایش چک' : 'ثبت چک'}>
         <FormCard className="border-0 shadow-none rounded-[inherit]">
-          <h3 className="mb-4 text-lg font-medium">{editing ? 'ویرایش چک' : 'ثبت چک'}</h3>
           <div className="grid gap-3">
             <Select
               label="نوع *"

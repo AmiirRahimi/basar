@@ -339,9 +339,8 @@ export function ShareLinksBoard({
         )}
       </section>
 
-      <Modal isOpen={Boolean(smsModal)} onClose={closeSmsModal} size="lg">
+      <Modal isOpen={Boolean(smsModal)} onClose={closeSmsModal} size="lg" title="ارسال لینک با پیامک">
         <FormCard className="border-0 shadow-none rounded-[inherit]">
-          <h3 className="mb-1 text-lg font-medium">ارسال لینک با پیامک</h3>
           <p className="mb-4 text-sm text-gray-500">
             {smsModal?.title || 'لینک محصولات'} — شماره را بنویسید یا از لیست مشتریان انتخاب کنید و متن را در صورت نیاز ویرایش کنید.
           </p>

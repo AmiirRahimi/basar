@@ -218,9 +218,8 @@ export function PartnersPanel({
         <p className="text-sm text-muted-foreground">هنوز شریکی ثبت نشده است.</p>
       )}
 
-      <Modal isOpen={Boolean(modal)} onClose={() => setModal(null)}>
+      <Modal isOpen={Boolean(modal)} onClose={() => setModal(null)} title={modal === 'create' ? 'شریک جدید' : 'ویرایش شریک'}>
         <div className="p-5" dir="rtl">
-          <h3 className="mb-4 text-lg font-semibold">{modal === 'create' ? 'شریک جدید' : 'ویرایش شریک'}</h3>
           <div className="grid gap-3">
             <Input label="نام شریک" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
             <Input

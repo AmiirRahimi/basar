@@ -138,10 +138,9 @@ export function ImageEditModal({
   }
 
   return (
-    <Modal isOpen onClose={onClose} size="lg" rounded="lg">
+    <Modal isOpen onClose={onClose} size="lg" rounded="lg" title="ویرایش تصویر با هوش مصنوعی">
       <FormCard className="border-0 shadow-none rounded-[inherit]">
         <div className="mb-4 space-y-1">
-          <h3 className="text-lg font-semibold text-gray-900">ویرایش تصویر با هوش مصنوعی</h3>
           <p className="text-sm text-gray-500">
             هر جلوه {faNumber(style.tokenCost)} توکن مصرف می‌کند.
             {unlimited ? ' حساب ادمین محدودیتی ندارد.' : ` مانده: ${faNumber(tokens)} توکن.`}

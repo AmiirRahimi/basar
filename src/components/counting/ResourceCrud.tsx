@@ -787,9 +787,9 @@ export function ResourceCrud({
         isOpen={open}
         onClose={() => setOpen(false)}
         size={fields.some((field) => field.type === 'packs' || field.type === 'extras') ? 'xl' : 'lg'}
+        title={editing ? `ویرایش ${title}` : `ثبت ${title}`}
       >
         <FormCard className="border-0 shadow-none rounded-[inherit]">
-          <h3 className="mb-4 text-lg font-medium">{editing ? `ویرایش ${title}` : `ثبت ${title}`}</h3>
           <div className="grid min-w-0 gap-3">
             {formBlocks.map((block) => {
               if (block.kind === 'fields') {

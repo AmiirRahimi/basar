@@ -238,14 +238,12 @@ export function ColumnPickerModal({
       onClose={onClose}
       size="md"
       rounded="lg"
+      title={copy.title}
       overlayClassName="dark:bg-opacity-40 dark:backdrop-blur-lg"
       containerClassName="bg-white p-6 shadow-xl dark:bg-gray-900"
     >
       <div className="w-full space-y-4">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{copy.title}</h2>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{copy.description}</p>
-        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{copy.description}</p>
 
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" onClick={showAll} icon={<Eye className="h-4 w-4" />}>

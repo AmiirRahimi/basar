@@ -549,9 +549,12 @@ export function BrandStoreWorkspace() {
         )}
       </div>
 
-      <Modal isOpen={Boolean(brandModal)} onClose={() => setBrandModal(null)}>
+      <Modal
+        isOpen={Boolean(brandModal)}
+        onClose={() => setBrandModal(null)}
+        title={brandModal === 'edit' ? 'ویرایش برند' : 'برند جدید'}
+      >
         <div className="p-5" dir="rtl">
-          <h3 className="mb-4 text-lg font-semibold">{brandModal === 'edit' ? 'ویرایش برند' : 'برند جدید'}</h3>
           <div className="grid gap-3">
             <Input label="نام برند" value={brandForm.name} onChange={(e) => setBrandForm((s) => ({ ...s, name: e.target.value }))} />
             <Input
@@ -591,9 +594,8 @@ export function BrandStoreWorkspace() {
         </div>
       </Modal>
 
-      <Modal isOpen={storeModal} onClose={() => setStoreModal(false)} size="xl">
+      <Modal isOpen={storeModal} onClose={() => setStoreModal(false)} size="xl" title="فروشگاه جدید">
         <div className="p-5" dir="rtl">
-          <h3 className="mb-4 text-lg font-semibold">فروشگاه جدید</h3>
           <StoreFields form={storeForm} onChange={setStoreForm} />
           <div className="mt-4">
             <Button

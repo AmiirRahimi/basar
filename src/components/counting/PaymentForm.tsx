@@ -311,9 +311,8 @@ function CheckCreateModal({
   }
 
   return (
-    <Modal isOpen={open} onClose={onClose} size="md" className="z-[1050]">
+    <Modal isOpen={open} onClose={onClose} size="md" className="z-[1050]" title="ثبت چک جدید">
       <FormCard className="border-0 shadow-none rounded-[inherit]">
-        <h3 className="mb-4 text-lg font-medium">ثبت چک جدید</h3>
         <p className="mb-3 text-sm text-gray-500">
           {direction === 'out'
             ? 'این چک به‌عنوان پرداخت به این شخص در جدول چک ذخیره می‌شود.'

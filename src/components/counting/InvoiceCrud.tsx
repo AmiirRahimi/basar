@@ -525,9 +525,8 @@ export function InvoiceCrud({
         emptyMessage="هنوز فاکتور ثبت نشده"
       />
 
-      <Modal isOpen={open} onClose={() => setOpen(false)} size="xl">
+      <Modal isOpen={open} onClose={() => setOpen(false)} size="xl" title={editing ? 'ویرایش فاکتور' : 'ثبت فاکتور'}>
         <FormCard className="border-0 shadow-none rounded-[inherit]">
-          <h3 className="mb-4 text-lg font-medium">{editing ? 'ویرایش فاکتور' : 'ثبت فاکتور'}</h3>
           <div className="grid gap-3">
             <Select
               label="صاحب فاکتور *"
@@ -639,9 +638,8 @@ export function InvoiceCrud({
         </FormCard>
       </Modal>
 
-      <Modal isOpen={Boolean(summary)} onClose={() => setSummary(null)} size="lg">
+      <Modal isOpen={Boolean(summary)} onClose={() => setSummary(null)} size="lg" title="شرح فاکتور">
         <FormCard className="border-0 shadow-none rounded-[inherit]">
-          <h3 className="mb-4 text-lg font-medium">شرح فاکتور</h3>
           {summary ? (
             <div className="space-y-4 text-sm">
               <div className="grid gap-1">
@@ -720,9 +718,8 @@ export function InvoiceCrud({
         </FormCard>
       </Modal>
 
-      <Modal isOpen={Boolean(payFor)} onClose={() => setPayFor(null)} size="lg">
+      <Modal isOpen={Boolean(payFor)} onClose={() => setPayFor(null)} size="lg" title="پرداخت فاکتور">
         <FormCard className="border-0 shadow-none rounded-[inherit]">
-          <h3 className="mb-4 text-lg font-medium">پرداخت فاکتور</h3>
           {payFor ? (
             <PaymentForm
               personId={payFor.personId}

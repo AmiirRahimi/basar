@@ -115,10 +115,9 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
   if (!user || !form) return null;
 
   return (
-    <Modal isOpen onClose={onClose} size="lg" rounded="lg">
+    <Modal isOpen onClose={onClose} size="lg" rounded="lg" title="ویرایش کاربر و اشتراک">
       <FormCard className="border-0 shadow-none rounded-[inherit]">
         <div className="mb-5 space-y-1">
-          <h3 className="text-lg font-semibold text-gray-900">ویرایش کاربر و اشتراک</h3>
           <p className="text-sm text-gray-500">
             {user.active
               ? `${user.planName || plan.name} · ${faNumber(user.remainingDays || 0)} روز مانده${user.endDate ? ` · تا ${faDate(user.endDate)}` : ''}`
