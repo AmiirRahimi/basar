@@ -224,9 +224,9 @@ export function ShareLinksBoard({
         </div>
         {!allowShare ? (
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            ساخت لینک محصول بخشی از اشتراک است.{' '}
+            ساخت لینک محصول (ویترین اختصاصی، مثل فروشگاه خودتان) فقط در طرح ویترین است.{' '}
             <Link href="/counting/profile?tab=subscription" className="underline">
-              طرح را ببینید یا ارتقا دهید
+              طرح ویترین را ببینید
             </Link>
             .
           </p>
@@ -254,7 +254,7 @@ export function ShareLinksBoard({
             ساخت و ارسال پیامک
           </Button>
           {!allowSms ? (
-            <p className="self-center text-xs text-gray-500">ارسال پیامک از طرح فروشگاه‌ها به بالاست.</p>
+            <p className="self-center text-xs text-gray-500">ارسال پیامک همراه طرح ویترین است.</p>
           ) : null}
         </div>
         <div className="mt-4">

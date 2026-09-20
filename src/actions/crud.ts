@@ -27,6 +27,7 @@ import {
   receiveReturnedCloth as receiveCloth,
   clothProfitSummary,
   updateResource as update,
+  listStorefrontOrders,
 } from '@/server/domain';
 import { listUsers as usersDb } from '@/server/auth';
 
@@ -72,6 +73,10 @@ export async function placePublicWholesaleOrder(payload: unknown) {
 
 export async function loadPublicOrders(ids: string[]) {
   return getPublicOrderSummaries(ids);
+}
+
+export async function loadStorefrontOrders() {
+  return listStorefrontOrders();
 }
 
 export async function listPeople(page = 1, skip = 200) {

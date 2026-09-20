@@ -1,7 +1,7 @@
 'use server';
 
 import { clothToProduct } from '@/lib/catalog';
-import { CART_COOKIE, DEFAULT_MOQ } from '@/lib/constants';
+import { CART_COOKIE, DEFAULT_MOQ, SHARE_TOKEN_COOKIE } from '@/lib/constants';
 import { normalizeCartItem } from '@/lib/shop-cart';
 import { meetsWholesaleMoq, mergePacks, packsToOrder, subtractPacks, totalItems, type ClothPack } from '@/lib/packs';
 import type { CatalogProduct, Cloth, PublicOrderSummary, WholesaleCartItem } from '@/lib/types';
@@ -12,6 +12,7 @@ import {
   getShopCartProduct,
   listPublicCatalog,
   loadPublicOrders,
+  loadStorefrontOrders,
   placePublicWholesaleOrder,
 } from './crud';
 
@@ -149,22 +150,37 @@ export async function removeFromCart(productId: string) {
   return { ok: true, message: 'حذف شد', items };
 }
 
+export async function rememberShareToken(token: string) {
+  const value = String(token || '').trim();
+  if (!value) return { ok: false as const };
+  (await cookies()).set(SHARE_TOKEN_COOKIE, value, {
+    path: '/',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 14,
+    secure: process.env.NODE_ENV === 'production',
+  });
+  return { ok: true as const };
+}
+
 export async function checkoutWholesale(input: { fullName: string; phone: string; address: string }) {
   const cart = await getCartItems();
   if (!cart.length) return { ok: false, message: 'سبد خالی است', invoices: [] as PublicOrderSummary[] };
   const items = cart
     .map((line) => ({ productId: line.productId, packs: line.packs }))
     .filter((line) => line.productId);
+  const shareToken = (await cookies()).get(SHARE_TOKEN_COOKIE)?.value || '';
   const result = await placePublicWholesaleOrder({
     fullName: input.fullName,
     phone: input.phone,
     address: input.address,
     items,
+    shareToken,
   });
   if (!result.ok || !result.data) {
     return { ok: false, message: result.message || 'ثبت سفارش ناموفق بود', invoices: [] as PublicOrderSummary[] };
   }
   await saveCart([]);
+  (await cookies()).set(SHARE_TOKEN_COOKIE, '', { path: '/', maxAge: 0 });
   const invoices = (result.data as { invoices?: PublicOrderSummary[] }).invoices || [];
   return { ok: true, message: result.message || 'سفارش عمده ثبت شد', invoices };
 }
@@ -173,4 +189,8 @@ export async function getPublicOrders(ids: string[]) {
   const result = await loadPublicOrders(ids);
   if (!result.ok || !result.data) return [];
   return result.data as PublicOrderSummary[];
+}
+
+export async function getStorefrontOrderBoard() {
+  return loadStorefrontOrders();
 }

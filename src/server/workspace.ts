@@ -431,7 +431,7 @@ async function assertPlanLimits(session: Session, kind: 'brand' | 'store' | 'par
   const sub = await subscriptionForSession(session);
   if (!sub.active) return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
   if (kind === 'partner' && !sub.allowPartners) {
-    return fail('طرح فعلی اجازه ثبت شریک ندارد. طرح شرکا یا برندها را بخرید.');
+    return fail('طرح فعلی اجازه ثبت شریک ندارد. طرح را ارتقا دهید.');
   }
   const ownedBrands = await M().Brand.find({ _userId: oid(session._id), isDeleted: false }).lean();
   if (kind === 'brand' && ownedBrands.length >= sub.maxBrands) {

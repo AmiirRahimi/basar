@@ -1,6 +1,7 @@
 export const ACCESS_COOKIE = 'basar_access';
 export const REFRESH_COOKIE = 'basar_refresh';
 export const CART_COOKIE = 'basar_wholesale_cart';
+export const SHARE_TOKEN_COOKIE = 'basar_share_token';
 /** Refresh cookie lifetime. Access tokens are much shorter. */
 export const SESSION_DAYS = 7;
 export const ACCESS_TOKEN_MINUTES = 15;

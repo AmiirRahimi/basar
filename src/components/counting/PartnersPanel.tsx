@@ -10,6 +10,7 @@ import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Partner, WorkspaceBrand, WorkspaceStore } from '@/lib/types';
 import { Button, Input, Modal, MultiSelect, toast } from '@/ui';
 import { AddPlusButton } from './PageAction';
+import { useWorkspace } from './WorkspaceProvider';
 import { useWritable } from './useWritable';
 
 const selectLabels = {
@@ -45,11 +46,14 @@ export function PartnersPanel({
   canManageStore?: boolean;
 }) {
   const router = useRouter();
+  const workspace = useWorkspace();
   const [pending, start] = useTransition();
   const writable = useWritable();
   const [modal, setModal] = useState<'create' | Partner | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const canManage = Boolean((canManageBrand || canManageStore) && writable);
+  const allowPartners = Boolean(workspace?.isPlatformAdmin || workspace?.subscription?.allowPartners);
+  const canManage = Boolean((canManageBrand || canManageStore) && writable && allowPartners);
+  const showPlanLock = Boolean(writable && !allowPartners);
 
   const storePartners = useMemo(
     () =>
@@ -164,6 +168,12 @@ export function PartnersPanel({
         </div>
         {canManage ? <AddPlusButton label="ثبت شریک" onClick={openCreate} /> : null}
       </div>
+
+      {!showPlanLock ? null : (
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          ثبت شریک درآمد در طرح فعلی نیست. از اشتراک طرح را ارتقا دهید.
+        </p>
+      )}
 
       {selectedStore ? (
         <p className="mb-4 rounded-2xl bg-teal-50 px-4 py-3 text-sm text-teal-900">

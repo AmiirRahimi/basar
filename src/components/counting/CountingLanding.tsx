@@ -408,8 +408,9 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             <p className="text-[11px] tracking-[0.28em] text-shop-saffron">اشتراک</p>
             <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">چهار طرح برای رشد حجره</h2>
             <p className="mt-3 text-shop-ink/65 leading-8">
-              قیمت‌ها ماهانه نمایش داده شده‌اند. اشتراک سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪ تخفیف دارد. خرید و
-              تمدید داخل پنل، بعد از ورود انجام می‌شود.
+              طرح پایه برند، فروشگاه و شریک درآمد دارد. ویترین اختصاصی (لینک محصول و پرداخت مشتری، مثل فروشگاه خودتان)
+              طرح جدا و گران‌تری است. قیمت‌ها ماهانه نمایش داده شده‌اند. اشتراک سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪
+              تخفیف دارد.
             </p>
           </div>
 

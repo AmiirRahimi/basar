@@ -6,7 +6,7 @@ import { shopInputClass, ShopButton, ShopField } from './ShopUi';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-export function CheckoutForm() {
+export function CheckoutForm({ storefront = false }: { storefront?: boolean }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -41,11 +41,13 @@ export function CheckoutForm() {
         <textarea className={shopInputClass} rows={3} value={address} onChange={(e) => setAddress(e.target.value)} required />
       </ShopField>
       <p className="text-sm text-shop-ink/60">
-        فاکتور در شمارش ثبت می‌شود. پرداخت و چک را کارکنان بعد از هماهنگی وارد می‌کنند.
+        {storefront
+          ? 'پرداخت از درگاه باسار انجام می‌شود و سفارش برای فروشندهٔ لینک در پنل ثبت می‌گردد.'
+          : 'فاکتور در شمارش ثبت می‌شود. پرداخت و چک را کارکنان بعد از هماهنگی وارد می‌کنند.'}
       </p>
       {message ? <p className="text-sm text-shop-madder">{message}</p> : null}
       <ShopButton type="submit" disabled={pending || totals.packs < 1} className="w-full">
-        {pending ? 'در حال ثبت...' : 'ثبت سفارش بسته‌ها'}
+        {pending ? 'در حال ثبت...' : storefront ? 'پرداخت و ثبت سفارش' : 'ثبت سفارش بسته‌ها'}
       </ShopButton>
     </form>
   );

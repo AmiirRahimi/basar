@@ -117,6 +117,8 @@ const POP: Record<string, string> = {
   _storeId: 'stores',
   _brandId: 'brands',
   _partner: 'partners',
+  _sellerUserId: 'users',
+  _userId: 'users',
 };
 
 function sortSpec(input: unknown): { key: string; desc: boolean } | null {

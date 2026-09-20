@@ -84,13 +84,13 @@ export function denyPlanFeature(
 ) {
   if (!sub.active) return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
   if (feature === 'share' && !sub.allowProductShare) {
-    return fail('ساخت لینک محصول در طرح اشتراک شما نیست. از تنظیمات طرح را ارتقا دهید.');
+    return fail('ساخت لینک محصول فقط در طرح ویترین است؛ این قابلیت مثل داشتن فروشگاه خودتان است. از تنظیمات طرح را ارتقا دهید.');
   }
   if (feature === 'share-sms' && !sub.allowShareSms) {
-    return fail('ارسال لینک با پیامک در طرح فروشگاه‌ها و بالاتر است.');
+    return fail('ارسال لینک با پیامک در طرح ویترین است.');
   }
-  if (feature === 'product-sms' && !sub.notifyCustomersOnNewProduct) {
-    return fail('پیامک محصول جدید به مشتری در طرح شرکا و برندها است.');
+  if (feature === 'product-sms' && (!sub.notifyCustomersOnNewProduct || !sub.allowProductShare)) {
+    return fail('پیامک محصول جدید به مشتری در طرح ویترین است.');
   }
   return null;
 }

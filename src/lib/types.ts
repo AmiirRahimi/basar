@@ -305,7 +305,33 @@ export type PublicOrderSummary = {
   id: string;
   invoiceNumber: string | number;
   total: number;
+  platformFee?: number;
+  sellerPayout?: number;
   lines: PublicOrderLine[];
+};
+
+export type StorefrontOrder = {
+  _id: string;
+  invoiceNumber: string | number;
+  timeStamp?: string;
+  customerName: string;
+  customerPhone: string;
+  sellerName: string;
+  sellerPhone: string;
+  storeName: string;
+  brandName: string;
+  shareToken?: string;
+  total: number;
+  feePercent: number;
+  platformFee: number;
+  sellerPayout: number;
+};
+
+export type StorefrontOrderBoard = {
+  orders: StorefrontOrder[];
+  totals: { total: number; platformFee: number; sellerPayout: number; count: number };
+  feePercent: number;
+  isPlatformAdmin: boolean;
 };
 
 export type ProductShare = {

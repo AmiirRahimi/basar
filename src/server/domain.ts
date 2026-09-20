@@ -38,7 +38,8 @@ import * as mongo from './models';
 import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import { clampDiscountPercent, isTruthyFlag, saleState } from '@/lib/product-sale';
 import { fail, failDb, ok, type ActionResult } from './result';
-import type { PublicOrderSummary } from '@/lib/types';
+import type { PublicOrderSummary, StorefrontOrderBoard } from '@/lib/types';
+import { GATEWAY_FEE_PERCENT, splitGatewayAmount, STOREFRONT_CHANNEL } from '@/lib/storefront';
 import type { Session } from './session';
 import { withWorkspace, accessibleStores } from './workspace';
 import { denyPlanFeature, subscriptionForSession } from './subscription';
@@ -1307,6 +1308,7 @@ export async function placeWholesaleOrder(input: {
   phone: string;
   address: string;
   items: Array<{ productId: string; packs?: ClothPack[]; count?: number; price?: number }>;
+  shareToken?: string;
 }): Promise<ActionResult> {
   await db();
   const fullName = String(input.fullName || '').trim();
@@ -1357,6 +1359,14 @@ export async function placeWholesaleOrder(input: {
       while (await M().Invoice.exists({ invoiceNumber })) {
         invoiceNumber = Math.floor(10000 + Math.random() * 9000);
       }
+      const invoiceTotal = soldItems.reduce(
+        (sum: number, item: any) => sum + Number(item.count || 0) * Number(item.price || 0),
+        0,
+      );
+      const shareToken = String(input.shareToken || '').trim();
+      const storefront = Boolean(shareToken);
+      const split = storefront ? splitGatewayAmount(invoiceTotal) : null;
+      const sellerId = store?._userId;
       const created = await M().Invoice.create({
         _storeId: oid(storeId),
         _brandId: store?._brandId ? oid(store._brandId) : undefined,
@@ -1364,6 +1374,12 @@ export async function placeWholesaleOrder(input: {
         receiverAddress: address,
         invoiceNumber,
         publicToken: publicOrderToken(),
+        channel: storefront ? STOREFRONT_CHANNEL : '',
+        shareToken: storefront ? shareToken : '',
+        _sellerUserId: storefront && sellerId ? oid(sellerId) : undefined,
+        platformFeePercent: split ? split.feePercent : 0,
+        platformFee: split ? split.platformFee : 0,
+        sellerPayout: split ? split.sellerPayout : 0,
         isSent: false,
         isDeleted: false,
       });
@@ -1438,6 +1454,73 @@ export async function getPublicOrderSummaries(tokens: string[]): Promise<ActionR
   }
   if (!invoices.length) return fail('سفارش پیدا نشد', 404);
   return ok(serialize(invoices));
+}
+
+function personLabel(row: any) {
+  if (!row || typeof row !== 'object') return '';
+  return String(row.fullName || row.phonenumber || row.phoneNumber || '').trim();
+}
+
+function personPhone(row: any) {
+  if (!row || typeof row !== 'object') return '';
+  const raw = row.phoneNumber ?? row.phonenumber;
+  if (Array.isArray(raw)) return String(raw[0] || '').trim();
+  return String(raw || '').trim();
+}
+
+export async function listStorefrontOrders(): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  if (!access.session.isPlatformAdmin) return fail('فقط ادمین اصلی به این بخش دسترسی دارد', 403);
+  await db();
+  const rows = await (M().Invoice.find({ channel: STOREFRONT_CHANNEL, isDeleted: false }) as any)
+    .populate('_client', 'fullName phoneNumber')
+    .populate('_storeId', 'name _userId _brandId')
+    .populate('_brandId', 'name')
+    .populate('_sellerUserId', 'fullName phonenumber')
+    .sort({ timeStamp: -1 })
+    .limit(200)
+    .lean();
+  const orders = (Array.isArray(rows) ? rows : []).map((row: any) => {
+    const platformFee = Math.max(0, Number(row.platformFee || 0));
+    const sellerPayout = Math.max(0, Number(row.sellerPayout || 0));
+    const store = row._storeId && typeof row._storeId === 'object' ? row._storeId : null;
+    const brand = row._brandId && typeof row._brandId === 'object' ? row._brandId : null;
+    const seller = row._sellerUserId && typeof row._sellerUserId === 'object' ? row._sellerUserId : null;
+    const customer = row._client && typeof row._client === 'object' ? row._client : null;
+    return {
+      _id: String(row._id),
+      invoiceNumber: row.invoiceNumber,
+      timeStamp: row.timeStamp,
+      customerName: personLabel(customer) || 'مشتری',
+      customerPhone: personPhone(customer),
+      sellerName: personLabel(seller) || 'فروشنده',
+      sellerPhone: personPhone(seller),
+      storeName: store?.name || 'فروشگاه',
+      brandName: brand?.name || '',
+      shareToken: String(row.shareToken || ''),
+      total: platformFee + sellerPayout,
+      feePercent: Number(row.platformFeePercent || GATEWAY_FEE_PERCENT),
+      platformFee,
+      sellerPayout,
+    };
+  });
+  const totals = orders.reduce(
+    (sum, row) => ({
+      total: sum.total + row.total,
+      platformFee: sum.platformFee + row.platformFee,
+      sellerPayout: sum.sellerPayout + row.sellerPayout,
+      count: sum.count + 1,
+    }),
+    { total: 0, platformFee: 0, sellerPayout: 0, count: 0 },
+  );
+  const board: StorefrontOrderBoard = {
+    orders,
+    totals,
+    feePercent: GATEWAY_FEE_PERCENT,
+    isPlatformAdmin: true,
+  };
+  return ok(serialize(board));
 }
 
 export async function getStore(): Promise<ActionResult> {

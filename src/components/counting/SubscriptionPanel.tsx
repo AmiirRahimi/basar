@@ -16,6 +16,7 @@ import {
   type PlanId,
 } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
+import { GATEWAY_FEE_PERCENT } from '@/lib/storefront';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Workspace } from '@/lib/types';
 import { Button, FormCard, Input, Modal, toast } from '@/ui';
@@ -171,14 +172,14 @@ export function SubscriptionPanel({
       ) : null}
 
       <section className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4 text-sm text-teal-950">
-        <p className="font-medium">لینک محصول و پیامک مشتری</p>
+        <p className="font-medium">ویترین اختصاصی</p>
         <p className="mt-1 text-teal-900/80">
-          از صفحه{' '}
+          ساخت لینک محصول، سبد خرید مشتری و پرداخت از درگاه باسار فقط در طرح ویترین است — مثل این که فروشگاه خودتان را
+          داشته باشید. از صفحه{' '}
           <Link href="/counting/shares" className="underline">
             لینک محصول
           </Link>{' '}
-          برای انتخاب لباس‌ها، ساخت لینک و ارسال به شماره موبایل استفاده کنید. در طرح شرکا و برندها، با انتشار محصول جدید
-          لینک همان محصول برای مشتری‌های عمده پیامک می‌شود.
+          لینک بسازید؛ {faNumber(GATEWAY_FEE_PERCENT)}٪ هر پرداخت سهم پلتفرم است و باقی به شما می‌رسد.
         </p>
       </section>
 
