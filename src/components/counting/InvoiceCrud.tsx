@@ -21,7 +21,7 @@ import {
   getInvoiceCart,
   updateResource,
 } from '@/actions/crud';
-import { displayName, faDate, toman } from '@/lib/format';
+import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { checkAvailableForPayment, checkSerialLabel } from '@/lib/checks';
 import { PaymentForm } from './PaymentForm';
@@ -550,58 +550,64 @@ export function InvoiceCrud({
                 const itemError = showErrors && (!item._cloth || Number(item.count) < 1);
                 const option = clothes.find((row) => row.value === item._cloth);
                 const stock = packsFromCloth(option || {});
+                const takenSummary = formatPacksFa(item.packs);
                 return (
-                  <div
-                    key={item.key}
-                    className="grid gap-3 rounded-lg bg-gray-50 p-3 md:grid-cols-[minmax(0,1.2fr)_minmax(14rem,1fr)_minmax(10rem,12rem)_auto_auto] md:items-start"
-                  >
-                    <Select
-                      label="محصول *"
-                      error={itemError && !item._cloth ? 'الزامی است' : undefined}
-                      value={item._cloth}
-                      onChange={(v) => changeCloth(item.key, String(v ?? ''))}
-                      options={clothes}
-                      searchable
-                      placeholder="انتخاب کنید"
-                      labels={selectLabels}
-                    />
-                    {item._cloth ? (
-                      <InvoicePackStepper
-                        packSize={stock.packSize}
-                        available={availableFor(item)}
-                        taken={item.packs}
-                        opening={option?.openingPacks}
-                        error={itemError && Number(item.count) < 1 ? 'حداقل یک بسته اضافه کنید' : undefined}
-                        onTake={(itemsInPack) => takePackOnLine(item.key, itemsInPack)}
-                        onUntake={() => untakePackOnLine(item.key)}
+                  <div key={item.key} className="space-y-2 rounded-lg bg-gray-50 p-3">
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(12rem,auto)_minmax(10rem,12rem)_auto_auto] md:items-start">
+                      <Select
+                        label="محصول *"
+                        error={itemError && !item._cloth ? 'الزامی است' : undefined}
+                        value={item._cloth}
+                        onChange={(v) => changeCloth(item.key, String(v ?? ''))}
+                        options={clothes}
+                        searchable
+                        placeholder="انتخاب کنید"
+                        labels={selectLabels}
                       />
-                    ) : (
-                      <p className="self-center text-sm text-gray-500">ابتدا محصول را انتخاب کنید</p>
-                    )}
-                    <PriceField
-                      label="فی"
-                      value={item.price}
-                      onChange={(price) => setItem(item.key, { price })}
-                    />
-                    <div className="pb-2 text-sm text-gray-600 md:pt-8">
-                      <Price value={Number(item.count || 0) * Number(item.price || 0)} />
+                      {item._cloth ? (
+                        <InvoicePackStepper
+                          packSize={stock.packSize}
+                          available={availableFor(item)}
+                          taken={item.packs}
+                          error={itemError && Number(item.count) < 1 ? 'حداقل یک بسته اضافه کنید' : undefined}
+                          onTake={(itemsInPack) => takePackOnLine(item.key, itemsInPack)}
+                          onUntake={() => untakePackOnLine(item.key)}
+                        />
+                      ) : (
+                        <p className="self-center text-sm text-gray-500">ابتدا محصول را انتخاب کنید</p>
+                      )}
+                      <PriceField
+                        label="فی"
+                        value={item.price}
+                        onChange={(price) => setItem(item.key, { price })}
+                      />
+                      <div className="pb-2 text-sm text-gray-600 md:pt-8">
+                        <Price value={Number(item.count || 0) * Number(item.price || 0)} />
+                      </div>
+                      <IconButton
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="md:mt-8"
+                        disabled={items.length <= 1}
+                        onClick={() => removeItem(item.key)}
+                        aria-label="حذف قلم"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </IconButton>
                     </div>
-                    <IconButton
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="md:mt-8"
-                      disabled={items.length <= 1}
-                      onClick={() => removeItem(item.key)}
-                      aria-label="حذف قلم"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </IconButton>
+                    {item._cloth && item.packs.length ? (
+                      <p className="border-t border-gray-200/80 pt-2 text-xs text-gray-600">
+                        افزوده شده: {takenSummary}
+                        <span className="mr-2 text-gray-400">· جمع {faNumber(item.count)} عدد</span>
+                      </p>
+                    ) : null}
                   </div>
                 );
               })}
-              <PriceSection label="جمع مبلغ فاکتور" value={totals.amount} description={`جمع تعداد: ${totals.count}`} />
             </div>
+
+            <PriceSection label="جمع مبلغ فاکتور" value={totals.amount} description={`جمع تعداد: ${totals.count}`} />
 
             <Button onClick={submit} disabled={pending}>
               ذخیره
