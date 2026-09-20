@@ -5,9 +5,14 @@ function modelOf<T>(name: string, schema: Schema, collection?: string): Model<T>
   return (mongoose.models[name] as Model<T>) || mongoose.model<T>(name, schema, collection);
 }
 
+/** Skip mongoose's deep schema inference — it makes `tsc` run out of memory on Vercel. */
+function defineSchema(definition: Record<string, unknown>, options?: Record<string, unknown>) {
+  return new Schema(definition as never, options as never);
+}
+
 const personSelect = '_id fullName city address phoneNumber role';
 
-const UserSchema = new Schema(
+const UserSchema = defineSchema(
   {
     fullName: { type: String, default: null },
     phonenumber: { type: String, required: true, unique: true, index: true },
@@ -21,7 +26,7 @@ const UserSchema = new Schema(
   { collection: 'users' },
 );
 
-const UserSubscriptionSchema = new Schema(
+const UserSubscriptionSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     planId: { type: String, default: 'starter' },
@@ -36,7 +41,7 @@ const UserSubscriptionSchema = new Schema(
   { collection: 'usersubscriptions' },
 );
 
-const DiscountCodeSchema = new Schema(
+const DiscountCodeSchema = defineSchema(
   {
     code: { type: String, required: true, unique: true, index: true },
     percent: { type: Number, required: true },
@@ -50,7 +55,7 @@ const DiscountCodeSchema = new Schema(
   { collection: 'discountcodes' },
 );
 
-const OTPSchema = new Schema(
+const OTPSchema = defineSchema(
   {
     code: { type: String, required: true },
     type: { type: Number, required: true, default: 1 },
@@ -61,7 +66,7 @@ const OTPSchema = new Schema(
   { collection: 'otps' },
 );
 
-const BrandSchema = new Schema(
+const BrandSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true },
@@ -74,7 +79,7 @@ const BrandSchema = new Schema(
   { collection: 'brands' },
 );
 
-const WarehouseSchema = new Schema(
+const WarehouseSchema = defineSchema(
   {
     _id: { type: String, required: true },
     name: { type: String, default: '' },
@@ -86,7 +91,7 @@ const WarehouseSchema = new Schema(
   { _id: false },
 );
 
-const StoreSchema = new Schema(
+const StoreSchema = defineSchema(
   {
     _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
@@ -104,7 +109,7 @@ const StoreSchema = new Schema(
   { collection: 'stores' },
 );
 
-const StoreMemberSchema = new Schema(
+const StoreMemberSchema = defineSchema(
   {
     _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', required: true, index: true },
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true, index: true },
@@ -121,7 +126,7 @@ const StoreMemberSchema = new Schema(
   { collection: 'storemembers' },
 );
 
-const PartnerSchema = new Schema(
+const PartnerSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     allStores: { type: Boolean, required: true, default: false },
@@ -138,7 +143,7 @@ const PartnerSchema = new Schema(
   { collection: 'partners' },
 );
 
-const StoreBranchSchema = new Schema(
+const StoreBranchSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     name: { type: String, required: true },
@@ -154,7 +159,7 @@ const StoreBranchSchema = new Schema(
   { collection: 'storebranches' },
 );
 
-const PersonSchema = new Schema(
+const PersonSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     address: String,
@@ -169,16 +174,16 @@ const PersonSchema = new Schema(
   { collection: 'people' },
 );
 
-const ClothKindSchema = new Schema({ name: { type: String, required: true } }, { collection: 'clothkinds' });
-const ClothStyleSchema = new Schema(
+const ClothKindSchema = defineSchema({ name: { type: String, required: true } }, { collection: 'clothkinds' });
+const ClothStyleSchema = defineSchema(
   {
     name: { type: String, required: true },
     _clothKind: { type: Schema.Types.ObjectId, ref: 'ClothKind', required: true },
   },
   { collection: 'clothstyles' },
 );
-const ColorSchema = new Schema({ name: { type: String, required: true } }, { collection: 'colors' });
-const SizeSchema = new Schema(
+const ColorSchema = defineSchema({ name: { type: String, required: true } }, { collection: 'colors' });
+const SizeSchema = defineSchema(
   {
     name: { type: String, required: true },
     _clothKind: { type: Schema.Types.ObjectId, ref: 'ClothKind' },
@@ -186,7 +191,7 @@ const SizeSchema = new Schema(
   { collection: 'sizes' },
 );
 
-const FabricSchema = new Schema(
+const FabricSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     _mercer: { type: Schema.Types.ObjectId, ref: 'Person', required: true },
@@ -212,7 +217,7 @@ const FabricSchema = new Schema(
   { collection: 'fabrics' },
 );
 
-const ClothSchema = new Schema(
+const ClothSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
@@ -293,7 +298,7 @@ const ClothSchema = new Schema(
   { collection: 'clothes' },
 );
 
-const InvoiceSchema = new Schema(
+const InvoiceSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     _brandId: { type: Schema.Types.ObjectId, ref: 'Brand' },
@@ -308,7 +313,7 @@ const InvoiceSchema = new Schema(
   { collection: 'invoices' },
 );
 
-const CustomerCartSchema = new Schema(
+const CustomerCartSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     _invoice: { type: Schema.Types.ObjectId, ref: 'Invoice', required: true },
@@ -331,7 +336,7 @@ const CustomerCartSchema = new Schema(
   { collection: 'customercarts' },
 );
 
-const CheckSchema = new Schema(
+const CheckSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     _owner: { type: Schema.Types.ObjectId, ref: 'Person', required: true },
@@ -351,7 +356,7 @@ const CheckSchema = new Schema(
   { collection: 'checks' },
 );
 
-const PaymentSchema = new Schema(
+const PaymentSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     _invoice: { type: Schema.Types.ObjectId, ref: 'Invoice' },
@@ -370,7 +375,7 @@ const PaymentSchema = new Schema(
   { collection: 'payments' },
 );
 
-const ReturnedSchema = new Schema(
+const ReturnedSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     _returnedPerson: { type: Schema.Types.ObjectId, ref: 'Person', required: true },
@@ -381,7 +386,7 @@ const ReturnedSchema = new Schema(
   { collection: 'returneds' },
 );
 
-const ReturnedItemsSchema = new Schema(
+const ReturnedItemsSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store' },
     _returned: { type: Schema.Types.ObjectId, ref: 'Returned', index: true },
@@ -395,7 +400,7 @@ const ReturnedItemsSchema = new Schema(
   { collection: 'returneditems' },
 );
 
-const ChangeSchema = new Schema(
+const ChangeSchema = defineSchema(
   {
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store' },
     _user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -408,7 +413,7 @@ const ChangeSchema = new Schema(
   { collection: 'changes' },
 );
 
-const ChangedItemsSchema = new Schema(
+const ChangedItemsSchema = defineSchema(
   {
     _changeId: { type: Schema.Types.ObjectId, ref: 'Change', required: true },
     changeKey: { type: String, required: true },
@@ -418,8 +423,8 @@ const ChangedItemsSchema = new Schema(
   { collection: 'changeditems' },
 );
 
-const PermisionSchema = new Schema({ name: { type: String, required: true } }, { collection: 'permisions' });
-const UserPermisionSchema = new Schema(
+const PermisionSchema = defineSchema({ name: { type: String, required: true } }, { collection: 'permisions' });
+const UserPermisionSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     _permision: { type: Schema.Types.ObjectId, ref: 'Permision', required: true },
@@ -427,7 +432,7 @@ const UserPermisionSchema = new Schema(
   { collection: 'userpermisions' },
 );
 
-const ImageTokenPurchaseSchema = new Schema(
+const ImageTokenPurchaseSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     packId: { type: String, required: true },
@@ -438,7 +443,7 @@ const ImageTokenPurchaseSchema = new Schema(
   { collection: 'imagetokenpurchases' },
 );
 
-const ImageEditSchema = new Schema(
+const ImageEditSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     _clothId: { type: Schema.Types.ObjectId, ref: 'Cloth', required: true, index: true },
@@ -450,7 +455,7 @@ const ImageEditSchema = new Schema(
   { collection: 'imageedits' },
 );
 
-const ProductShareSchema = new Schema(
+const ProductShareSchema = defineSchema(
   {
     token: { type: String, required: true, unique: true, index: true },
     title: { type: String, default: '' },
@@ -464,7 +469,7 @@ const ProductShareSchema = new Schema(
   { collection: 'productshares' },
 );
 
-const TelegramPublishSchema = new Schema(
+const TelegramPublishSchema = defineSchema(
   {
     _clothId: { type: Schema.Types.ObjectId, ref: 'Cloth', required: true, index: true },
     _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
@@ -483,7 +488,7 @@ const TelegramPublishSchema = new Schema(
   { collection: 'telegrampublishes' },
 );
 
-const TelegramInviteSchema = new Schema(
+const TelegramInviteSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     _personIds: { type: [Schema.Types.ObjectId], ref: 'Person', default: [] },
@@ -496,7 +501,7 @@ const TelegramInviteSchema = new Schema(
   { collection: 'telegraminvites' },
 );
 
-const AttachmentSchema = new Schema(
+const AttachmentSchema = defineSchema(
   {
     size: Number,
     entityId: Schema.Types.ObjectId,

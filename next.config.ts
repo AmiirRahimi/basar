@@ -2,6 +2,8 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // No ESLint config in this repo; don't block the production build on a lint pass.
+  eslint: { ignoreDuringBuilds: true },
   serverExternalPackages: ['jimp'],
   images: {
     unoptimized: true,
