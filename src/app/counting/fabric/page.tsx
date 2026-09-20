@@ -40,9 +40,30 @@ export default async function FabricPage() {
             options: tailors,
             required: true,
           },
-          { name: 'amount', label: 'متراژ', type: 'number', required: true },
-          { name: 'priceForUnit', label: 'فی هر متر', type: 'number', required: true },
-          { name: 'priceForShipingForUnit', label: 'حمل هر متر', type: 'number', required: true },
+          {
+            name: 'amount',
+            label: 'متراژ',
+            type: 'number',
+            required: true,
+            group: 'متراژ و قیمت',
+            row: true,
+          },
+          {
+            name: 'priceForUnit',
+            label: 'فی هر متر',
+            type: 'number',
+            required: true,
+            group: 'متراژ و قیمت',
+            row: true,
+          },
+          {
+            name: 'priceForShipingForUnit',
+            label: 'حمل هر متر',
+            type: 'number',
+            required: true,
+            group: 'متراژ و قیمت',
+            row: true,
+          },
           { name: 'discount', label: 'تخفیف', type: 'number' },
         ]}
       />
