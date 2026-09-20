@@ -1439,6 +1439,11 @@ div[style='z-index: 1000001;'],
   .no-print {
     display: none !important;
   }
+
+  .print-invoice-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }
 
 [dir='rtl'] :is(.rizzui-checkbox-icon, .rizzui-switch-on-icon) {

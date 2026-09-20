@@ -1,18 +1,52 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
-import { displayName, faNumber, toman } from '@/lib/format';
+import { useRouter } from 'next/navigation';
+import { ChevronRight, Printer } from 'lucide-react';
+import { Button } from '@/ui';
+import { displayName, faDate, faNumber, toman } from '@/lib/format';
+import { paymentApplied } from '@/lib/checks';
 import {
   type AccountInvoice,
   type AccountPayment,
-  invoiceKey,
   paymentMethodCounts,
+  paymentPartTiles,
+  paymentTarget,
 } from '@/lib/payment-display';
+import { buildPersonPaymentGroups, personPaymentsPrintHref } from '@/lib/person-payments';
 import { InvoiceSettleCard, PaymentRecordCard } from './PaymentRecordCard';
 
-function sortPayments(rows: AccountPayment[]) {
-  return [...rows].sort((a, b) => new Date(b.timeStamp || 0).getTime() - new Date(a.timeStamp || 0).getTime());
+function downloadPaymentsCsv(personName: string, payments: AccountPayment[], payable: boolean) {
+  const header = ['تاریخ', 'فاکتور', 'مبلغ', 'جزئیات', 'توضیح'];
+  const lines = payments.map((row) => {
+    const parts = paymentPartTiles(row)
+      .map((part) => `${part.label} ${part.amount}${part.note ? ` ${part.note}` : ''}`)
+      .join(' | ');
+    return [
+      faDate(row.timeStamp),
+      paymentTarget(row, payable),
+      String(paymentApplied(row)),
+      parts,
+      row.description ? String(row.description) : '',
+    ]
+      .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
+      .join(',');
+  });
+  const csv = `\uFEFF${[header.join(','), ...lines].join('\n')}`;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `payments-${personName || 'customer'}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function sortFlat(rows: AccountPayment[]) {
+  return [...rows].sort(
+    (a, b) => new Date(b.timeStamp || 0).getTime() - new Date(a.timeStamp || 0).getTime(),
+  );
 }
 
 export function PersonPaymentsView({
@@ -33,61 +67,99 @@ export function PersonPaymentsView({
   personId: string;
   invoiceId?: string;
 }) {
+  const router = useRouter();
   const payable = account.kind === 'payable';
-  const invoices = account.invoices || [];
-  const payments = sortPayments(account.payments || []);
-  const counts = paymentMethodCounts(payments);
-  const byInvoice = new Map<string, AccountPayment[]>();
-  const unassigned: AccountPayment[] = [];
-  for (const row of payments) {
-    const id = invoiceKey(row._invoice);
-    if (!id) {
-      unassigned.push(row);
-      continue;
-    }
-    const list = byInvoice.get(id) || [];
-    list.push(row);
-    byInvoice.set(id, list);
-  }
-  const known = new Set(invoices.map((row) => String(row._id)));
-  const extraInvoices: AccountInvoice[] = [...byInvoice.entries()]
-    .filter(([id]) => !known.has(id))
-    .map(([id, rows]) => {
-      const sample = rows[0]?._invoice;
-      const invoiceNumber = sample && typeof sample === 'object' ? sample.invoiceNumber : undefined;
-      const paid = paymentMethodCounts(rows).paidTotal;
-      return {
-        _id: id,
-        invoiceNumber,
-        total: paid,
-        paid,
-        remaining: 0,
-        ...paymentMethodCounts(rows),
-      };
-    });
-  const groups = [...invoices, ...extraInvoices]
-    .sort((a, b) => {
-      const aOpen = Number(a.remaining || 0) > 0 ? 1 : 0;
-      const bOpen = Number(b.remaining || 0) > 0 ? 1 : 0;
-      if (aOpen !== bOpen) return bOpen - aOpen;
-      return new Date(b.timeStamp || 0).getTime() - new Date(a.timeStamp || 0).getTime();
-    })
-    .map((invoice) => ({
-      invoice,
-      payments: byInvoice.get(String(invoice._id)) || [],
-    }))
-    .filter((group) => (invoiceId ? String(group.invoice._id) === invoiceId : true));
+  const { groups: allGroups, unassigned } = useMemo(
+    () => buildPersonPaymentGroups(account.invoices || [], account.payments || []),
+    [account.invoices, account.payments],
+  );
+  const groups = useMemo(
+    () => allGroups.filter((group) => (invoiceId ? String(group.invoice._id) === invoiceId : true)),
+    [allGroups, invoiceId],
+  );
+  const payments = useMemo(
+    () =>
+      sortFlat(
+        invoiceId
+          ? groups.flatMap((group) => group.payments)
+          : [...groups.flatMap((group) => group.payments), ...unassigned],
+      ),
+    [groups, invoiceId, unassigned],
+  );
+  const counts = paymentMethodCounts(account.payments || []);
   const showUnassigned = !invoiceId && unassigned.length > 0;
   const selectedInvoice = invoiceId
-    ? [...invoices, ...extraInvoices].find((row) => String(row._id) === invoiceId)
+    ? allGroups.find((group) => String(group.invoice._id) === invoiceId)?.invoice
     : null;
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const canSelect = !payable && !invoiceId && groups.length > 0;
+
+  function toggleSelected(id: string) {
+    setSelectedIds((rows) => (rows.includes(id) ? rows.filter((row) => row !== id) : [...rows, id]));
+  }
+
+  function toggleAll() {
+    if (selectedIds.length === groups.length) {
+      setSelectedIds([]);
+      return;
+    }
+    setSelectedIds(groups.map((group) => String(group.invoice._id)));
+  }
+
+  const printAllHref = personPaymentsPrintHref(personId, { scope: 'all' });
+  const printPaymentsHref = personPaymentsPrintHref(personId, { scope: 'payments' });
+  const printSelectedHref = personPaymentsPrintHref(personId, {
+    scope: 'invoices',
+    ids: invoiceId ? [invoiceId] : selectedIds,
+  });
 
   return (
     <div className="space-y-6">
-      <Link href="/counting/account" className="inline-flex items-center gap-1 text-sm text-teal-800 hover:underline">
-        <ChevronRight className="h-4 w-4" />
-        بازگشت به حساب
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/counting/account" className="inline-flex items-center gap-1 text-sm text-teal-800 hover:underline">
+          <ChevronRight className="h-4 w-4" />
+          بازگشت به حساب
+        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {invoiceId ? (
+            <Button size="sm" variant="outline" onClick={() => router.push(printSelectedHref)}>
+              <Printer className="ml-1.5 h-3.5 w-3.5" />
+              چاپ این فاکتور و پرداخت‌ها
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" variant="outline" onClick={() => router.push(printAllHref)}>
+                <Printer className="ml-1.5 h-3.5 w-3.5" />
+                چاپ همه فاکتورها و پرداخت‌ها
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => router.push(printPaymentsHref)}>
+                چاپ فقط پرداخت‌ها
+              </Button>
+              {canSelect ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!selectedIds.length}
+                  onClick={() => router.push(printSelectedHref)}
+                >
+                  چاپ انتخاب‌شده‌ها ({faNumber(selectedIds.length)})
+                </Button>
+              ) : null}
+            </>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!payments.length}
+            onClick={() => downloadPaymentsCsv(displayName(account.person), payments, payable)}
+          >
+            خروجی CSV پرداخت‌ها
+          </Button>
+        </div>
+      </div>
+
       <section className="rounded-2xl border border-gray-100 bg-white p-4">
         <h2 className="text-sm font-medium text-gray-900">{displayName(account.person)}</h2>
         <p className="mt-1 text-xs text-gray-500">
@@ -102,7 +174,11 @@ export function PersonPaymentsView({
           </div>
           <div className="rounded-xl bg-gray-50 px-3 py-2">
             <dt className="text-[11px] text-gray-500">
-              {payable ? 'باید بپردازید' : Number(account.creditToCustomer || 0) > 0 ? 'بستانکار مشتری' : 'باید بپردازد'}
+              {payable
+                ? 'باید بپردازید'
+                : Number(account.creditToCustomer || 0) > 0
+                  ? 'بستانکار مشتری'
+                  : 'باید بپردازد'}
             </dt>
             <dd className="text-base font-semibold">
               {toman(Number(account.creditToCustomer || 0) > 0 ? account.creditToCustomer : account.remaining)}
@@ -116,6 +192,7 @@ export function PersonPaymentsView({
           ) : null}
         </dl>
       </section>
+
       {selectedInvoice ? (
         <p className="text-sm text-gray-600">
           فقط پرداخت‌های فاکتور {selectedInvoice.invoiceNumber || '—'} نمایش داده می‌شود.{' '}
@@ -124,6 +201,21 @@ export function PersonPaymentsView({
           </Link>
         </p>
       ) : null}
+
+      {canSelect ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selectedIds.length > 0 && selectedIds.length === groups.length}
+              onChange={toggleAll}
+            />
+            انتخاب همه فاکتورها برای چاپ
+          </label>
+          <span className="text-xs text-gray-400">{faNumber(selectedIds.length)} فاکتور انتخاب شده</span>
+        </div>
+      ) : null}
+
       {payable ? (
         <section className="space-y-3">
           <h3 className="font-medium">پرداخت‌های مانده بدهی</h3>
@@ -140,10 +232,11 @@ export function PersonPaymentsView({
           {groups.map((group, index) => {
             const settled =
               Number(group.invoice.remaining || 0) <= 0 && Number(group.invoice.total || 0) > 0;
+            const id = String(group.invoice._id);
             return (
               <section
-                key={String(group.invoice._id)}
-                id={`invoice-${group.invoice._id}`}
+                key={id}
+                id={`invoice-${id}`}
                 className="overflow-hidden rounded-3xl border-2 border-gray-200 bg-white shadow-sm"
               >
                 <header
@@ -154,23 +247,45 @@ export function PersonPaymentsView({
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-[11px] font-medium text-gray-500">
-                        فاکتور {faNumber(index + 1)} از {faNumber(groups.length)}
-                      </p>
-                      <h3 className="mt-0.5 text-base font-semibold text-gray-900">
-                        فاکتور {group.invoice.invoiceNumber || '—'}
-                      </h3>
+                    <div className="flex items-start gap-3">
+                      {canSelect ? (
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={selectedIds.includes(id)}
+                          onChange={() => toggleSelected(id)}
+                          aria-label={`انتخاب فاکتور ${group.invoice.invoiceNumber || id}`}
+                        />
+                      ) : null}
+                      <div>
+                        <p className="text-[11px] font-medium text-gray-500">
+                          فاکتور {faNumber(index + 1)} از {faNumber(groups.length)}
+                        </p>
+                        <h3 className="mt-0.5 text-base font-semibold text-gray-900">
+                          فاکتور {group.invoice.invoiceNumber || '—'}
+                        </h3>
+                      </div>
                     </div>
-                    {settled ? (
-                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-800">
-                        تسویه شده
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-900">
-                        مانده دارد
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {settled ? (
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-800">
+                          تسویه شده
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-900">
+                          مانده دارد
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-teal-800 hover:underline"
+                        onClick={() =>
+                          router.push(personPaymentsPrintHref(personId, { scope: 'invoices', ids: [id] }))
+                        }
+                      >
+                        چاپ این فاکتور
+                      </button>
+                    </div>
                   </div>
                 </header>
 
