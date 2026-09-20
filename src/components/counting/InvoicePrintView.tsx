@@ -21,7 +21,7 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
           بازگشت به فاکتورها
         </Link>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/counting/invoices/${invoice._id}/bijak`}>
+          <Link href={`/counting/invoices/${invoice._id}/bijak`} target="_blank" rel="noopener noreferrer">
             <Button variant="outline">چاپ بیجک</Button>
           </Link>
           <Button onClick={() => window.print()}>چاپ</Button>

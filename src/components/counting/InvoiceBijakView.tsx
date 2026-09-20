@@ -133,6 +133,8 @@ export function InvoiceBijakView({
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/counting/invoices/${invoice._id}/print`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex h-9 items-center rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700"
           >
             چاپ فاکتور

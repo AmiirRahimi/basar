@@ -360,6 +360,8 @@ export function RecordDetail({
                 <>
                   <Link
                     href={`/counting/invoices/${row._id}/print`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:border-gray-300"
                   >
                     <Printer className="size-4" />
@@ -367,6 +369,8 @@ export function RecordDetail({
                   </Link>
                   <Link
                     href={`/counting/invoices/${row._id}/bijak`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:border-gray-300"
                   >
                     <ScrollText className="size-4" />

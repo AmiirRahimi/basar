@@ -249,12 +249,12 @@ export function InvoiceCrud({
               {
                 label: 'چاپ',
                 icon: <Printer className="size-3.5" />,
-                onClick: () => router.push(`/counting/invoices/${row.original._id}/print`),
+                onClick: () => window.open(`/counting/invoices/${row.original._id}/print`, '_blank', 'noopener,noreferrer'),
               },
               {
                 label: 'بیجک',
                 icon: <ScrollText className="size-3.5" />,
-                onClick: () => router.push(`/counting/invoices/${row.original._id}/bijak`),
+                onClick: () => window.open(`/counting/invoices/${row.original._id}/bijak`, '_blank', 'noopener,noreferrer'),
               },
             ]}
             onDelete={
@@ -703,10 +703,15 @@ export function InvoiceCrud({
                 <Button variant="outline" onClick={() => setSummary(null)}>
                   بستن
                 </Button>
-                <Button variant="outline" onClick={() => router.push(`/counting/invoices/${summary.id}/bijak`)}>
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(`/counting/invoices/${summary.id}/bijak`, '_blank', 'noopener,noreferrer')}
+                >
                   چاپ بیجک
                 </Button>
-                <Button onClick={() => router.push(`/counting/invoices/${summary.id}/print`)}>
+                <Button
+                  onClick={() => window.open(`/counting/invoices/${summary.id}/print`, '_blank', 'noopener,noreferrer')}
+                >
                   چاپ فاکتور
                 </Button>
               </div>
