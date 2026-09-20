@@ -63,6 +63,15 @@ export type StoreWarehouse = {
 export type StoreRecord = {
   _id: string;
   _brandId?: string | Brand;
+  _userId?:
+    | string
+    | {
+        _id?: string;
+        fullName?: string;
+        phonenumber?: string;
+        address?: string;
+        city?: string;
+      };
   name?: string;
   address?: string;
   phonenumbers?: string;

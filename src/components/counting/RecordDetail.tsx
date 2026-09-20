@@ -10,6 +10,7 @@ import {
   MapPin,
   Phone,
   Printer,
+  ScrollText,
   Shirt,
   User,
   Wallet,
@@ -356,13 +357,22 @@ export function RecordDetail({
             </div>
             <div className="flex flex-wrap gap-2">
               {resource === 'invoice' ? (
-                <Link
-                  href={`/counting/invoices/${row._id}/print`}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:border-gray-300"
-                >
-                  <Printer className="size-4" />
-                  چاپ
-                </Link>
+                <>
+                  <Link
+                    href={`/counting/invoices/${row._id}/print`}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:border-gray-300"
+                  >
+                    <Printer className="size-4" />
+                    چاپ فاکتور
+                  </Link>
+                  <Link
+                    href={`/counting/invoices/${row._id}/bijak`}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm hover:border-gray-300"
+                  >
+                    <ScrollText className="size-4" />
+                    چاپ بیجک
+                  </Link>
+                </>
               ) : null}
               {resource === 'person' ? (
                 <Link

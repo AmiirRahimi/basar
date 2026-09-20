@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
-import { Banknote, Minus, Plus, Printer } from 'lucide-react';
+import { Banknote, Minus, Plus, Printer, ScrollText } from 'lucide-react';
 import {
   Button,
   FormCard,
@@ -229,7 +229,7 @@ export function InvoiceCrud({
       helper.display({
         id: 'actions',
         header: 'عملیات',
-        size: 220,
+        size: 260,
         enableHiding: false,
         enableSorting: false,
         cell: ({ row }) => (
@@ -250,6 +250,11 @@ export function InvoiceCrud({
                 label: 'چاپ',
                 icon: <Printer className="size-3.5" />,
                 onClick: () => router.push(`/counting/invoices/${row.original._id}/print`),
+              },
+              {
+                label: 'بیجک',
+                icon: <ScrollText className="size-3.5" />,
+                onClick: () => router.push(`/counting/invoices/${row.original._id}/bijak`),
               },
             ]}
             onDelete={
@@ -697,6 +702,9 @@ export function InvoiceCrud({
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={() => setSummary(null)}>
                   بستن
+                </Button>
+                <Button variant="outline" onClick={() => router.push(`/counting/invoices/${summary.id}/bijak`)}>
+                  چاپ بیجک
                 </Button>
                 <Button onClick={() => router.push(`/counting/invoices/${summary.id}/print`)}>
                   چاپ فاکتور

@@ -20,7 +20,12 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
         <Link href="/counting/invoices" className="text-sm text-primary">
           بازگشت به فاکتورها
         </Link>
-        <Button onClick={() => window.print()}>چاپ</Button>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/counting/invoices/${invoice._id}/bijak`}>
+            <Button variant="outline">چاپ بیجک</Button>
+          </Link>
+          <Button onClick={() => window.print()}>چاپ</Button>
+        </div>
       </div>
 
       <article className="space-y-6">

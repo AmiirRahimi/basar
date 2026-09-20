@@ -243,8 +243,18 @@ function lookups() {
     invoice: {
       model: m.Invoice,
       populate: [
-        { path: '_client', select: '_id fullName city role address phoneNumber' },
-        { path: '_storeId', select: '_id name _brandId', populate: { path: '_brandId', select: '_id name color' } },
+        {
+          path: '_client',
+          select: '_id fullName city role address phoneNumber',
+        },
+        {
+          path: '_storeId',
+          select: '_id name address city phones phonenumbers landlines _brandId _userId',
+          populate: [
+            { path: '_brandId', select: '_id name color' },
+            { path: '_userId', select: '_id fullName phonenumber address city' },
+          ],
+        },
         { path: '_brandId', select: '_id name' },
       ],
       sort: '-timeStamp',
