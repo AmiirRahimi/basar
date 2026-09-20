@@ -3,6 +3,7 @@ import { CountingShell } from '@/components/counting/CountingShell';
 import { RecordDetail, RecordMissing } from '@/components/counting/RecordDetail';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { RECORD_LIST_TITLE, RECORD_TYPE_LABEL } from '@/lib/record-view';
+import type { AccountPayment } from '@/lib/payment-display';
 
 export async function RecordDetailPage({ resource, id }: { resource: string; id: string }) {
   const rowRes = await getResource<Record<string, any>>(resource, id);
@@ -12,9 +13,18 @@ export async function RecordDetailPage({ resource, id }: { resource: string; id:
   if (rowRes.ok && rowRes.data) {
     if (resource === 'invoice') {
       const [cartRes, balanceRes] = await Promise.all([getInvoiceCart(id), getInvoiceBalance(id)]);
+      const balance = balanceRes.ok && balanceRes.data ? (balanceRes.data as Record<string, unknown>) : null;
       extras = {
         lines: Array.isArray(cartRes.data) ? cartRes.data : [],
-        balance: balanceRes.ok && balanceRes.data ? (balanceRes.data as Record<string, number>) : undefined,
+        balance: balance
+          ? {
+              total: Number(balance.total || 0),
+              paid: Number(balance.paid || 0),
+              returnTotal: Number(balance.returnTotal || 0),
+              remaining: Number(balance.remaining || 0),
+            }
+          : undefined,
+        payments: Array.isArray(balance?.payments) ? (balance.payments as AccountPayment[]) : [],
       };
     } else if (resource === 'person') {
       const accountRes = await getPersonAccount(id);

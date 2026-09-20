@@ -18,6 +18,7 @@ import { InfoRow, SectionCard, TableOverflowText } from '@/ui';
 import { AdminUserEditTrigger } from './AdminUserEditor';
 import { ClothImageGallery } from './ClothImageGallery';
 import { Price } from './Price';
+import { PaymentRecordCard } from './PaymentRecordCard';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
 import { personRoleLabel, personRolesLabel } from '@/lib/constants';
 import { cycleLabel } from '@/lib/plans';
@@ -27,6 +28,7 @@ import { fabricExtraKindLabel, parseFabricExtras } from '@/lib/fabric-extras';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { formatPacksFa, packsFromCloth, totalItems } from '@/lib/packs';
 import { parseImageList } from '@/lib/shop-cart';
+import type { AccountPayment } from '@/lib/payment-display';
 import {
   RECORD_LIST_HREF,
   RECORD_LIST_TITLE,
@@ -267,6 +269,7 @@ export type RecordDetailExtras = {
     label?: string;
   }>;
   balance?: { total?: number; paid?: number; returnTotal?: number; remaining?: number };
+  payments?: AccountPayment[];
   account?: {
     kind?: string;
     remaining?: number;
@@ -485,6 +488,27 @@ export function RecordDetail({
               </tbody>
             </table>
           </div>
+        </SectionCard>
+      ) : null}
+
+      {resource === 'invoice' ? (
+        <SectionCard title="پرداخت‌های این فاکتور" flush={false}>
+          {Array.isArray(extras?.payments) && extras.payments.length ? (
+            <div className="space-y-3">
+              {[...extras.payments]
+                .sort((a, b) => String(b.timeStamp || '').localeCompare(String(a.timeStamp || '')))
+                .map((payment) => (
+                  <PaymentRecordCard
+                    key={String(payment._id)}
+                    row={payment}
+                    payable={false}
+                    showTarget={false}
+                  />
+                ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">هنوز پرداختی برای این فاکتور ثبت نشده است.</p>
+          )}
         </SectionCard>
       ) : null}
 
