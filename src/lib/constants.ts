@@ -12,12 +12,14 @@ export const PERSON_ROLES: Record<string, string> = {
   '3': 'بنکدار پارچه',
   '4': 'فروشنده',
   '5': 'شست‌وشو',
+  '6': 'خرجکار فروش',
+  '7': 'چاپ',
 };
 
 const PERSON_ROLE_IDS = new Set(Object.keys(PERSON_ROLES));
 
 /** People the store owes money to, opposite of wholesale customers. */
-export const PAYABLE_PERSON_ROLES = ['2', '3', '4', '5'] as const;
+export const PAYABLE_PERSON_ROLES = ['2', '3', '4', '5', '6', '7'] as const;
 
 /** Normalize stored/form person roles (single string, CSV, or array) to unique known ids. */
 export function normalizePersonRoles(value: unknown): string[] {

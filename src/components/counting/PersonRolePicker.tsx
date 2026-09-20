@@ -29,6 +29,16 @@ const ROLE_STYLES: Record<string, { idle: string; active: string }> = {
     active:
       'border-cyan-400 bg-cyan-100 text-cyan-900 shadow-sm ring-2 ring-cyan-400/30 dark:border-cyan-500 dark:bg-cyan-900/50 dark:text-cyan-50',
   },
+  '6': {
+    idle: 'border-rose-200/80 bg-rose-50/50 text-rose-800 hover:border-rose-300 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200',
+    active:
+      'border-rose-400 bg-rose-100 text-rose-900 shadow-sm ring-2 ring-rose-400/30 dark:border-rose-500 dark:bg-rose-900/50 dark:text-rose-50',
+  },
+  '7': {
+    idle: 'border-indigo-200/80 bg-indigo-50/50 text-indigo-800 hover:border-indigo-300 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-200',
+    active:
+      'border-indigo-400 bg-indigo-100 text-indigo-900 shadow-sm ring-2 ring-indigo-400/30 dark:border-indigo-500 dark:bg-indigo-900/50 dark:text-indigo-50',
+  },
 };
 
 const FALLBACK = {

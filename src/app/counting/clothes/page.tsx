@@ -18,19 +18,22 @@ import { saleState } from '@/lib/product-sale';
 import { canWriteResource } from '@/lib/roles';
 
 export default async function ClothesPage() {
-  const [res, kinds, styles, sizes, colors, fabrics, tailors, washers, sellers, partners, workspace] = await Promise.all([
-    listClothes(),
-    clothKindOptions(),
-    clothStyleOptions(),
-    sizeOptions(),
-    colorOptions(),
-    fabricOptions(),
-    personOptions('2'),
-    personOptions('5'),
-    personOptions('4'),
-    partnerOptions(),
-    getWorkspace(),
-  ]);
+  const [res, kinds, styles, sizes, colors, fabrics, tailors, washers, trimmers, printers, sellers, partners, workspace] =
+    await Promise.all([
+      listClothes(),
+      clothKindOptions(),
+      clothStyleOptions(),
+      sizeOptions(),
+      colorOptions(),
+      fabricOptions(),
+      personOptions('2'),
+      personOptions('5'),
+      personOptions('6'),
+      personOptions('7'),
+      personOptions('4'),
+      partnerOptions(),
+      getWorkspace(),
+    ]);
   guardSession(res);
   const rows = (Array.isArray(res.data) ? res.data : []).map((row: Record<string, any>) => {
     const stock = packsFromCloth(row);
@@ -81,6 +84,10 @@ export default async function ClothesPage() {
           { header: 'اجرت دوخت', accessor: 'tailorFee', format: 'toman' },
           { header: 'شست‌وشو', accessor: '_wash', format: 'name' },
           { header: 'اجرت شست', accessor: 'washFee', format: 'toman' },
+          { header: 'خرجکار فروش', accessor: '_trim', format: 'name' },
+          { header: 'اجرت خرجکار', accessor: 'trimFee', format: 'toman' },
+          { header: 'چاپ', accessor: '_print', format: 'name' },
+          { header: 'اجرت چاپ', accessor: 'printFee', format: 'toman' },
           { header: 'فروشنده', accessor: '_boughtFrom', format: 'name' },
           { header: 'شریک', accessor: '_partner', format: 'name' },
         ]}
@@ -134,6 +141,8 @@ export default async function ClothesPage() {
             options: fabrics,
             required: true,
             section: 'تولید',
+            group: 'پارچه',
+            row: true,
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
           {
@@ -143,6 +152,8 @@ export default async function ClothesPage() {
             required: true,
             priceFrom: '_producedFrom',
             section: 'تولید',
+            group: 'پارچه',
+            row: true,
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
           {
@@ -151,6 +162,8 @@ export default async function ClothesPage() {
             type: 'relation',
             options: tailors,
             section: 'تولید',
+            group: 'خیاط',
+            row: true,
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
           {
@@ -158,6 +171,8 @@ export default async function ClothesPage() {
             label: 'اجرت دوخت هر عدد',
             type: 'price',
             section: 'تولید',
+            group: 'خیاط',
+            row: true,
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
           {
@@ -166,6 +181,8 @@ export default async function ClothesPage() {
             type: 'relation',
             options: washers,
             section: 'تولید',
+            group: 'شست‌وشو',
+            row: true,
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
           {
@@ -173,6 +190,46 @@ export default async function ClothesPage() {
             label: 'اجرت شست‌وشو هر عدد',
             type: 'price',
             section: 'تولید',
+            group: 'شست‌وشو',
+            row: true,
+            visibleWhen: { field: 'isProduced', values: ['true'] },
+          },
+          {
+            name: '_trim',
+            label: 'خرجکار فروش',
+            type: 'relation',
+            options: trimmers,
+            section: 'تولید',
+            group: 'خرجکار فروش',
+            row: true,
+            visibleWhen: { field: 'isProduced', values: ['true'] },
+          },
+          {
+            name: 'trimFee',
+            label: 'اجرت خرجکار فروش هر عدد',
+            type: 'price',
+            section: 'تولید',
+            group: 'خرجکار فروش',
+            row: true,
+            visibleWhen: { field: 'isProduced', values: ['true'] },
+          },
+          {
+            name: '_print',
+            label: 'چاپ',
+            type: 'relation',
+            options: printers,
+            section: 'تولید',
+            group: 'چاپ',
+            row: true,
+            visibleWhen: { field: 'isProduced', values: ['true'] },
+          },
+          {
+            name: 'printFee',
+            label: 'اجرت چاپ هر عدد',
+            type: 'price',
+            section: 'تولید',
+            group: 'چاپ',
+            row: true,
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
           {

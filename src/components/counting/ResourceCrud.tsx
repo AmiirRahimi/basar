@@ -357,7 +357,14 @@ export function ResourceCrud({
     const extras = clothExtrasTotal(form.extras);
     const mode = String(form.isProduced ?? '');
     if (mode === 'true') {
-      return Number(computedPrice() || 0) + Number(form.tailorFee || 0) + Number(form.washFee || 0) + extras;
+      return (
+        Number(computedPrice() || 0) +
+        Number(form.tailorFee || 0) +
+        Number(form.washFee || 0) +
+        Number(form.trimFee || 0) +
+        Number(form.printFee || 0) +
+        extras
+      );
     }
     if (mode === 'false') {
       return Number(form.boughtFee || 0) + extras;
@@ -367,7 +374,7 @@ export function ResourceCrud({
 
   function finishedClothDescription() {
     const mode = String(form.isProduced ?? '');
-    if (mode === 'true') return 'پارچه + اجرت دوخت + اجرت شست‌وشو + خرج‌های اضافه';
+    if (mode === 'true') return 'پارچه + اجرت‌ها + خرج‌های اضافه';
     if (mode === 'false') return 'قیمت خرید یا موجودی قبلی + خرج‌های اضافه';
     return 'ابتدا تولید یا خرید / موجودی قبلی را انتخاب کنید';
   }
@@ -781,6 +788,28 @@ export function ResourceCrud({
                   </div>
                   {block.sections.map((section) => {
                     const openPanel = current === section.openValue;
+                    const visibleFields = section.fields.filter(isVisible);
+                    const chunks: { row: boolean; fields: Field[] }[] = [];
+                    let fi = 0;
+                    while (fi < visibleFields.length) {
+                      const field = visibleFields[fi];
+                      if (field.group && field.row) {
+                        const groupName = field.group;
+                        const groupFields: Field[] = [];
+                        while (
+                          fi < visibleFields.length &&
+                          visibleFields[fi].group === groupName &&
+                          visibleFields[fi].row
+                        ) {
+                          groupFields.push(visibleFields[fi]);
+                          fi += 1;
+                        }
+                        chunks.push({ row: true, fields: groupFields });
+                        continue;
+                      }
+                      chunks.push({ row: Boolean(field.row), fields: [field] });
+                      fi += 1;
+                    }
                     return (
                       <CollapsiblePanel
                         key={section.key}
@@ -789,8 +818,22 @@ export function ResourceCrud({
                         contentClassName="space-y-3"
                       >
                         <div className="grid gap-3">
-                          {section.fields.filter(isVisible).map((field) => (
-                            <div key={field.name}>{renderField(field)}</div>
+                          {chunks.map((chunk) => (
+                            <div
+                              key={chunk.fields.map((f) => f.name).join('-')}
+                              className={cn(
+                                'grid gap-3',
+                                chunk.row
+                                  ? chunk.fields.length >= 3
+                                    ? 'md:grid-cols-3'
+                                    : 'md:grid-cols-2'
+                                  : undefined,
+                              )}
+                            >
+                              {chunk.fields.map((field) => (
+                                <div key={field.name}>{renderField(field)}</div>
+                              ))}
+                            </div>
                           ))}
                         </div>
                       </CollapsiblePanel>

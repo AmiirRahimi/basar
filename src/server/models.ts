@@ -228,11 +228,15 @@ const ClothSchema = new Schema(
     _producedFrom: { type: Schema.Types.ObjectId, ref: 'Fabric' },
     _boughtFrom: { type: Schema.Types.ObjectId, ref: 'Person' },
     _wash: { type: Schema.Types.ObjectId, ref: 'Person' },
+    _trim: { type: Schema.Types.ObjectId, ref: 'Person' },
+    _print: { type: Schema.Types.ObjectId, ref: 'Person' },
     _partner: { type: Schema.Types.ObjectId, ref: 'Partner' },
     amountUsed: Number,
     boughtFee: Number,
     tailorFee: Number,
     washFee: Number,
+    trimFee: Number,
+    printFee: Number,
     extras: {
       type: [
         {
@@ -534,6 +538,8 @@ export const CLOTH_POPULATE = [
   { path: '_storeId', select: '_id name' },
   { path: '_tailor', select: personSelect },
   { path: '_wash', select: personSelect },
+  { path: '_trim', select: personSelect },
+  { path: '_print', select: personSelect },
   { path: '_type' },
   { path: '_style' },
   { path: '_color' },

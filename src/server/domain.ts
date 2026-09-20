@@ -62,6 +62,8 @@ const FILTER_KEYS = new Set([
   '_returnedPerson',
   '_type',
   '_wash',
+  '_trim',
+  '_print',
   'role',
   'isSent',
   'direction',
@@ -81,6 +83,8 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     '_producedFrom',
     '_boughtFrom',
     '_wash',
+    '_trim',
+    '_print',
     '_partner',
     '_storeId',
     '_storeIds',
@@ -88,6 +92,8 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     'boughtFee',
     'tailorFee',
     'washFee',
+    'trimFee',
+    'printFee',
     'extras',
     'code',
     'count',
@@ -508,9 +514,13 @@ async function applyClothCost(session: Session, body: Record<string, unknown>) {
     body._producedFrom = null;
     body._tailor = null;
     body._wash = null;
+    body._trim = null;
+    body._print = null;
     body.amountUsed = null;
     body.tailorFee = null;
     body.washFee = null;
+    body.trimFee = null;
+    body.printFee = null;
     const fromPast =
       body.fromPastStock === true || body.fromPastStock === 'true' || body.fromPastStock === 1;
     body.fromPastStock = Boolean(fromPast);
@@ -1738,6 +1748,12 @@ export async function clothCounts(id: string, type: string): Promise<ActionResul
   if (type === '5') {
     return ok(serialize(await M().Cloth.find(storeFilter(auth.session, { _wash: oid(id) })).select('washFee count timeStamp').lean()));
   }
+  if (type === '6') {
+    return ok(serialize(await M().Cloth.find(storeFilter(auth.session, { _trim: oid(id) })).select('trimFee count timeStamp').lean()));
+  }
+  if (type === '7') {
+    return ok(serialize(await M().Cloth.find(storeFilter(auth.session, { _print: oid(id) })).select('printFee count timeStamp').lean()));
+  }
   return fail('نوع نامعتبر');
 }
 
@@ -2081,6 +2097,30 @@ async function vendorItems(session: Session, personId: string, role: string) {
       label: `لباس ${row.code || '—'} — ${row.count || 0} عدد`,
       timeStamp: row.timeStamp,
       total: clothPayTotal(row, row.washFee),
+    }));
+  }
+  if (role === '6') {
+    const clothes = await M().Cloth.find(storeFilter(session, { _trim: oid(personId) }))
+      .select('code count trimFee timeStamp')
+      .lean();
+    return clothes.map((row: any) => ({
+      _id: row._id,
+      kind: 'cloth',
+      label: `لباس ${row.code || '—'} — ${row.count || 0} عدد`,
+      timeStamp: row.timeStamp,
+      total: clothPayTotal(row, row.trimFee),
+    }));
+  }
+  if (role === '7') {
+    const clothes = await M().Cloth.find(storeFilter(session, { _print: oid(personId) }))
+      .select('code count printFee timeStamp')
+      .lean();
+    return clothes.map((row: any) => ({
+      _id: row._id,
+      kind: 'cloth',
+      label: `لباس ${row.code || '—'} — ${row.count || 0} عدد`,
+      timeStamp: row.timeStamp,
+      total: clothPayTotal(row, row.printFee),
     }));
   }
   const clothes = await M().Cloth.find(storeFilter(session, { _boughtFrom: oid(personId) }))

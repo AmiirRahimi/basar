@@ -94,6 +94,8 @@ const POP: Record<string, string> = {
   _tailor: 'people',
   _mercer: 'people',
   _wash: 'people',
+  _trim: 'people',
+  _print: 'people',
   _boughtFrom: 'people',
   _returnedPerson: 'people',
   _person: 'people',

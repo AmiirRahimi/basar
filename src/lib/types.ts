@@ -162,6 +162,8 @@ export type Cloth = {
   boughtFee?: number;
   tailorFee?: number;
   washFee?: number;
+  trimFee?: number;
+  printFee?: number;
   extras?: { kind?: string; price?: number; description?: string }[];
   published?: boolean;
   description?: string;
@@ -188,6 +190,8 @@ export type Cloth = {
   } | string;
   _tailor?: Person | string;
   _wash?: Person | string;
+  _trim?: Person | string;
+  _print?: Person | string;
   _boughtFrom?: Person | string;
   _partner?: Partner | string;
 };

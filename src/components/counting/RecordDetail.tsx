@@ -394,7 +394,7 @@ export function RecordDetail({
               row.isProduced === true ||
               row.isProduced === 'true' ||
               (row.isProduced == null && Boolean(row._producedFrom || row._tailor));
-            if (['_producedFrom', 'amountUsed', '_tailor', 'tailorFee', '_wash', 'washFee'].includes(field.key)) {
+            if (['_producedFrom', 'amountUsed', '_tailor', 'tailorFee', '_wash', 'washFee', '_trim', 'trimFee', '_print', 'printFee'].includes(field.key)) {
               if (!produced) return false;
             }
             if (field.key === '_boughtFrom') {
