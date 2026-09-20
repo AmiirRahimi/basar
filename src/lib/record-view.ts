@@ -135,6 +135,7 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
       title: 'تولید یا خرید',
       fields: [
         { key: 'isProduced', label: 'تولید شده', kind: 'bool' },
+        { key: 'fromPastStock', label: 'موجودی قبلی', kind: 'bool' },
         { key: '_producedFrom', label: 'پارچه', kind: 'name', linkResource: 'fabric' },
         { key: 'amountUsed', label: 'مصرف پارچه' },
         { key: '_tailor', label: 'خیاط', kind: 'name', linkResource: 'person' },

@@ -372,6 +372,9 @@ export function RecordDetail({
               if (!produced) return false;
             }
             if (field.key === '_boughtFrom') {
+              if (produced || row.fromPastStock === true || row.fromPastStock === 'true') return false;
+            }
+            if (field.key === 'fromPastStock') {
               if (produced) return false;
             }
           }

@@ -157,6 +157,7 @@ export type Cloth = {
   packSize?: number;
   packs?: ClothPack[];
   isProduced?: boolean;
+  fromPastStock?: boolean;
   amountUsed?: number;
   boughtFee?: number;
   tailorFee?: number;

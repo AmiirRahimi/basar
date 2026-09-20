@@ -75,6 +75,7 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     '_size',
     '_color',
     'isProduced',
+    'fromPastStock',
     '_tailor',
     '_producedFrom',
     '_boughtFrom',
@@ -502,8 +503,13 @@ async function applyClothCost(session: Session, body: Record<string, unknown>) {
     body.amountUsed = null;
     body.tailorFee = null;
     body.washFee = null;
+    const fromPast =
+      body.fromPastStock === true || body.fromPastStock === 'true' || body.fromPastStock === 1;
+    body.fromPastStock = Boolean(fromPast);
+    if (fromPast) body._boughtFrom = null;
     return body;
   }
+  body.fromPastStock = false;
   body._boughtFrom = null;
   const fabricId = body._producedFrom;
   const amountUsed = Number(body.amountUsed || 0);

@@ -176,14 +176,27 @@ export default async function ClothesPage() {
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
           {
-            name: '_boughtFrom',
-            label: 'فروشنده (در صورت خرید)',
-            type: 'relation',
-            options: sellers,
+            name: 'fromPastStock',
+            label: 'موجودی قبلی فروشگاه (بدون فروشنده)',
+            type: 'boolean',
             section: 'خرید / موجودی قبلی',
             sectionHint:
               'لباسی که از شخص دیگری خریده‌اید یا از قبل در فروشگاه موجود بوده را اینجا ثبت کنید.',
             visibleWhen: { field: 'isProduced', values: ['false'] },
+          },
+          {
+            name: '_boughtFrom',
+            label: 'فروشنده',
+            type: 'relation',
+            options: sellers,
+            required: true,
+            section: 'خرید / موجودی قبلی',
+            sectionHint:
+              'لباسی که از شخص دیگری خریده‌اید یا از قبل در فروشگاه موجود بوده را اینجا ثبت کنید.',
+            visibleWhen: [
+              { field: 'isProduced', values: ['false'] },
+              { field: 'fromPastStock', values: ['false'] },
+            ],
           },
           {
             name: 'boughtFee',

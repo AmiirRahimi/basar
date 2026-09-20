@@ -212,6 +212,7 @@ const ClothSchema = new Schema(
     _size: { type: Schema.Types.ObjectId, ref: 'Size' },
     _color: { type: Schema.Types.ObjectId, ref: 'Color' },
     isProduced: { type: Boolean, default: false },
+    fromPastStock: { type: Boolean, default: false },
     _tailor: { type: Schema.Types.ObjectId, ref: 'Person' },
     _producedFrom: { type: Schema.Types.ObjectId, ref: 'Fabric' },
     _boughtFrom: { type: Schema.Types.ObjectId, ref: 'Person' },
