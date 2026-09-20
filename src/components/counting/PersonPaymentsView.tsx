@@ -136,25 +136,86 @@ export function PersonPaymentsView({
           )}
         </section>
       ) : (
-        <div className="space-y-8">
-          {groups.map((group) => (
-            <section key={String(group.invoice._id)} id={`invoice-${group.invoice._id}`} className="space-y-3">
-              <InvoiceSettleCard row={group.invoice} />
-              {group.payments.length ? (
-                group.payments.map((row) => <PaymentRecordCard key={row._id} row={row} payable={false} />)
-              ) : (
-                <p className="rounded-2xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
-                  برای این فاکتور پرداختی ثبت نشده است.
-                </p>
-              )}
-            </section>
-          ))}
+        <div className="space-y-10">
+          {groups.map((group, index) => {
+            const settled =
+              Number(group.invoice.remaining || 0) <= 0 && Number(group.invoice.total || 0) > 0;
+            return (
+              <section
+                key={String(group.invoice._id)}
+                id={`invoice-${group.invoice._id}`}
+                className="overflow-hidden rounded-3xl border-2 border-gray-200 bg-white shadow-sm"
+              >
+                <header
+                  className={`border-b px-4 py-3 sm:px-5 ${
+                    settled
+                      ? 'border-emerald-100 bg-emerald-50/70'
+                      : 'border-amber-100 bg-amber-50/70'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] font-medium text-gray-500">
+                        فاکتور {faNumber(index + 1)} از {faNumber(groups.length)}
+                      </p>
+                      <h3 className="mt-0.5 text-base font-semibold text-gray-900">
+                        فاکتور {group.invoice.invoiceNumber || '—'}
+                      </h3>
+                    </div>
+                    {settled ? (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-800">
+                        تسویه شده
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-900">
+                        مانده دارد
+                      </span>
+                    )}
+                  </div>
+                </header>
+
+                <div className="space-y-4 p-4 sm:p-5">
+                  <InvoiceSettleCard row={group.invoice} embedded />
+
+                  <div className="space-y-3 border-t border-dashed border-gray-200 pt-4">
+                    <h4 className="text-sm font-medium text-gray-800">
+                      پرداخت‌های فاکتور {group.invoice.invoiceNumber || '—'}
+                      <span className="mr-2 text-xs font-normal text-gray-500">
+                        ({faNumber(group.payments.length)} مورد)
+                      </span>
+                    </h4>
+                    {group.payments.length ? (
+                      <div className="space-y-3 rounded-2xl bg-gray-50/80 p-3">
+                        {group.payments.map((row) => (
+                          <PaymentRecordCard
+                            key={row._id}
+                            row={row}
+                            payable={false}
+                            showTarget={false}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-2xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
+                        برای این فاکتور پرداختی ثبت نشده است.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+            );
+          })}
           {showUnassigned ? (
-            <section className="space-y-3">
-              <h3 className="font-medium">پرداخت روی مانده کل فاکتورها</h3>
-              {unassigned.map((row) => (
-                <PaymentRecordCard key={row._id} row={row} payable={false} />
-              ))}
+            <section className="overflow-hidden rounded-3xl border-2 border-gray-200 bg-white shadow-sm">
+              <header className="border-b border-gray-100 bg-gray-50 px-4 py-3 sm:px-5">
+                <h3 className="text-base font-semibold text-gray-900">پرداخت روی مانده کل فاکتورها</h3>
+                <p className="mt-0.5 text-xs text-gray-500">به یک فاکتور خاص وصل نشده‌اند</p>
+              </header>
+              <div className="space-y-3 bg-gray-50/80 p-4 sm:p-5">
+                {unassigned.map((row) => (
+                  <PaymentRecordCard key={row._id} row={row} payable={false} />
+                ))}
+              </div>
             </section>
           ) : null}
           {!groups.length && !showUnassigned ? (

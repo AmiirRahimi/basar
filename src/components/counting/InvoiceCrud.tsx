@@ -12,6 +12,7 @@ import {
   Modal,
   Select,
   TableOverflowText,
+  fieldLabelClassName,
   toast,
 } from '@/ui';
 import {
@@ -558,7 +559,7 @@ export function InvoiceCrud({
                 const takenSummary = formatPacksFa(item.packs);
                 return (
                   <div key={item.key} className="space-y-2 rounded-lg bg-gray-50 p-3">
-                    <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(12rem,auto)_minmax(10rem,12rem)_auto_auto] md:items-start">
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(11rem,auto)_minmax(9rem,11rem)_minmax(6rem,auto)_auto] md:items-start">
                       <Select
                         label="محصول *"
                         error={itemError && !item._cloth ? 'الزامی است' : undefined}
@@ -579,27 +580,39 @@ export function InvoiceCrud({
                           onUntake={() => untakePackOnLine(item.key)}
                         />
                       ) : (
-                        <p className="self-center text-sm text-gray-500">ابتدا محصول را انتخاب کنید</p>
+                        <div className="flex flex-col gap-1.5">
+                          <span className={fieldLabelClassName()}>بسته</span>
+                          <p className="flex h-9 items-center text-sm text-gray-500">ابتدا محصول را انتخاب کنید</p>
+                        </div>
                       )}
                       <PriceField
                         label="فی"
                         value={item.price}
                         onChange={(price) => setItem(item.key, { price })}
                       />
-                      <div className="pb-2 text-sm text-gray-600 md:pt-8">
-                        <Price value={Number(item.count || 0) * Number(item.price || 0)} />
+                      <div className="flex flex-col gap-1.5">
+                        <span className={fieldLabelClassName()}>مبلغ</span>
+                        <div className="flex h-9 items-center text-sm text-gray-700">
+                          <Price value={Number(item.count || 0) * Number(item.price || 0)} />
+                        </div>
                       </div>
-                      <IconButton
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="md:mt-8"
-                        disabled={items.length <= 1}
-                        onClick={() => removeItem(item.key)}
-                        aria-label="حذف قلم"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </IconButton>
+                      <div className="flex flex-col gap-1.5">
+                        <span className={`${fieldLabelClassName()} invisible`} aria-hidden>
+                          حذف
+                        </span>
+                        <div className="flex h-9 items-center">
+                          <IconButton
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={items.length <= 1}
+                            onClick={() => removeItem(item.key)}
+                            aria-label="حذف قلم"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </IconButton>
+                        </div>
+                      </div>
                     </div>
                     {item._cloth && item.packs.length ? (
                       <p className="border-t border-gray-200/80 pt-2 text-xs text-gray-600">

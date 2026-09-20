@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
-import { IconButton } from '@/ui';
+import { IconButton, fieldLabelClassName } from '@/ui';
 import { faNumber } from '@/lib/format';
 import {
   defaultPackToTake,
@@ -85,8 +85,9 @@ export function InvoicePackStepper({
   }
 
   return (
-    <div ref={rootRef} className="relative space-y-1.5">
-      <div className="flex items-center gap-2">
+    <div ref={rootRef} className="relative flex flex-col gap-1.5">
+      <span className={fieldLabelClassName()}>بسته</span>
+      <div className="flex h-9 items-center gap-2">
         <IconButton
           type="button"
           variant="outline"
@@ -97,7 +98,7 @@ export function InvoicePackStepper({
         >
           <Minus className="h-4 w-4" />
         </IconButton>
-        <div className="min-w-[4.5rem] rounded-xl border border-gray-200 bg-white px-3 py-2 text-center text-sm">
+        <div className="flex h-9 min-w-[4.5rem] items-center justify-center rounded-xl border border-gray-200 bg-white px-3 text-sm">
           {faNumber(totalPacks(taken))} بسته
         </div>
         <IconButton
@@ -119,7 +120,7 @@ export function InvoicePackStepper({
         </IconButton>
       </div>
       {pickerOpen ? (
-        <div className="absolute start-0 z-20 mt-1 w-56 space-y-2 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+        <div className="absolute start-0 top-full z-20 mt-1 w-56 space-y-2 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
           <p className="text-sm font-medium">انتخاب بسته</p>
           {choices.length ? (
             <div className="grid gap-2">

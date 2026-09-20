@@ -33,12 +33,15 @@ export function InvoiceSettleCard({
   href,
   onSelect,
   footer,
+  embedded,
 }: {
   row: AccountInvoice;
   selected?: boolean;
   href?: string;
   onSelect?: () => void;
   footer?: ReactNode;
+  /** When true, hide the invoice title (parent already shows it). */
+  embedded?: boolean;
 }) {
   const settled = Number(row.remaining || 0) <= 0 && Number(row.total || 0) > 0;
   const counts = [
@@ -48,18 +51,22 @@ export function InvoiceSettleCard({
   ].filter(Boolean);
   const body = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">فاکتور {row.invoiceNumber || '—'}</p>
-          <p className="mt-0.5 text-xs text-gray-500">{faDate(row.timeStamp)}</p>
+      {!embedded ? (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">فاکتور {row.invoiceNumber || '—'}</p>
+            <p className="mt-0.5 text-xs text-gray-500">{faDate(row.timeStamp)}</p>
+          </div>
+          {settled ? (
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-800">تسویه شده</span>
+          ) : (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-900">مانده دارد</span>
+          )}
         </div>
-        {settled ? (
-          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-800">تسویه شده</span>
-        ) : (
-          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-900">مانده دارد</span>
-        )}
-      </div>
-      <div className="mt-3">
+      ) : (
+        <p className="text-xs text-gray-500">{faDate(row.timeStamp)}</p>
+      )}
+      <div className={embedded ? 'mt-2' : 'mt-3'}>
         <PriceSection
           label={settled ? 'چیزی برای پرداخت نمانده' : 'باید بپردازد'}
           value={row.remaining}
