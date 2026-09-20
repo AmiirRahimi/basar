@@ -1,9 +1,10 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ActionIcon, Popover, Tooltip } from 'rizzui';
+import { ActionIcon, Popover } from 'rizzui';
 import { MoreHorizontal } from 'lucide-react';
 import { cn } from '../lib/cn';
+import { HintPopover } from './HintPopover';
 
 export type TableActionsMenuProps = {
   content: ReactNode;
@@ -20,7 +21,7 @@ export function TableActionsMenu({
   actionsLabel = 'Actions',
 }: TableActionsMenuProps) {
   return (
-    <Tooltip size="sm" content={actionsLabel} placement="top" color="invert">
+    <HintPopover content={actionsLabel}>
       <div className={cn('inline-flex', className)} data-stop-row-click="true">
         <Popover placement="bottom-end" shadow="lg">
           <Popover.Trigger>
@@ -38,7 +39,7 @@ export function TableActionsMenu({
           </Popover.Content>
         </Popover>
       </div>
-    </Tooltip>
+    </HintPopover>
   );
 }
 

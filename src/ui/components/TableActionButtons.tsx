@@ -1,10 +1,10 @@
 'use client';
 
 import type { ComponentType, ElementType, ReactNode } from 'react';
-import { Tooltip } from 'rizzui';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '../lib/cn';
 import { IconButton } from './Button';
+import { HintPopover } from './HintPopover';
 import {
   DeleteConfirmationTrigger,
   type DeleteConfirmationProps,
@@ -166,20 +166,20 @@ function ActionHit({
   if (href && href !== '#') {
     const Link = LinkComponent;
     return (
-      <Tooltip size="sm" content={label} placement="top" color="invert">
+      <HintPopover content={label}>
         <Link href={href} className="inline-flex shrink-0" onClick={onClick}>
           <IconButton type="button" size="sm" variant="outline" aria-label={label} className={className}>
             {icon}
           </IconButton>
         </Link>
-      </Tooltip>
+      </HintPopover>
     );
   }
 
   return (
-    <Tooltip size="sm" content={label} placement="top" color="invert">
+    <HintPopover content={label}>
       <span className="inline-flex shrink-0">{button}</span>
-    </Tooltip>
+    </HintPopover>
   );
 }
 

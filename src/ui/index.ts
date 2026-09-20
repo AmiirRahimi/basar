@@ -55,6 +55,11 @@ export {
   PopoverClose,
   type PopoverContentProps,
 } from './components/Popover';
+export {
+  HintPopover,
+  type HintPopoverProps,
+  type HintPopoverPlacement,
+} from './components/HintPopover';
 export { ModalFooter, type ModalFooterProps, type ModalFooterLabels } from './components/ModalFooter';
 export {
   CollapsiblePanel,

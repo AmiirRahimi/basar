@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, type ComponentType, type ReactNode } from 'react';
-import { Tooltip } from 'rizzui';
 import { Trash2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { IconButton } from './Button';
 import { DeletePopover } from './DeletePopover';
+import { HintPopover } from './HintPopover';
 
 export type DeleteConfirmationProps = {
   item: Record<string, unknown>;
@@ -72,7 +72,7 @@ export function DeleteConfirmationTrigger({
 
   return (
     <>
-      <Tooltip size="sm" content={tooltipLabel} placement="top" color="invert">
+      <HintPopover content={tooltipLabel}>
         <IconButton
           size="sm"
           variant="outline"
@@ -82,7 +82,7 @@ export function DeleteConfirmationTrigger({
         >
           {deleteIcon}
         </IconButton>
-      </Tooltip>
+      </HintPopover>
 
       {open && (
         <Modal

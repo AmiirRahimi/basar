@@ -1,8 +1,8 @@
 'use client';
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Tooltip } from 'rizzui';
 import { cn } from '../lib/cn';
+import { HintPopover } from './HintPopover';
 
 export function TableOverflowText({
   children,
@@ -39,13 +39,10 @@ export function TableOverflowText({
   if (!overflowing || !text) return content;
 
   return (
-    <Tooltip
-      size="sm"
+    <HintPopover
       content={<span className="inline-block max-w-xs whitespace-pre-wrap break-words text-right">{text}</span>}
-      placement="top"
-      color="invert"
     >
       {content}
-    </Tooltip>
+    </HintPopover>
   );
 }

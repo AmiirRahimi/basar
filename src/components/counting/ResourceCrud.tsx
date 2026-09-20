@@ -2,9 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
-import { Button, Checkbox, CollapsiblePanel, FieldGroup, Input, Modal, FormCard, Select, Textarea, toast, cn } from '@/ui';
+import { Button, Checkbox, CollapsiblePanel, FieldGroup, HintPopover, Input, Modal, FormCard, Select, Textarea, toast, cn } from '@/ui';
 import { ChevronDown, Scissors, ShoppingBag } from 'lucide-react';
-import { Tooltip } from 'rizzui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { recordViewPath } from '@/lib/record-view';
 import { RowActions } from './RowActions';
@@ -32,6 +31,8 @@ import type { FieldOption } from '@/lib/types';
 
 export type { FieldOption };
 
+export type VisibleWhen = { field: string; values: string[] };
+
 export type Field = {
   name: string;
   label: string;
@@ -43,8 +44,8 @@ export type Field = {
   searchable?: boolean;
   /** When set, this numeric field is multiplied by `option.price` of the named relation field. */
   priceFrom?: string;
-  /** Show this field only when another field's value is one of `values`. */
-  visibleWhen?: { field: string; values: string[] };
+  /** Show this field only when all rules match (single rule or AND list). */
+  visibleWhen?: VisibleWhen | VisibleWhen[];
   /** Optional section title; consecutive fields with the same section render in one collapsible. */
   section?: string;
   /** Hover hint shown on the section toggle button. */
@@ -54,6 +55,16 @@ export type Field = {
   /** On md+ screens, place this field in a multi-column row inside its group. */
   row?: boolean;
 };
+
+function visibleWhenRules(field: Field): VisibleWhen[] {
+  if (!field.visibleWhen) return [];
+  return Array.isArray(field.visibleWhen) ? field.visibleWhen : [field.visibleWhen];
+}
+
+function matchesVisibleWhen(rules: VisibleWhen[], values: Record<string, string>) {
+  if (!rules.length) return true;
+  return rules.every((rule) => rule.values.includes(String(values[rule.field] ?? '')));
+}
 
 export type ColumnSpec = {
   header: string;
@@ -241,8 +252,10 @@ export function ResourceCrud({
       const next = { ...s, [field.name]: value };
       fields.forEach((f) => {
         if (f.dependsOn === field.name) next[f.name] = '';
-        if (f.visibleWhen?.field === field.name && !f.visibleWhen.values.includes(value)) {
-          next[f.name] = '';
+        const rules = visibleWhenRules(f);
+        if (!rules.some((rule) => rule.field === field.name)) return;
+        if (!matchesVisibleWhen(rules, next)) {
+          next[f.name] = f.type === 'boolean' ? 'false' : '';
         }
       });
       return next;
@@ -250,9 +263,7 @@ export function ResourceCrud({
   }
 
   function isVisible(field: Field) {
-    if (!field.visibleWhen) return true;
-    const current = String(form[field.visibleWhen.field] ?? '');
-    return field.visibleWhen.values.includes(current);
+    return matchesVisibleWhen(visibleWhenRules(field), form);
   }
 
   function clearHiddenValue(field: Field) {
@@ -482,7 +493,13 @@ export function ResourceCrud({
   }
 
   const sectionToggleNames = new Set(
-    fields.filter((f) => f.section && f.visibleWhen?.field).map((f) => f.visibleWhen!.field),
+    fields
+      .filter((f) => f.section)
+      .flatMap((f) => visibleWhenRules(f).map((rule) => rule.field))
+      .filter((name) => {
+        const toggle = fields.find((f) => f.name === name);
+        return toggle?.type === 'boolean' && !toggle.section;
+      }),
   );
 
   type SectionItem = { key: string; fields: Field[]; openValue: string; hint?: string };
@@ -500,7 +517,8 @@ export function ResourceCrud({
       const hints = new Map<string, string>();
       const order: string[] = [];
       for (const f of fields) {
-        if (!f.section || f.visibleWhen?.field !== toggle.name) continue;
+        const toggleRule = visibleWhenRules(f).find((rule) => rule.field === toggle.name);
+        if (!f.section || !toggleRule) continue;
         if (!bySection.has(f.section)) {
           bySection.set(f.section, []);
           order.push(f.section);
@@ -511,16 +529,23 @@ export function ResourceCrud({
       formBlocks.push({
         kind: 'sections',
         toggle,
-        sections: order.map((key) => ({
-          key,
-          fields: bySection.get(key)!,
-          openValue: String(bySection.get(key)![0]?.visibleWhen?.values[0] ?? ''),
-          hint: hints.get(key),
-        })),
+        sections: order.map((key) => {
+          const sectionFields = bySection.get(key)!;
+          const toggleRule = visibleWhenRules(sectionFields[0]).find((rule) => rule.field === toggle.name);
+          return {
+            key,
+            fields: sectionFields,
+            openValue: String(toggleRule?.values[0] ?? ''),
+            hint: hints.get(key),
+          };
+        }),
       });
       while (i < fields.length) {
         const f = fields[i];
-        if (f.name === toggle.name || (f.section && f.visibleWhen?.field === toggle.name)) {
+        if (
+          f.name === toggle.name ||
+          (f.section && visibleWhenRules(f).some((rule) => rule.field === toggle.name))
+        ) {
           i += 1;
           continue;
         }
@@ -663,13 +688,7 @@ export function ResourceCrud({
                       );
                       return (
                         <div key={section.key} className="min-w-0">
-                          {section.hint ? (
-                            <Tooltip size="sm" content={section.hint} placement="top" color="invert">
-                              {button}
-                            </Tooltip>
-                          ) : (
-                            button
-                          )}
+                          <HintPopover content={section.hint}>{button}</HintPopover>
                         </div>
                       );
                     })}
@@ -684,7 +703,7 @@ export function ResourceCrud({
                         contentClassName="space-y-3"
                       >
                         <div className="grid gap-3">
-                          {section.fields.map((field) => (
+                          {section.fields.filter(isVisible).map((field) => (
                             <div key={field.name}>{renderField(field)}</div>
                           ))}
                         </div>
