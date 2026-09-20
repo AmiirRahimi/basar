@@ -51,7 +51,7 @@ export default async function FabricPage() {
           {
             name: 'priceForUnit',
             label: 'فی هر متر',
-            type: 'number',
+            type: 'price',
             required: true,
             group: 'متراژ و قیمت',
             row: true,
@@ -59,12 +59,12 @@ export default async function FabricPage() {
           {
             name: 'priceForShipingForUnit',
             label: 'حمل هر متر',
-            type: 'number',
+            type: 'price',
             required: true,
             group: 'متراژ و قیمت',
             row: true,
           },
-          { name: 'discount', label: 'تخفیف', type: 'number' },
+          { name: 'discount', label: 'تخفیف', type: 'price' },
         ]}
       />
     </CountingShell>

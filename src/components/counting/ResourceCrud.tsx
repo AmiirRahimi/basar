@@ -7,7 +7,7 @@ import { ChevronDown, Scissors, ShoppingBag } from 'lucide-react';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { recordViewPath } from '@/lib/record-view';
 import { RowActions } from './RowActions';
-import { Price, PriceSection } from './Price';
+import { Price, PriceField, PriceSection } from './Price';
 
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
@@ -37,7 +37,7 @@ export type VisibleWhen = { field: string; values: string[] };
 export type Field = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'packs' | 'extras' | 'boolean' | 'datetime' | 'images';
+  type?: 'text' | 'number' | 'price' | 'select' | 'textarea' | 'relation' | 'packs' | 'extras' | 'boolean' | 'datetime' | 'images';
   options?: FieldOption[];
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
@@ -270,7 +270,9 @@ export function ResourceCrud({
   function clearHiddenValue(field: Field) {
     if (field.type === 'images') return [];
     if (field.type === 'boolean') return false;
-    if (field.type === 'number' || field.type === 'relation' || field.type === 'datetime') return null;
+    if (field.type === 'number' || field.type === 'price' || field.type === 'relation' || field.type === 'datetime') {
+      return null;
+    }
     return '';
   }
 
@@ -374,7 +376,7 @@ export function ResourceCrud({
           payload[f.name] = parseImageList(form[f.name]);
           return;
         }
-        payload[f.name] = f.type === 'number' ? Number(form[f.name]) : form[f.name];
+        payload[f.name] = f.type === 'number' || f.type === 'price' ? Number(form[f.name]) : form[f.name];
       });
       const res = editing
         ? await updateResource(resource, editing._id, payload)
@@ -478,6 +480,17 @@ export function ResourceCrud({
           error={error}
           value={form[field.name] || ''}
           onChange={(e) => setValue(field, e.target.value)}
+        />
+      );
+    }
+
+    if (field.type === 'price') {
+      return (
+        <PriceField
+          label={label}
+          error={error}
+          value={form[field.name] ?? ''}
+          onChange={(next) => setValue(field, next ? String(next) : '')}
         />
       );
     }

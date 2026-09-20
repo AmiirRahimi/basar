@@ -1,8 +1,8 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { toman } from '@/lib/format';
-import { cn } from '@/ui';
+import { useRef, type ReactNode } from 'react';
+import { formatGroupedNumber, parseGroupedNumber, toman } from '@/lib/format';
+import { Input, cn } from '@/ui';
 
 export type PriceProps = {
   value?: number | string | null;
@@ -43,6 +43,71 @@ export function PriceSection({ label, value, description, className }: PriceSect
         <p className="mt-0.5 text-xs text-gray-500">{description}</p>
       ) : null}
     </div>
+  );
+}
+
+export type PriceFieldProps = {
+  label?: ReactNode;
+  value?: number | string | null;
+  onChange: (value: number) => void;
+  error?: string;
+  hint?: string;
+  disabled?: boolean;
+  className?: string;
+};
+
+/** Money input that shows thousand separators while typing (30000 → 30,000). */
+export function PriceField({ label, value, onChange, error, hint, disabled, className }: PriceFieldProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const empty = value == null || value === '';
+  const display = empty ? '' : formatGroupedNumber(value);
+
+  return (
+    <Input
+      ref={inputRef}
+      label={label}
+      error={error}
+      hint={hint}
+      disabled={disabled}
+      className={className}
+      inputMode="numeric"
+      autoComplete="off"
+      dir="ltr"
+      value={display}
+      onChange={(e) => {
+        const input = e.target;
+        const raw = input.value;
+        const caret = input.selectionStart ?? raw.length;
+        const digitsBefore = raw.slice(0, caret).replace(/\D/g, '').length;
+        const digitsOnly = raw.replace(/\D/g, '');
+        if (!digitsOnly) {
+          onChange(0);
+          requestAnimationFrame(() => {
+            inputRef.current?.setSelectionRange(0, 0);
+          });
+          return;
+        }
+        const nextValue = parseGroupedNumber(digitsOnly);
+        onChange(nextValue);
+        const formatted = formatGroupedNumber(nextValue);
+        requestAnimationFrame(() => {
+          const el = inputRef.current;
+          if (!el) return;
+          let pos = formatted.length;
+          let seen = 0;
+          for (let i = 0; i < formatted.length; i += 1) {
+            if (/\d/.test(formatted[i]!)) {
+              seen += 1;
+              if (seen >= digitsBefore) {
+                pos = i + 1;
+                break;
+              }
+            }
+          }
+          el.setSelectionRange(pos, pos);
+        });
+      }}
+    />
   );
 }
 

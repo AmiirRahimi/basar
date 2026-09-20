@@ -156,7 +156,7 @@ export default async function ClothesPage() {
           {
             name: 'tailorFee',
             label: 'اجرت دوخت هر عدد',
-            type: 'number',
+            type: 'price',
             section: 'تولید',
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
@@ -171,7 +171,7 @@ export default async function ClothesPage() {
           {
             name: 'washFee',
             label: 'اجرت شست‌وشو هر عدد',
-            type: 'number',
+            type: 'price',
             section: 'تولید',
             visibleWhen: { field: 'isProduced', values: ['true'] },
           },
@@ -201,7 +201,7 @@ export default async function ClothesPage() {
           {
             name: 'boughtFee',
             label: 'قیمت هر عدد',
-            type: 'number',
+            type: 'price',
             required: true,
             section: 'خرید / موجودی قبلی',
             sectionHint:

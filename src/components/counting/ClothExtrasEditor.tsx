@@ -1,7 +1,7 @@
 'use client';
 
 import { Plus, X } from 'lucide-react';
-import { Button, FieldGroup, IconButton, Input, Select, Textarea } from '@/ui';
+import { Button, FieldGroup, IconButton, Select, Textarea } from '@/ui';
 import { faNumber } from '@/lib/format';
 import {
   CLOTH_EXTRA_KINDS,
@@ -10,7 +10,7 @@ import {
   parseClothExtras,
   type ClothExtra,
 } from '@/lib/cloth-extras';
-import { Price } from './Price';
+import { Price, PriceField } from './Price';
 
 const KIND_OPTIONS = CLOTH_EXTRA_KINDS.map((row) => ({
   value: row.value,
@@ -71,12 +71,10 @@ export function ClothExtrasEditor({
                 clearable
                 labels={{ search: 'جستجو', remove: 'حذف انتخاب', noOptionsFound: 'موردی یافت نشد' }}
               />
-              <Input
+              <PriceField
                 label={index === 0 ? 'مبلغ' : undefined}
-                type="number"
-                min={0}
-                value={row.price || ''}
-                onChange={(e) => updateRow(index, { price: Number(e.target.value) || 0 })}
+                value={row.price ?? ''}
+                onChange={(price) => updateRow(index, { price })}
               />
               <IconButton
                 type="button"
