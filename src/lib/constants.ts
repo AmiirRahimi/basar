@@ -95,5 +95,7 @@ export type StoreRole = 'owner' | StoreStaffRole;
 export const BRAND_COLORS = ['#0f766e', '#b45309', '#7c3aed', '#be123c', '#0369a1', '#365314'];
 
 export const PHONE_RE = /^0(9)\d{9}$/;
+/** Counting login OTP lifetime. Resend is allowed after this window. */
+export const OTP_TTL_MS = 120_000;
 
 export const DEFAULT_MOQ = 12;

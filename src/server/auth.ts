@@ -5,7 +5,8 @@ import * as mongo from './models';
 import { fileModels } from './file-db';
 import { fail, failDb, ok, type ActionResult } from './result';
 import { clearAuthCookies, setAuthCookies, signTokens, type Session } from './session';
-import { PHONE_RE } from '@/lib/constants';
+import { OTP_TTL_MS, PHONE_RE } from '@/lib/constants';
+import { sendSmsText } from './sms';
 import {
   activateMemberships,
   ensureOwnerWorkspace,
@@ -30,6 +31,15 @@ function readAdminPassword() {
     .replace(/\r/g, '')
     .replace(/^["']|["']$/g, '')
     .replace(/\\\$/g, '$');
+}
+
+function envFlag(name: string) {
+  const value = (process.env[name] || '').trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes';
+}
+
+function revealLoginCode() {
+  return process.env.NODE_ENV !== 'production' || envFlag('SHOW_LOGIN_NUMBER');
 }
 
 async function adminPasswordMatches(password: string) {
@@ -64,22 +74,14 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
     }
     const code = String(randomInt(100000, 1000000));
     const hashed = await argon2.hash(code);
-    if (process.env.NODE_ENV === 'production' && process.env.MELLI_PAYAMAK_TOKEN) {
-      try {
-        await fetch(`${process.env.MELLI_PAYAMAK_BASE_URL}${process.env.MELLI_PAYAMAK_PATH}${process.env.MELLI_PAYAMAK_TOKEN}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: phonenumber }),
-        });
-      } catch {
-        return fail('ارسال پیامک ناموفق بود');
-      }
-    }
     await M().OTP.create({ receptor: phonenumber, code: hashed, type: 1, isUsed: false });
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV === 'production') {
+      const sms = await sendSmsText(phonenumber, `کد ورود بازار: ${code}`);
+      if (!sms.ok) return fail(sms.message || 'ارسال پیامک ناموفق بود');
+    } else {
       console.info('[OTP]', phonenumber, code);
-      return ok(null, `کد آزمایشی: ${code}`);
     }
+    if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
     return ok(null, 'کد ارسال شد');
   } catch {
     return failDb();
@@ -87,7 +89,7 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
 }
 
 async function findValidOtp(phonenumber: string, code: string) {
-  const threshold = new Date(Date.now() - 120000);
+  const threshold = new Date(Date.now() - OTP_TTL_MS);
   const rows = await M()
     .OTP.find({ receptor: phonenumber, isUsed: false, timeStamp: { $gt: threshold } })
     .sort({ timeStamp: -1 })

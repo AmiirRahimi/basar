@@ -1,13 +1,22 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, SignInShell, toast } from '@/ui';
 import { loginWithOtp, sendOtp } from '@/actions/auth';
+import { OTP_TTL_MS } from '@/lib/constants';
+import { faNumber } from '@/lib/format';
 
 function toEnDigits(value: string) {
   return value.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/\s/g, '');
+}
+
+function formatRemaining(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${faNumber(seconds)} ثانیه`;
+  if (seconds <= 0) return `${faNumber(minutes)} دقیقه`;
+  return `${faNumber(minutes)} دقیقه و ${faNumber(seconds)} ثانیه`;
 }
 
 export function CountingLogin() {
@@ -17,7 +26,48 @@ export function CountingLogin() {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [requireAdminPassword, setRequireAdminPassword] = useState(false);
+  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [pending, start] = useTransition();
+
+  useEffect(() => {
+    if (step !== 'otp' || otpSentAt == null) return;
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [step, otpSentAt]);
+
+  function resetToPhone() {
+    setStep('phone');
+    setCode('');
+    setPassword('');
+    setRequireAdminPassword(false);
+    setOtpSentAt(null);
+  }
+
+  async function requestOtp(phone: string) {
+    if (!/^09\d{9}$/.test(phone)) {
+      toast.error('شماره باید با ۰۹ شروع شود');
+      return;
+    }
+    const otp = await sendOtp(phone);
+    if (!otp.ok) {
+      toast.error(otp.message || 'ارسال ناموفق');
+      return;
+    }
+    toast.success(otp.message || 'کد ارسال شد', { duration: 15000 });
+    const sentAt = Date.now();
+    setPhonenumber(phone);
+    setCode('');
+    setOtpSentAt(sentAt);
+    setNow(sentAt);
+    setStep('otp');
+  }
+
+  const secondsLeft =
+    step === 'otp' && otpSentAt != null
+      ? Math.max(0, Math.ceil((otpSentAt + OTP_TTL_MS - now) / 1000))
+      : 0;
+  const canResend = step === 'otp' && otpSentAt != null && secondsLeft <= 0;
 
   return (
     <SignInShell
@@ -25,7 +75,11 @@ export function CountingLogin() {
       brandTagline="شمارش و عمده‌فروشی پوشاک"
       welcomeBadge="ورود کارکنان"
       title="ورود به شمارش بازار"
-      subtitle="شماره موبایل را وارد کنید تا کد یک‌بارمصرف ارسال شود"
+      subtitle={
+        step === 'otp'
+          ? 'کد ارسال‌شده را وارد کنید'
+          : 'شماره موبایل را وارد کنید تا کد یک‌بارمصرف ارسال شود'
+      }
     >
       <form
         className="space-y-4"
@@ -34,18 +88,7 @@ export function CountingLogin() {
           start(async () => {
             const phone = toEnDigits(phonenumber);
             if (step === 'phone') {
-              if (!/^09\d{9}$/.test(phone)) {
-                toast.error('شماره باید با ۰۹ شروع شود');
-                return;
-              }
-              setPhonenumber(phone);
-              const otp = await sendOtp(phone);
-              if (otp.ok) {
-                toast.success(otp.message || 'کد ارسال شد');
-                setStep('otp');
-              } else {
-                toast.error(otp.message || 'ارسال ناموفق');
-              }
+              await requestOtp(phone);
               return;
             }
             if (requireAdminPassword && !password.trim()) {
@@ -70,13 +113,29 @@ export function CountingLogin() {
           });
         }}
       >
-        <Input
-          label="شماره موبایل"
-          value={phonenumber}
-          onChange={(e) => setPhonenumber(toEnDigits(e.target.value))}
-          disabled={step === 'otp'}
-          dir="ltr"
-        />
+        <div className="space-y-1">
+          <Input
+            label="شماره موبایل"
+            value={phonenumber}
+            onChange={(e) => setPhonenumber(toEnDigits(e.target.value))}
+            disabled={step === 'otp'}
+            dir="ltr"
+          />
+          {step === 'otp' ? (
+            <div className="text-start">
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto px-0"
+                disabled={pending}
+                onClick={resetToPhone}
+              >
+                تغییر شماره
+              </Button>
+            </div>
+          ) : null}
+        </div>
         {step === 'otp' ? (
           <>
             <Input
@@ -93,17 +152,28 @@ export function CountingLogin() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             ) : null}
+            {canResend ? (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto px-0"
+                disabled={pending}
+                onClick={() => start(async () => requestOtp(toEnDigits(phonenumber)))}
+              >
+                ارسال مجدد کد
+              </Button>
+            ) : (
+              <p className="text-start text-sm text-gray-500">
+                ارسال مجدد تا {formatRemaining(secondsLeft)}
+              </p>
+            )}
           </>
         ) : null}
         <Button type="submit" fullWidth disabled={pending}>
           {step === 'phone' ? 'ادامه' : 'ورود'}
         </Button>
       </form>
-      <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-        <Link href="/counting" className="font-medium text-primary hover:underline">
-          آشنایی با پنل
-        </Link>
-      </p>
     </SignInShell>
   );
 }
