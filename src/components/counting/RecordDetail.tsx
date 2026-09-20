@@ -23,6 +23,7 @@ import { PERSON_ROLES, personRoleLabel } from '@/lib/constants';
 import { cycleLabel } from '@/lib/plans';
 import { clothUnitPrice, fabricLotTotal } from '@/lib/cloth-price';
 import { clothExtraKindLabel, parseClothExtras } from '@/lib/cloth-extras';
+import { fabricExtraKindLabel, parseFabricExtras } from '@/lib/fabric-extras';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { formatPacksFa, packsFromCloth, totalItems } from '@/lib/packs';
 import { parseImageList } from '@/lib/shop-cart';
@@ -120,7 +121,16 @@ function decorateRow(resource: string, row: Record<string, any>) {
     };
   }
   if (resource === 'fabric') {
-    return { ...row, totalPrice: row.totalPrice ?? fabricLotTotal(row) };
+    const extras = parseFabricExtras(row.extras);
+    return {
+      ...row,
+      totalPrice: row.totalPrice ?? fabricLotTotal(row),
+      extrasSummary: extras.length
+        ? extras
+            .map((item) => `${fabricExtraKindLabel(item.kind)} ${toman(item.price)}`)
+            .join(' · ')
+        : '—',
+    };
   }
   if (resource === 'check') {
     const status = checkStatus(row);

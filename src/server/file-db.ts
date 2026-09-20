@@ -295,7 +295,7 @@ export class FileModel {
       if (i < 0) return null;
       this.all()[i] = { ...this.all()[i], ...payload };
       save(state);
-      return clone(this.all()[i]);
+      return mutateable(this.name, this.all()[i]);
     });
   }
   async updateOne(filter: Doc, payload: Doc) {

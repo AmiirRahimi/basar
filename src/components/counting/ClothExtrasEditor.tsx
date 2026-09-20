@@ -8,33 +8,65 @@ import {
   clothExtrasTotal,
   encodeClothExtras,
   parseClothExtras,
-  type ClothExtra,
 } from '@/lib/cloth-extras';
+import {
+  FABRIC_EXTRA_KINDS,
+  encodeFabricExtras,
+  fabricExtrasTotal,
+  parseFabricExtras,
+} from '@/lib/fabric-extras';
 import { Price, PriceField } from './Price';
 
-const KIND_OPTIONS = CLOTH_EXTRA_KINDS.map((row) => ({
-  value: row.value,
-  label: row.label,
-}));
+export type ExtrasVariant = 'cloth' | 'fabric';
+
+type ExtraRow = {
+  kind: string;
+  price: number;
+  description?: string;
+};
+
+const VARIANT = {
+  cloth: {
+    kinds: CLOTH_EXTRA_KINDS,
+    parse: parseClothExtras,
+    encode: encodeClothExtras,
+    total: clothExtrasTotal,
+    description: 'خرج‌های اضافه روی هر عدد لباس را ردیف‌به‌ردیف اضافه کنید.',
+  },
+  fabric: {
+    kinds: FABRIC_EXTRA_KINDS,
+    parse: parseFabricExtras,
+    encode: encodeFabricExtras,
+    total: fabricExtrasTotal,
+    description: 'خرج‌های اضافه این خرید پارچه را ردیف‌به‌ردیف اضافه کنید.',
+  },
+} as const;
 
 export function ClothExtrasEditor({
   label,
   value,
   onChange,
   error,
+  variant = 'cloth',
 }: {
   label: string;
   value?: string;
   onChange: (value: string) => void;
   error?: string;
+  variant?: ExtrasVariant;
 }) {
-  const rows = parseClothExtras(value);
+  const config = VARIANT[variant];
+  const rows = config.parse(value) as ExtraRow[];
+  const kindOptions = config.kinds.map((row) => ({
+    value: row.value,
+    label: row.label,
+  }));
 
-  function setRows(next: ClothExtra[]) {
-    onChange(encodeClothExtras(next));
+  function setRows(next: ExtraRow[]) {
+    onChange(config.encode(next as never));
   }
 
-  function updateRow(index: number, patch: Partial<ClothExtra>) {
+  function updateRow(index: number, patch: Partial<ExtraRow>) {
     setRows(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
   }
 
@@ -42,12 +74,12 @@ export function ClothExtrasEditor({
     setRows([...rows, { kind: '', price: 0, description: '' }]);
   }
 
-  const total = clothExtrasTotal(rows);
+  const total = config.total(rows);
 
   return (
     <FieldGroup
       title={label}
-      description="خرج‌های اضافه روی هر عدد لباس را ردیف‌به‌ردیف اضافه کنید."
+      description={config.description}
       headerAction={
         <Button type="button" size="sm" variant="outline" onClick={addRow} icon={<Plus className="h-4 w-4" />}>
           افزودن
@@ -64,8 +96,8 @@ export function ClothExtrasEditor({
               <Select
                 label={index === 0 ? 'نوع خرج' : undefined}
                 value={row.kind || ''}
-                onChange={(v) => updateRow(index, { kind: String(v || '') as ClothExtra['kind'] })}
-                options={KIND_OPTIONS}
+                onChange={(v) => updateRow(index, { kind: String(v || '') })}
+                options={kindOptions}
                 placeholder="انتخاب کنید"
                 searchable={false}
                 clearable

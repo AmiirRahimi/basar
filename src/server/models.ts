@@ -195,6 +195,17 @@ const FabricSchema = new Schema(
     priceForUnit: { type: Number, required: true },
     priceForShipingForUnit: { type: Number, required: true },
     discount: { type: Number, default: 0 },
+    extras: {
+      type: [
+        {
+          kind: { type: String, required: true },
+          price: { type: Number, required: true, default: 0 },
+          description: { type: String, default: '' },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
     timeStamp: { type: Date, required: true, default: Date.now },
     isDeleted: { type: Boolean, required: true, default: false },
   },

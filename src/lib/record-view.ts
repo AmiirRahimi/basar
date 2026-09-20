@@ -190,6 +190,7 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
         { key: 'priceForUnit', label: 'فی هر متر', kind: 'toman' },
         { key: 'priceForShipingForUnit', label: 'حمل هر متر', kind: 'toman' },
         { key: 'discount', label: 'تخفیف', kind: 'toman' },
+        { key: 'extrasSummary', label: 'خرج‌های اضافه' },
         { key: 'totalPrice', label: 'مبلغ کل', kind: 'toman' },
         { key: 'timeStamp', label: 'تاریخ', kind: 'date' },
       ],

@@ -27,6 +27,12 @@ import {
   validatePacksEditor,
 } from '@/lib/packs';
 import { clothExtrasTotal, encodeClothExtras, parseClothExtras, sanitizeClothExtras } from '@/lib/cloth-extras';
+import {
+  encodeFabricExtras,
+  fabricExtrasTotal,
+  parseFabricExtras,
+  sanitizeFabricExtras,
+} from '@/lib/fabric-extras';
 import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import type { FieldOption } from '@/lib/types';
 
@@ -39,6 +45,8 @@ export type Field = {
   label: string;
   type?: 'text' | 'number' | 'price' | 'select' | 'textarea' | 'relation' | 'packs' | 'extras' | 'boolean' | 'datetime' | 'images';
   options?: FieldOption[];
+  /** Kind options preset for `type: 'extras'` (default cloth). */
+  extrasVariant?: 'cloth' | 'fabric';
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
   required?: boolean;
@@ -56,6 +64,23 @@ export type Field = {
   /** On md+ screens, place this field in a multi-column row inside its group. */
   row?: boolean;
 };
+
+function extrasHelpers(variant: Field['extrasVariant'] = 'cloth') {
+  if (variant === 'fabric') {
+    return {
+      parse: parseFabricExtras,
+      encode: encodeFabricExtras,
+      sanitize: sanitizeFabricExtras,
+      total: fabricExtrasTotal,
+    };
+  }
+  return {
+    parse: parseClothExtras,
+    encode: encodeClothExtras,
+    sanitize: sanitizeClothExtras,
+    total: clothExtrasTotal,
+  };
+}
 
 function visibleWhenRules(field: Field): VisibleWhen[] {
   if (!field.visibleWhen) return [];
@@ -171,7 +196,8 @@ export function ResourceCrud({
                         return;
                       }
                       if (f.type === 'extras') {
-                        next[f.name] = encodeClothExtras(parseClothExtras(value));
+                        const helpers = extrasHelpers(f.extrasVariant);
+                        next[f.name] = helpers.encode(helpers.parse(value) as never);
                         return;
                       }
                       if (f.type === 'boolean') {
@@ -329,7 +355,9 @@ export function ResourceCrud({
     const unit = Number(form.priceForUnit || 0);
     const shipping = Number(form.priceForShipingForUnit || 0);
     const discount = Number(form.discount || 0);
-    return Math.max(0, amount * unit + amount * shipping - discount);
+    const extrasField = fields.find((f) => f.type === 'extras' && f.extrasVariant === 'fabric');
+    const extras = extrasField ? fabricExtrasTotal(form[extrasField.name] ?? form.extras) : fabricExtrasTotal(form.extras);
+    return Math.max(0, amount * unit + amount * shipping - discount + extras);
   }
 
   function submit() {
@@ -361,7 +389,7 @@ export function ResourceCrud({
           return;
         }
         if (f.type === 'extras') {
-          payload[f.name] = sanitizeClothExtras(form[f.name]);
+          payload[f.name] = extrasHelpers(f.extrasVariant).sanitize(form[f.name]);
           return;
         }
         if (f.type === 'boolean') {
@@ -435,6 +463,7 @@ export function ResourceCrud({
           label={label}
           value={form[field.name] || ''}
           onChange={(next) => setValue(field, next)}
+          variant={field.extrasVariant || 'cloth'}
         />
       );
     }

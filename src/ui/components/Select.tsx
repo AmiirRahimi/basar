@@ -37,10 +37,17 @@ function toSelectOptionKey(value: SelectValue): string {
 }
 
 type DropdownPosition = {
-  top: number;
+  top?: number;
+  bottom?: number;
   left: number;
   width: number;
+  maxHeight: number;
 };
+
+const DROPDOWN_GAP = 4;
+const DROPDOWN_VIEWPORT_PAD = 8;
+const DROPDOWN_DEFAULT_MAX_HEIGHT = 240; // max-h-60
+const DROPDOWN_MIN_HEIGHT = 120;
 
 function useDropdownPosition(
   isOpen: boolean,
@@ -53,11 +60,37 @@ function useDropdownPosition(
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
-    setPosition({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-    });
+    const width = rect.width;
+    const spaceBelow = window.innerHeight - rect.bottom - DROPDOWN_GAP - DROPDOWN_VIEWPORT_PAD;
+    const spaceAbove = rect.top - DROPDOWN_GAP - DROPDOWN_VIEWPORT_PAD;
+    const openBelow =
+      spaceBelow >= DROPDOWN_MIN_HEIGHT || spaceBelow >= spaceAbove;
+
+    const available = openBelow ? spaceBelow : spaceAbove;
+    const maxHeight = Math.min(
+      DROPDOWN_DEFAULT_MAX_HEIGHT,
+      Math.max(48, available)
+    );
+
+    let left = rect.left;
+    left = Math.min(left, window.innerWidth - width - DROPDOWN_VIEWPORT_PAD);
+    left = Math.max(DROPDOWN_VIEWPORT_PAD, left);
+
+    if (openBelow) {
+      setPosition({
+        top: rect.bottom + DROPDOWN_GAP,
+        left,
+        width,
+        maxHeight,
+      });
+    } else {
+      setPosition({
+        bottom: window.innerHeight - rect.top + DROPDOWN_GAP,
+        left,
+        width,
+        maxHeight,
+      });
+    }
   }, [triggerRef]);
 
   useLayoutEffect(() => {
@@ -76,6 +109,16 @@ function useDropdownPosition(
   }, [isOpen, updatePosition]);
 
   return position;
+}
+
+function dropdownMenuStyle(position: DropdownPosition): React.CSSProperties {
+  return {
+    top: position.top,
+    bottom: position.bottom,
+    left: position.left,
+    width: position.width,
+    maxHeight: position.maxHeight,
+  };
 }
 
 function useMounted() {
@@ -264,15 +307,11 @@ export function Select({
           createPortal(
             <div
               ref={menuRef}
-              style={{
-                top: menuPosition.top,
-                left: menuPosition.left,
-                width: menuPosition.width,
-              }}
-              className="fixed z-dropdown rounded-xl border border-gray-200/80 bg-white shadow-lg dark:border-gray-700/50 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden ui-enter"
+              style={dropdownMenuStyle(menuPosition)}
+              className="fixed z-dropdown flex flex-col rounded-xl border border-gray-200/80 bg-white shadow-lg dark:border-gray-700/50 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden ui-enter"
             >
               {searchable && (
-                <div className="p-2 border-b border-gray-100/80 dark:border-gray-800/80">
+                <div className="shrink-0 p-2 border-b border-gray-100/80 dark:border-gray-800/80">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                     <Input
@@ -286,7 +325,7 @@ export function Select({
                   </div>
                 </div>
               )}
-              <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
+              <div className="min-h-0 flex-1 overflow-y-auto p-1 custom-scrollbar">
                 {value != null && value !== '' && (
                   <button
                     type="button"
@@ -503,14 +542,13 @@ export function MultiSelect({
             <div
               ref={tooltipRef}
               style={{
-                top: hoverPosition.top,
-                left: hoverPosition.left,
+                ...dropdownMenuStyle(hoverPosition),
                 minWidth: hoverPosition.width,
                 maxWidth: Math.max(hoverPosition.width, 280),
               }}
-              className="fixed z-dropdown rounded-xl border border-gray-200/80 bg-white shadow-lg dark:border-gray-700/50 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden ui-enter pointer-events-none"
+              className="fixed z-dropdown flex flex-col rounded-xl border border-gray-200/80 bg-white shadow-lg dark:border-gray-700/50 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden ui-enter pointer-events-none"
             >
-              <div className="flex max-h-60 flex-wrap gap-1.5 overflow-y-auto p-2 custom-scrollbar">
+              <div className="flex min-h-0 flex-1 flex-wrap gap-1.5 overflow-y-auto p-2 custom-scrollbar">
                 {selectedOptions.map((option) => (
                   <span
                     key={toSelectOptionKey(option.value)}
@@ -530,15 +568,11 @@ export function MultiSelect({
           createPortal(
             <div
               ref={menuRef}
-              style={{
-                top: menuPosition.top,
-                left: menuPosition.left,
-                width: menuPosition.width,
-              }}
-              className="fixed z-dropdown rounded-xl border border-gray-200/80 bg-white shadow-lg dark:border-gray-700/50 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden ui-enter"
+              style={dropdownMenuStyle(menuPosition)}
+              className="fixed z-dropdown flex flex-col rounded-xl border border-gray-200/80 bg-white shadow-lg dark:border-gray-700/50 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden ui-enter"
             >
               {searchable && (
-                <div className="p-2 border-b border-gray-100/80 dark:border-gray-800/80">
+                <div className="shrink-0 p-2 border-b border-gray-100/80 dark:border-gray-800/80">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                     <Input
@@ -552,7 +586,7 @@ export function MultiSelect({
                   </div>
                 </div>
               )}
-              <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
+              <div className="min-h-0 flex-1 overflow-y-auto p-1 custom-scrollbar">
                 {selectedValues.length > 0 && (
                   <button
                     type="button"

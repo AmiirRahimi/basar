@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import mongoose from 'mongoose';
 import { fabricLotTotal, fabricUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
 import { sanitizeClothExtras } from '@/lib/cloth-extras';
+import { sanitizeFabricExtras } from '@/lib/fabric-extras';
 import {
   addPacks,
   formatPacksFa,
@@ -116,7 +117,7 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     'isReturned',
     'isTransferred',
   ],
-  fabric: ['_mercer', '_tailor', 'amount', 'priceForUnit', 'priceForShipingForUnit', 'discount'],
+  fabric: ['_mercer', '_tailor', 'amount', 'priceForUnit', 'priceForShipingForUnit', 'discount', 'extras'],
   returned: ['_returnedPerson', 'description'],
   color: ['name'],
   size: ['name', '_clothKind'],
@@ -397,6 +398,9 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
     if (session._brandId) next._brandId = oid(session._brandId);
     next.isDeleted = false;
   }
+  if (resource === 'fabric' && next.extras !== undefined) {
+    next.extras = sanitizeFabricExtras(next.extras);
+  }
   return next;
 }
 
@@ -658,7 +662,7 @@ export async function createResource(resource: string, payload: unknown): Promis
       { path: '_client', select: '_id fullName city role address phoneNumber' },
       { path: '_storeId', select: '_id name _brandId', populate: { path: '_brandId', select: '_id name color' } },
     ]);
-    return ok(serialize(decorateInvoice(created.toObject())), 'ثبت شد');
+    return ok(serialize(decorateInvoice(created.toObject ? created.toObject() : created)), 'ثبت شد');
   }
 
   if (resource === 'customer-cart') {
@@ -667,7 +671,7 @@ export async function createResource(resource: string, payload: unknown): Promis
     const line = sold.data?.[0] || body;
     const created = await M().CustomerCart.create(preparePayload(auth.session, resource, line));
     await created.populate('_cloth');
-    return ok(serialize(created.toObject()), 'ثبت شد');
+    return ok(serialize(created.toObject ? created.toObject() : created), 'ثبت شد');
   }
 
   const cfg = lookups()[resource];
@@ -745,7 +749,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
       { path: '_client', select: '_id fullName city role address phoneNumber' },
       { path: '_storeId', select: '_id name _brandId', populate: { path: '_brandId', select: '_id name color' } },
     ]);
-    return ok(serialize(decorateInvoice(updated.toObject())), 'ویرایش شد');
+    return ok(serialize(decorateInvoice(updated.toObject ? updated.toObject() : updated)), 'ویرایش شد');
   }
 
   if (resource === 'customer-cart') {
@@ -797,7 +801,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
   ) {
     void notifyCustomersOfNewCloth(auth.session, updated);
   }
-  return ok(serialize(updated.toObject()), 'ویرایش شد');
+  return ok(serialize(updated.toObject ? updated.toObject() : updated), 'ویرایش شد');
 }
 
 export async function deleteResource(resource: string, id: string): Promise<ActionResult> {
@@ -1517,7 +1521,7 @@ export async function addReturnedItem(payload: unknown): Promise<ActionResult> {
     isDeleted: false,
   });
   await changeStock(body._cloth, count);
-  return ok(serialize(created.toObject()), 'ثبت شد');
+  return ok(serialize(created.toObject ? created.toObject() : created), 'ثبت شد');
 }
 
 export async function personReturns(personId: string): Promise<ActionResult> {

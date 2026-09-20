@@ -1,10 +1,12 @@
 import { clothExtrasTotal } from './cloth-extras';
+import { fabricExtrasTotal } from './fabric-extras';
 
 export type FabricCostInput = {
   amount?: number | string | null;
   priceForUnit?: number | string | null;
   priceForShipingForUnit?: number | string | null;
   discount?: number | string | null;
+  extras?: unknown;
 };
 
 export function fabricLotTotal(fabric: FabricCostInput): number {
@@ -12,7 +14,8 @@ export function fabricLotTotal(fabric: FabricCostInput): number {
   const unit = Number(fabric.priceForUnit || 0);
   const shipping = Number(fabric.priceForShipingForUnit || 0);
   const discount = Number(fabric.discount || 0);
-  return Math.max(0, amount * unit + amount * shipping - discount);
+  const extras = fabricExtrasTotal(fabric.extras);
+  return Math.max(0, amount * unit + amount * shipping - discount + extras);
 }
 
 export function fabricUnitCost(fabric: unknown): number {

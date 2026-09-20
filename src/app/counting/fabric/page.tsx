@@ -65,6 +65,7 @@ export default async function FabricPage() {
             row: true,
           },
           { name: 'discount', label: 'تخفیف', type: 'price' },
+          { name: 'extras', label: 'خرج‌های اضافه', type: 'extras', extrasVariant: 'fabric' },
         ]}
       />
     </CountingShell>
