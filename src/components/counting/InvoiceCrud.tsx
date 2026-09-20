@@ -540,8 +540,13 @@ export function InvoiceCrud({
             />
 
             <div className="mt-2 space-y-3 rounded-xl border border-gray-200 p-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">اقلام</h4>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-medium">اقلام</h4>
+                  <p className="mt-0.5 text-[11px] text-gray-400">
+                    نگه داشتن + برای بسته دیگر یا دیدن مانده
+                  </p>
+                </div>
                 <IconButton type="button" variant="outline" size="sm" onClick={addItem} aria-label="افزودن قلم">
                   <Plus className="h-4 w-4" />
                 </IconButton>
