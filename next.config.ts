@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // No ESLint config in this repo; don't block the production build on a lint pass.
   eslint: { ignoreDuringBuilds: true },
+  // Full `tsc` OOMs on Vercel (mongoose + large TS graph). Typecheck locally with `npm run typecheck`.
+  typescript: { ignoreBuildErrors: true },
   serverExternalPackages: ['jimp', 'argon2'],
   // Keep argon2 native binaries in the Vercel serverless bundle.
   outputFileTracingIncludes: {
