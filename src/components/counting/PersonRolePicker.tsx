@@ -1,7 +1,7 @@
 'use client';
 
 import { FieldLabel, cn } from '@/ui';
-import { PERSON_ROLES } from '@/lib/constants';
+import { PERSON_ROLES, normalizePersonRoles } from '@/lib/constants';
 
 const ROLE_STYLES: Record<string, { idle: string; active: string }> = {
   '1': {
@@ -50,7 +50,15 @@ export function PersonRolePicker({
   error?: string;
   required?: boolean;
 }) {
+  const selected = normalizePersonRoles(value);
   const roles = Object.entries(PERSON_ROLES);
+
+  function toggle(role: string) {
+    const next = selected.includes(role)
+      ? selected.filter((item) => item !== role)
+      : [...selected, role];
+    onChange(next.join(','));
+  }
 
   return (
     <div className="grid gap-1.5">
@@ -58,24 +66,24 @@ export function PersonRolePicker({
         {label}
         {required ? ' *' : ''}
       </FieldLabel>
+      <p className="text-xs text-gray-500">می‌توانید چند نقش را هم‌زمان انتخاب کنید.</p>
       <div
         className="grid grid-cols-2 gap-2 sm:grid-cols-3"
-        role="radiogroup"
+        role="group"
         aria-label={typeof label === 'string' ? label : 'نقش'}
       >
         {roles.map(([key, roleLabel]) => {
-          const selected = String(value || '') === key;
+          const isOn = selected.includes(key);
           const styles = ROLE_STYLES[key] || FALLBACK;
           return (
             <button
               key={key}
               type="button"
-              role="radio"
-              aria-checked={selected}
-              onClick={() => onChange(key)}
+              aria-pressed={isOn}
+              onClick={() => toggle(key)}
               className={cn(
                 'rounded-xl border px-3 py-2.5 text-sm font-medium transition',
-                selected ? styles.active : styles.idle,
+                isOn ? styles.active : styles.idle,
               )}
             >
               {roleLabel}

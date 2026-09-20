@@ -14,14 +14,70 @@ export const PERSON_ROLES: Record<string, string> = {
   '5': 'شست‌وشو',
 };
 
+const PERSON_ROLE_IDS = new Set(Object.keys(PERSON_ROLES));
+
 /** People the store owes money to, opposite of wholesale customers. */
 export const PAYABLE_PERSON_ROLES = ['2', '3', '4', '5'] as const;
+
+/** Normalize stored/form person roles (single string, CSV, or array) to unique known ids. */
+export function normalizePersonRoles(value: unknown): string[] {
+  let raw: unknown[] = [];
+  if (Array.isArray(value)) {
+    raw = value;
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        raw = Array.isArray(parsed) ? parsed : [trimmed];
+      } catch {
+        raw = trimmed.split(/[,\s]+/);
+      }
+    } else {
+      raw = trimmed.split(/[,\s]+/);
+    }
+  } else if (value != null && value !== '') {
+    raw = [value];
+  }
+
+  const seen = new Set<string>();
+  const next: string[] = [];
+  for (const item of raw) {
+    const key = String(item ?? '').trim();
+    if (!PERSON_ROLE_IDS.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    next.push(key);
+  }
+  return next;
+}
+
+export function personHasRole(value: unknown, role: string | number) {
+  return normalizePersonRoles(value).includes(String(role));
+}
+
+export function personRolesLabel(value: unknown) {
+  return normalizePersonRoles(value)
+    .map((role) => PERSON_ROLES[role])
+    .filter(Boolean)
+    .join(' · ');
+}
 
 export function isPayablePersonRole(role?: string | number | null) {
   return PAYABLE_PERSON_ROLES.includes(String(role || '') as (typeof PAYABLE_PERSON_ROLES)[number]);
 }
 
-export function personRoleLabel(role?: string | number | null) {
+export function personIsPayable(value: unknown) {
+  return normalizePersonRoles(value).some((role) => isPayablePersonRole(role));
+}
+
+export function personIsCustomer(value: unknown) {
+  return personHasRole(value, '1');
+}
+
+export function personRoleLabel(role?: string | number | null | unknown) {
+  const roles = normalizePersonRoles(role);
+  if (roles.length) return personRolesLabel(roles);
   return PERSON_ROLES[String(role || '')] || '';
 }
 

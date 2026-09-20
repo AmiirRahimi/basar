@@ -3,6 +3,7 @@ import { ShareLinksBoard } from '@/components/counting/ShareLinksBoard';
 import { listClothes, listPeople } from '@/actions/crud';
 import { listProductShares } from '@/actions/share';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
+import { personIsCustomer } from '@/lib/constants';
 import type { ProductShare } from '@/lib/types';
 
 export default async function SharesPage() {
@@ -10,8 +11,8 @@ export default async function SharesPage() {
   guardSession(clothesRes, sharesRes, peopleRes);
   const clothes = Array.isArray(clothesRes.data) ? clothesRes.data : [];
   const shares = (Array.isArray(sharesRes.data) ? sharesRes.data : []) as ProductShare[];
-  const customers = (Array.isArray(peopleRes.data) ? peopleRes.data : []).filter(
-    (row: Record<string, any>) => String(row.role) === '1',
+  const customers = (Array.isArray(peopleRes.data) ? peopleRes.data : []).filter((row: Record<string, any>) =>
+    personIsCustomer(row.role),
   );
 
   return (

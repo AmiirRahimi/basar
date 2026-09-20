@@ -1,5 +1,5 @@
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
-import { PERSON_ROLES, personRoleLabel } from '@/lib/constants';
+import { personRoleLabel, personRolesLabel } from '@/lib/constants';
 import { displayName, faDate, toman } from '@/lib/format';
 
 const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
@@ -61,7 +61,7 @@ export function fieldSearchText(row: Record<string, any>, key: string, resource 
   const value = row[key];
   const parts: unknown[] = [sortColumnValue(row, key, resource), collectSearchText(value)];
   if (key === 'role' || (resource === 'person' && key === 'role')) {
-    parts.push(PERSON_ROLES[String(row.role)] || personRoleLabel(row.role));
+    parts.push(personRolesLabel(row.role) || personRoleLabel(row.role));
   }
   if (key === 'isSent') parts.push(row.isSent ? 'ارسال شده' : 'پیش‌نویس');
   if (key === 'timeStamp' || key === 'endDate' || key === 'startDate' || key === 'expiresAt') {
@@ -157,7 +157,7 @@ export function sortColumnValue(row: Record<string, any>, key: string, resource 
   }
   if (resource === 'check' && key === 'source') return checkSourceLabel(row);
   if (resource === 'check' && key === 'status') return checkStatus(row);
-  if (resource === 'person' && key === 'role') return personRoleLabel(row.role) || String(row.role ?? '');
+  if (resource === 'person' && key === 'role') return personRolesLabel(row.role) || personRoleLabel(row.role);
   const value = row[key];
   if (Array.isArray(value)) {
     return value
@@ -191,7 +191,7 @@ export function compareSortValues(a: unknown, b: unknown) {
 export function tableRowSearchExtra(resource: string, row: Record<string, any>) {
   const parts: string[] = [];
   if (resource === 'person') {
-    parts.push(PERSON_ROLES[String(row.role)] || '', row.phoneNumber, row.city, row.address);
+    parts.push(personRolesLabel(row.role) || '', row.phoneNumber, row.city, row.address);
   }
   if (resource === 'invoice') {
     parts.push(

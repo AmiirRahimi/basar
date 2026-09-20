@@ -7,7 +7,7 @@ import { ChevronLeft } from 'lucide-react';
 import { getPersonAccount } from '@/actions/crud';
 import { FormCard, Select } from '@/ui';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
-import { personRoleLabel } from '@/lib/constants';
+import { personRoleLabel, personRolesLabel } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { paymentMethodCounts, personPaymentsHref } from '@/lib/payment-display';
 import { PaymentForm } from './PaymentForm';
@@ -112,7 +112,7 @@ export function AccountClient({
         <Select
           label="شخص"
           options={people.map((p) => ({
-            label: [p.fullName, personRoleLabel(p.role)].filter(Boolean).join(' — '),
+            label: [p.fullName, personRolesLabel(p.role) || personRoleLabel(p.role)].filter(Boolean).join(' — '),
             value: p._id,
           }))}
           value={person}

@@ -11,7 +11,7 @@ import { Price, PriceField, PriceSection } from './Price';
 import { PersonRolePicker } from './PersonRolePicker';
 
 import { displayName, faDate, toman } from '@/lib/format';
-import { PERSON_ROLES } from '@/lib/constants';
+import { normalizePersonRoles, personRolesLabel } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { ClothImagesEditor } from './ClothImagesEditor';
 import { ClothPacksEditor } from './ClothPacksEditor';
@@ -102,7 +102,14 @@ function visibleWhenRules(field: Field): VisibleWhen[] {
 
 function matchesVisibleWhen(rules: VisibleWhen[], values: Record<string, string>) {
   if (!rules.length) return true;
-  return rules.every((rule) => rule.values.includes(String(values[rule.field] ?? '')));
+  return rules.every((rule) => {
+    const current = String(values[rule.field] ?? '')
+      .split(/[,\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (!current.length) current.push('');
+    return rule.values.some((wanted) => current.includes(wanted));
+  });
 }
 
 export type ColumnSpec = {
@@ -182,7 +189,7 @@ export function ResourceCrud({
           if (col.format === 'name') return displayName(value);
           if (col.format === 'toman') return value == null || value === '' ? '—' : <Price value={value} />;
           if (col.format === 'date') return faDate(value);
-          if (col.format === 'role') return PERSON_ROLES[String(row.role)] || String(row.role ?? '—');
+          if (col.format === 'role') return personRolesLabel(row.role) || '—';
           return String(value ?? '—');
         },
       }),
@@ -211,6 +218,10 @@ export function ResourceCrud({
                       if (f.type === 'extras') {
                         const helpers = extrasHelpers(f.extrasVariant);
                         next[f.name] = helpers.encode(helpers.parse(value) as never);
+                        return;
+                      }
+                      if (f.type === 'person-role') {
+                        next[f.name] = normalizePersonRoles(value).join(',');
                         return;
                       }
                       if (f.type === 'boolean') {
@@ -270,7 +281,7 @@ export function ResourceCrud({
         if (col.format === 'name') return displayName(value);
         if (col.format === 'toman') return value == null || value === '' ? '' : toman(value);
         if (col.format === 'date') return faDate(value);
-        if (col.format === 'role') return PERSON_ROLES[String(row.role)] || String(row.role ?? '');
+        if (col.format === 'role') return personRolesLabel(row.role);
         return String(value ?? '');
       })
       .join(' ');
@@ -322,6 +333,9 @@ export function ResourceCrud({
     }
     if (field.type === 'images') {
       return Boolean(clothImageLimitMessage(parseImageList(form[field.name]).length));
+    }
+    if (field.type === 'person-role') {
+      return Boolean(field.required) && normalizePersonRoles(form[field.name]).length === 0;
     }
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
@@ -403,6 +417,10 @@ export function ResourceCrud({
         }
         if (f.type === 'extras') {
           payload[f.name] = extrasHelpers(f.extrasVariant).sanitize(form[f.name]);
+          return;
+        }
+        if (f.type === 'person-role') {
+          payload[f.name] = normalizePersonRoles(form[f.name]);
           return;
         }
         if (f.type === 'boolean') {

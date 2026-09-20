@@ -38,7 +38,7 @@ export type Person = {
   phoneNumber?: number | string;
   city?: string | number;
   address?: string;
-  role?: string | number;
+  role?: string | number | string[];
   sewingFee?: number;
 };
 

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { CrudPage } from './CrudPage';
 import { PersonRoleFilter } from './PersonRolePicker';
-import { PERSON_ROLES } from '@/lib/constants';
+import { PERSON_ROLES, normalizePersonRoles, personHasRole } from '@/lib/constants';
 import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import type { Field } from './ResourceCrud';
 
@@ -42,14 +42,15 @@ export function PeopleCrud({ rows }: { rows: Record<string, any>[] }) {
     const next: Record<string, number> = {};
     for (const key of Object.keys(PERSON_ROLES)) next[key] = 0;
     for (const row of rows) {
-      const role = String(row.role || '');
-      if (role in next) next[role] += 1;
+      for (const role of normalizePersonRoles(row.role)) {
+        if (role in next) next[role] += 1;
+      }
     }
     return next;
   }, [rows]);
 
   const filtered = useMemo(
-    () => (roleFilter ? rows.filter((row) => String(row.role || '') === roleFilter) : rows),
+    () => (roleFilter ? rows.filter((row) => personHasRole(row.role, roleFilter)) : rows),
     [rows, roleFilter],
   );
 

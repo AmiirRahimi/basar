@@ -25,7 +25,7 @@ import {
   sortColumnValue,
   tableRowSearchExtra,
 } from '@/lib/table-search';
-import { DEFAULT_MOQ, isPayablePersonRole, personRoleLabel, PHONE_RE } from '@/lib/constants';
+import { DEFAULT_MOQ, isPayablePersonRole, normalizePersonRoles, personIsCustomer, personRoleLabel, personRolesLabel, PHONE_RE } from '@/lib/constants';
 import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
 import { canAccessMenu, canReadResource, canWriteResource } from '@/lib/roles';
 import { allocateIncome, partnersForStore } from '@/lib/partners';
@@ -400,6 +400,9 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
   }
   if (resource === 'fabric' && next.extras !== undefined) {
     next.extras = sanitizeFabricExtras(next.extras);
+  }
+  if (resource === 'person' && next.role !== undefined) {
+    next.role = normalizePersonRoles(next.role);
   }
   return next;
 }
@@ -1159,7 +1162,7 @@ async function findOrCreateWholesaleCustomer(storeId: string, input: { fullName:
     phoneNumber: phone,
     address: input.address,
     city: 0,
-    role: '1',
+    role: ['1'],
     isDeleted: false,
   });
   return created._id;
@@ -1947,7 +1950,8 @@ export async function personAccount(personId: string): Promise<ActionResult> {
   if (denied) return denied;
   const person = await M().Person.findOne(storeFilter(auth.session, { _id: personId })).lean();
   if (!person) return fail('شخص پیدا نشد', 404);
-  const role = String(person.role || '1');
+  const roles = normalizePersonRoles(person.role);
+  const roleLabel = personRolesLabel(roles) || personRoleLabel(person.role);
   const payments = await withPaymentChecks(
     await M().Payment.find(storeFilter(auth.session, { _person: oid(personId) }))
       .populate('_check')
@@ -1956,16 +1960,34 @@ export async function personAccount(personId: string): Promise<ActionResult> {
   );
   const paidTotal = payments.reduce((sum: number, row: any) => sum + paymentApplied(row), 0);
 
-  if (isPayablePersonRole(role)) {
-    const items = await vendorItems(auth.session, personId, role);
-    const owedTotal = items.reduce((sum, row) => sum + Number(row.total || 0), 0);
+  const payableRoles = roles.filter((role) => isPayablePersonRole(role));
+  const isCustomer = personIsCustomer(roles);
+  const isPayable = payableRoles.length > 0;
+
+  let vendorRows: any[] = [];
+  if (isPayable) {
+    const seen = new Set<string>();
+    for (const role of payableRoles) {
+      const rows = await vendorItems(auth.session, personId, role);
+      for (const row of rows) {
+        const key = String(row._id);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        vendorRows.push(row);
+      }
+    }
+  }
+
+  if (isPayable && !isCustomer) {
+    const owedTotal = vendorRows.reduce((sum, row) => sum + Number(row.total || 0), 0);
     return ok(
       serialize({
         person,
         kind: 'payable',
-        role,
-        roleLabel: personRoleLabel(role),
-        items,
+        role: roles[0] || '',
+        roles,
+        roleLabel,
+        items: vendorRows,
         invoices: [],
         payments,
         purchaseTotal: owedTotal,
@@ -2002,22 +2024,26 @@ export async function personAccount(personId: string): Promise<ActionResult> {
     })
     .sort((a: any, b: any) => new Date(b.timeStamp).getTime() - new Date(a.timeStamp).getTime());
   const purchaseTotal = invoiceRows.reduce((sum, row) => sum + row.total, 0);
+  const vendorTotal = vendorRows.reduce((sum, row) => sum + Number(row.total || 0), 0);
   const net = purchaseTotal - paidTotal - returnTotal;
+  const kind = isPayable && isCustomer ? 'both' : 'receivable';
   return ok(
     serialize({
       person,
-      kind: 'receivable',
-      role,
-      roleLabel: personRoleLabel(role),
-      items: [],
+      kind,
+      role: roles[0] || '1',
+      roles,
+      roleLabel,
+      items: vendorRows,
       invoices: invoiceRows,
       payments,
       purchaseTotal,
-      owedTotal: purchaseTotal,
+      owedTotal: purchaseTotal + vendorTotal,
       paidTotal,
       returnTotal,
       remaining: Math.max(0, net),
       creditToCustomer: Math.max(0, -net),
+      vendorTotal,
     }),
   );
 }

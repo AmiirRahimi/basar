@@ -19,7 +19,7 @@ import { AdminUserEditTrigger } from './AdminUserEditor';
 import { ClothImageGallery } from './ClothImageGallery';
 import { Price } from './Price';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
-import { PERSON_ROLES, personRoleLabel } from '@/lib/constants';
+import { personRoleLabel, personRolesLabel } from '@/lib/constants';
 import { cycleLabel } from '@/lib/plans';
 import { clothUnitPrice, fabricLotTotal } from '@/lib/cloth-price';
 import { clothExtraKindLabel, parseClothExtras } from '@/lib/cloth-extras';
@@ -38,7 +38,12 @@ import {
 } from '@/lib/record-view';
 
 function emptyValue(value: unknown) {
-  return value == null || value === '' || (typeof value === 'number' && Number.isNaN(value));
+  return (
+    value == null ||
+    value === '' ||
+    (Array.isArray(value) && value.length === 0) ||
+    (typeof value === 'number' && Number.isNaN(value))
+  );
 }
 
 function boolLabel(value: unknown) {
@@ -51,7 +56,7 @@ function formatField(row: Record<string, any>, field: DetailField) {
   if (emptyValue(value) && field.kind !== 'bool') return '';
   if (field.kind === 'toman') return toman(value);
   if (field.kind === 'date') return faDate(value);
-  if (field.kind === 'role') return PERSON_ROLES[String(value)] || String(value);
+  if (field.kind === 'role') return personRolesLabel(value) || String(value);
   if (field.key === 'percent' || field.key === 'discountPercent') return `${faNumber(value)}٪`;
   if (field.key === 'remainingDays') return `${faNumber(value)} روز`;
   if (field.key === 'maxUses') return Number(value) > 0 ? faNumber(value) : 'نامحدود';
@@ -214,7 +219,8 @@ function recordChips(resource: string, row: Record<string, any>) {
   }
   if (resource === 'cloth' && row.published) chips.push(<Chip key="pub" tone="ok">فروشگاه</Chip>);
   if (resource === 'person' && row.role) {
-    chips.push(<Chip key="role" tone="muted">{personRoleLabel(row.role)}</Chip>);
+    const labels = personRolesLabel(row.role);
+    if (labels) chips.push(<Chip key="role" tone="muted">{labels}</Chip>);
   }
   if ((resource === 'admin-user' || resource === 'admin-purchase' || resource === 'admin-code') && 'active' in row) {
     chips.push(<Chip key="active" tone={row.active ? 'ok' : 'muted'}>{row.active ? 'فعال' : 'غیرفعال'}</Chip>);

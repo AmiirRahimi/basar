@@ -161,7 +161,7 @@ const PersonSchema = new Schema(
     fullName: String,
     city: Schema.Types.Mixed,
     phoneNumber: Schema.Types.Mixed,
-    role: { type: String, required: true },
+    role: { type: [String], default: [] },
     sewingFee: Number,
     timeStamp: { type: Date, required: true, default: Date.now },
     isDeleted: { type: Boolean, required: true, default: false },
