@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import mongoose from 'mongoose';
 import { fabricLotTotal, fabricUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
+import { sanitizeClothExtras } from '@/lib/cloth-extras';
 import {
   addPacks,
   formatPacksFa,
@@ -73,6 +74,7 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     '_style',
     '_size',
     '_color',
+    'isProduced',
     '_tailor',
     '_producedFrom',
     '_boughtFrom',
@@ -84,13 +86,12 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     'boughtFee',
     'tailorFee',
     'washFee',
+    'extras',
     'code',
     'count',
     'packSize',
     'packs',
     'description',
-    'wholesalePrice',
-    'minOrderQty',
     'published',
     'images',
     'onSale',
@@ -454,9 +455,10 @@ function applyClothShopFields(body: Record<string, unknown>): ActionResult<Recor
     if (limitError) return fail(limitError);
     body.images = images;
   }
-  if (body.minOrderQty != null && body.minOrderQty !== '') {
-    const qty = Math.trunc(Number(body.minOrderQty));
-    body.minOrderQty = qty > 0 ? qty : DEFAULT_MOQ;
+  delete body.minOrderQty;
+  delete body.wholesalePrice;
+  if (body.extras !== undefined) {
+    body.extras = sanitizeClothExtras(body.extras);
   }
   if (body.description != null) body.description = String(body.description || '').trim();
   if (body.onSale != null) body.onSale = isTruthyFlag(body.onSale);
@@ -491,6 +493,18 @@ function linePacks(item: any, packSize: number): ClothPack[] {
 }
 
 async function applyClothCost(session: Session, body: Record<string, unknown>) {
+  const produced = body.isProduced === true || body.isProduced === 'true' || body.isProduced === 1;
+  body.isProduced = Boolean(produced);
+  if (!produced) {
+    body._producedFrom = null;
+    body._tailor = null;
+    body._wash = null;
+    body.amountUsed = null;
+    body.tailorFee = null;
+    body.washFee = null;
+    return body;
+  }
+  body._boughtFrom = null;
   const fabricId = body._producedFrom;
   const amountUsed = Number(body.amountUsed || 0);
   if (!fabricId || !amountUsed) return body;
@@ -831,7 +845,7 @@ const PUBLIC_CLOTH_POPULATE = [
 ];
 
 const PUBLIC_CLOTH_SELECT =
-  '_id code count packSize packs description wholesalePrice minOrderQty images onSale discountPercent saleEndsAt newCollection published _type _style _size _color _storeId';
+  '_id code count packSize packs description images onSale discountPercent saleEndsAt newCollection published _type _style _size _color _storeId';
 
 async function loadPublicCloth(filter: Record<string, unknown>) {
   await db();
@@ -1090,11 +1104,11 @@ async function sellPublicPacks(items: any[]): Promise<ActionResult<any[]>> {
     const taken = linePacks(item, stock.packSize);
     if (!taken.length) return fail('حداقل یک بسته انتخاب کنید');
     const pieces = totalItems(taken);
-    const minOrder = Number(cloth.minOrderQty || DEFAULT_MOQ);
+    const minOrder = DEFAULT_MOQ;
     if (!meetsWholesaleMoq(pieces, minOrder, stock.packs, taken, stock.packSize)) {
       return fail(`حداقل سفارش عمده ${minOrder} عدد است`);
     }
-    const listPrice = Number(cloth.wholesalePrice || 0) > 0 ? Number(cloth.wholesalePrice) : clothUnitPrice(cloth);
+    const listPrice = clothUnitPrice(cloth);
     prepared.push({
       _cloth: id,
       packs: taken,

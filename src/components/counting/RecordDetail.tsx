@@ -21,6 +21,7 @@ import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from 
 import { PERSON_ROLES, personRoleLabel } from '@/lib/constants';
 import { cycleLabel } from '@/lib/plans';
 import { clothUnitPrice, fabricLotTotal } from '@/lib/cloth-price';
+import { clothExtraKindLabel, parseClothExtras } from '@/lib/cloth-extras';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { formatPacksFa, packsFromCloth, totalItems } from '@/lib/packs';
 import { parseImageList } from '@/lib/shop-cart';
@@ -104,11 +105,17 @@ function Chip({
 function decorateRow(resource: string, row: Record<string, any>) {
   if (resource === 'cloth') {
     const stock = packsFromCloth(row);
+    const extras = parseClothExtras(row.extras);
     return {
       ...row,
       unitPrice: row.unitPrice ?? clothUnitPrice(row),
       count: totalItems(stock.packs) || Number(row.count || 0),
       packSummary: row.packSummary || formatPacksFa(stock.packs),
+      extrasSummary: extras.length
+        ? extras
+            .map((item) => `${clothExtraKindLabel(item.kind)} ${toman(item.price)}`)
+            .join(' · ')
+        : '—',
     };
   }
   if (resource === 'fabric') {
@@ -356,6 +363,18 @@ export function RecordDetail({
 
       {sections.map((section) => {
         const visible = section.fields.filter((field) => {
+          if (resource === 'cloth') {
+            const produced =
+              row.isProduced === true ||
+              row.isProduced === 'true' ||
+              (row.isProduced == null && Boolean(row._producedFrom || row._tailor));
+            if (['_producedFrom', 'amountUsed', '_tailor', 'tailorFee', '_wash', 'washFee'].includes(field.key)) {
+              if (!produced) return false;
+            }
+            if (field.key === '_boughtFrom') {
+              if (produced) return false;
+            }
+          }
           if (field.kind === 'bool') return true;
           const value = row[field.key];
           return !emptyValue(value);

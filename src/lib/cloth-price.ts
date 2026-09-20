@@ -1,3 +1,5 @@
+import { clothExtrasTotal } from './cloth-extras';
+
 export type FabricCostInput = {
   amount?: number | string | null;
   priceForUnit?: number | string | null;
@@ -26,10 +28,11 @@ export function clothUnitPrice(cloth: {
   amountUsed?: number | string | null;
   _producedFrom?: unknown;
   boughtFee?: number | string | null;
+  extras?: unknown;
 }): number {
   const fromFabric = Number(cloth.amountUsed || 0) * fabricUnitCost(cloth._producedFrom);
-  if (fromFabric > 0) return fromFabric;
-  return Number(cloth.boughtFee || 0);
+  const base = fromFabric > 0 ? fromFabric : Number(cloth.boughtFee || 0);
+  return Math.max(0, base + clothExtrasTotal(cloth.extras));
 }
 
 export function clothPayTotal(

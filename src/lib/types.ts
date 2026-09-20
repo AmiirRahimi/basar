@@ -156,12 +156,12 @@ export type Cloth = {
   count?: number;
   packSize?: number;
   packs?: ClothPack[];
+  isProduced?: boolean;
   amountUsed?: number;
   boughtFee?: number;
   tailorFee?: number;
   washFee?: number;
-  wholesalePrice?: number;
-  minOrderQty?: number;
+  extras?: { kind?: string; price?: number; description?: string }[];
   published?: boolean;
   description?: string;
   images?: string[];

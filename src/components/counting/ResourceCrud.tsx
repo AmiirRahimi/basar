@@ -2,7 +2,9 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
-import { Button, Checkbox, Input, Modal, FormCard, Select, Textarea, toast } from '@/ui';
+import { Button, Checkbox, CollapsiblePanel, FieldGroup, Input, Modal, FormCard, Select, Textarea, toast, cn } from '@/ui';
+import { ChevronDown, Scissors, ShoppingBag } from 'lucide-react';
+import { Tooltip } from 'rizzui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { recordViewPath } from '@/lib/record-view';
 import { RowActions } from './RowActions';
@@ -12,6 +14,7 @@ import { PERSON_ROLES } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { ClothImagesEditor } from './ClothImagesEditor';
 import { ClothPacksEditor } from './ClothPacksEditor';
+import { ClothExtrasEditor } from './ClothExtrasEditor';
 import { SearchableTable } from './SearchableTable';
 import { AddPlusButton, usePageAddButton } from './PageAction';
 import { useWritable } from './useWritable';
@@ -23,6 +26,7 @@ import {
   totalItems,
   validatePacksEditor,
 } from '@/lib/packs';
+import { clothExtrasTotal, encodeClothExtras, parseClothExtras, sanitizeClothExtras } from '@/lib/cloth-extras';
 import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import type { FieldOption } from '@/lib/types';
 
@@ -31,7 +35,7 @@ export type { FieldOption };
 export type Field = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'packs' | 'boolean' | 'datetime' | 'images';
+  type?: 'text' | 'number' | 'select' | 'textarea' | 'relation' | 'packs' | 'extras' | 'boolean' | 'datetime' | 'images';
   options?: FieldOption[];
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
   dependsOn?: string;
@@ -41,6 +45,14 @@ export type Field = {
   priceFrom?: string;
   /** Show this field only when another field's value is one of `values`. */
   visibleWhen?: { field: string; values: string[] };
+  /** Optional section title; consecutive fields with the same section render in one collapsible. */
+  section?: string;
+  /** Hover hint shown on the section toggle button. */
+  sectionHint?: string;
+  /** Optional visual group; consecutive fields with the same group share a bordered card. */
+  group?: string;
+  /** On md+ screens, place this field in a multi-column row inside its group. */
+  row?: boolean;
 };
 
 export type ColumnSpec = {
@@ -92,7 +104,13 @@ export function ResourceCrud({
 
   function openCreate() {
     setEditing(null);
-    setForm(defaults || {});
+    const next: Record<string, string> = { ...(defaults || {}) };
+    fields.forEach((f) => {
+      if (f.type === 'boolean' && next[f.name] == null) {
+        next[f.name] = f.name === 'isProduced' ? '' : 'false';
+      }
+    });
+    setForm(next);
     setShowErrors(false);
     setOpen(true);
   }
@@ -140,7 +158,16 @@ export function ResourceCrud({
                         next[f.name] = encodePacksEditorValue(packsFromCloth(row.original));
                         return;
                       }
+                      if (f.type === 'extras') {
+                        next[f.name] = encodeClothExtras(parseClothExtras(value));
+                        return;
+                      }
                       if (f.type === 'boolean') {
+                        if (f.name === 'isProduced' && (value === undefined || value === null || value === '')) {
+                          next[f.name] =
+                            row.original._producedFrom || row.original._tailor ? 'true' : 'false';
+                          return;
+                        }
                         next[f.name] = value === true || value === 'true' || value === 1 || value === '1' ? 'true' : 'false';
                         return;
                       }
@@ -224,7 +251,15 @@ export function ResourceCrud({
 
   function isVisible(field: Field) {
     if (!field.visibleWhen) return true;
-    return field.visibleWhen.values.includes(String(form[field.visibleWhen.field] ?? ''));
+    const current = String(form[field.visibleWhen.field] ?? '');
+    return field.visibleWhen.values.includes(current);
+  }
+
+  function clearHiddenValue(field: Field) {
+    if (field.type === 'images') return [];
+    if (field.type === 'boolean') return false;
+    if (field.type === 'number' || field.type === 'relation' || field.type === 'datetime') return null;
+    return '';
   }
 
   function missingFor(field: Field) {
@@ -248,6 +283,26 @@ export function ResourceCrud({
       return amount * Number(selected.price || 0);
     }
     return null;
+  }
+
+  /** Final per-item cost for cloth create/edit (produced or bought). */
+  function finishedClothPrice(): number {
+    const extras = clothExtrasTotal(form.extras);
+    const mode = String(form.isProduced ?? '');
+    if (mode === 'true') {
+      return Number(computedPrice() || 0) + Number(form.tailorFee || 0) + Number(form.washFee || 0) + extras;
+    }
+    if (mode === 'false') {
+      return Number(form.boughtFee || 0) + extras;
+    }
+    return extras;
+  }
+
+  function finishedClothDescription() {
+    const mode = String(form.isProduced ?? '');
+    if (mode === 'true') return 'پارچه + اجرت دوخت + اجرت شست‌وشو + خرج‌های اضافه';
+    if (mode === 'false') return 'قیمت خرید یا موجودی قبلی + خرج‌های اضافه';
+    return 'ابتدا تولید یا خرید / موجودی قبلی را انتخاب کنید';
   }
 
   function fabricLotComputed() {
@@ -280,12 +335,19 @@ export function ResourceCrud({
     start(async () => {
       const payload: Record<string, unknown> = {};
       fields.forEach((f) => {
-        if (!isVisible(f)) return;
+        if (!isVisible(f)) {
+          if (f.visibleWhen) payload[f.name] = clearHiddenValue(f);
+          return;
+        }
         if (f.type === 'packs') {
           const parsed = parsePacksEditorValue(form[f.name]);
           payload.packSize = parsed.packSize;
           payload.packs = mergePacks(parsed.packs);
           payload.count = totalItems(mergePacks(parsed.packs));
+          return;
+        }
+        if (f.type === 'extras') {
+          payload[f.name] = sanitizeClothExtras(form[f.name]);
           return;
         }
         if (f.type === 'boolean') {
@@ -317,6 +379,197 @@ export function ResourceCrud({
     });
   }
 
+  function renderField(field: Field) {
+    const label = field.required ? `${field.label} *` : field.label;
+    const error = showErrors && missingFor(field) ? 'الزامی است' : undefined;
+
+    if (field.type === 'select' || field.type === 'relation') {
+      const waitingOnParent = Boolean(field.dependsOn) && !form[field.dependsOn!];
+      const parentLabel = fields.find((f) => f.name === field.dependsOn)?.label;
+      return (
+        <Select
+          label={label}
+          error={error}
+          value={form[field.name] || ''}
+          onChange={(v) => setValue(field, String(v ?? ''))}
+          options={optionsFor(field)}
+          searchable={field.searchable ?? field.type === 'relation'}
+          clearable={!field.required}
+          disabled={waitingOnParent}
+          placeholder="انتخاب کنید"
+          hint={waitingOnParent ? `ابتدا ${parentLabel} را انتخاب کنید` : undefined}
+          labels={{ search: 'جستجو', remove: 'حذف انتخاب', noOptionsFound: 'موردی یافت نشد' }}
+        />
+      );
+    }
+
+    if (field.type === 'packs') {
+      const packsError = showErrors ? validatePacksEditor(parsePacksEditorValue(form[field.name])) : undefined;
+      return (
+        <ClothPacksEditor
+          label={label}
+          value={form[field.name] || ''}
+          onChange={(next) => setValue(field, next)}
+          error={packsError || undefined}
+        />
+      );
+    }
+
+    if (field.type === 'extras') {
+      return (
+        <ClothExtrasEditor
+          label={label}
+          value={form[field.name] || ''}
+          onChange={(next) => setValue(field, next)}
+        />
+      );
+    }
+
+    if (field.type === 'boolean') {
+      return (
+        <Checkbox
+          checked={form[field.name] === 'true'}
+          onChange={() => setValue(field, form[field.name] === 'true' ? 'false' : 'true')}
+          label={label}
+        />
+      );
+    }
+
+    if (field.type === 'datetime') {
+      return (
+        <Input
+          label={label}
+          error={error}
+          type="datetime-local"
+          value={form[field.name] || ''}
+          onChange={(e) => setValue(field, e.target.value)}
+        />
+      );
+    }
+
+    if (field.type === 'images') {
+      const imagesError = showErrors ? clothImageLimitMessage(parseImageList(form[field.name]).length) : undefined;
+      return (
+        <ClothImagesEditor
+          label={label}
+          value={form[field.name] || ''}
+          onChange={(next) => setValue(field, next)}
+          error={imagesError || undefined}
+        />
+      );
+    }
+
+    if (field.type === 'textarea') {
+      return (
+        <Textarea
+          label={label}
+          error={error}
+          value={form[field.name] || ''}
+          onChange={(e) => setValue(field, e.target.value)}
+        />
+      );
+    }
+
+    return (
+      <Input
+        label={label}
+        error={error}
+        type={field.type === 'number' ? 'number' : 'text'}
+        value={form[field.name] || ''}
+        onChange={(e) => setValue(field, e.target.value)}
+      />
+    );
+  }
+
+  const sectionToggleNames = new Set(
+    fields.filter((f) => f.section && f.visibleWhen?.field).map((f) => f.visibleWhen!.field),
+  );
+
+  type SectionItem = { key: string; fields: Field[]; openValue: string; hint?: string };
+  type FormBlock =
+    | { kind: 'fields'; group?: string; row: boolean; fields: Field[] }
+    | { kind: 'sections'; toggle: Field; sections: SectionItem[] };
+
+  const formBlocks: FormBlock[] = [];
+  for (let i = 0; i < fields.length; ) {
+    const field = fields[i];
+
+    if (sectionToggleNames.has(field.name) && field.type === 'boolean') {
+      const toggle = field;
+      const bySection = new Map<string, Field[]>();
+      const hints = new Map<string, string>();
+      const order: string[] = [];
+      for (const f of fields) {
+        if (!f.section || f.visibleWhen?.field !== toggle.name) continue;
+        if (!bySection.has(f.section)) {
+          bySection.set(f.section, []);
+          order.push(f.section);
+        }
+        bySection.get(f.section)!.push(f);
+        if (f.sectionHint && !hints.has(f.section)) hints.set(f.section, f.sectionHint);
+      }
+      formBlocks.push({
+        kind: 'sections',
+        toggle,
+        sections: order.map((key) => ({
+          key,
+          fields: bySection.get(key)!,
+          openValue: String(bySection.get(key)![0]?.visibleWhen?.values[0] ?? ''),
+          hint: hints.get(key),
+        })),
+      });
+      while (i < fields.length) {
+        const f = fields[i];
+        if (f.name === toggle.name || (f.section && f.visibleWhen?.field === toggle.name)) {
+          i += 1;
+          continue;
+        }
+        break;
+      }
+      continue;
+    }
+
+    if (field.section) {
+      i += 1;
+      continue;
+    }
+
+    if (field.group) {
+      const groupName = field.group;
+      const groupFields: Field[] = [];
+      while (i < fields.length && fields[i].group === groupName) {
+        const current = fields[i];
+        if (!current.visibleWhen || isVisible(current)) groupFields.push(current);
+        i += 1;
+      }
+      if (groupFields.length) {
+        formBlocks.push({
+          kind: 'fields',
+          group: groupName,
+          row: groupFields.some((f) => f.row),
+          fields: groupFields,
+        });
+      }
+      continue;
+    }
+
+    if (!isVisible(field)) {
+      i += 1;
+      continue;
+    }
+    formBlocks.push({ kind: 'fields', row: false, fields: [field] });
+    i += 1;
+  }
+
+  function sectionButtonClass(active: boolean) {
+    return cn(
+      'inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium shadow-sm backdrop-blur-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
+      active
+        ? 'border-primary/40 bg-primary/10 text-primary shadow-primary/10 hover:border-primary/50 hover:bg-primary/15'
+        : 'border-gray-200/80 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-100 hover:text-gray-800 dark:border-gray-700/50 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-100',
+    );
+  }
+
   return (
     <div className="space-y-4">
       {heading || headingDescription || (writable && headerAction === 'local') ? (
@@ -340,120 +593,122 @@ export function ResourceCrud({
         isLoading={pending}
         emptyMessage={`هنوز ${title} ثبت نشده`}
       />
-      <Modal isOpen={open} onClose={() => setOpen(false)} size={fields.some((field) => field.type === 'packs') ? 'xl' : 'lg'}>
+      <Modal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        size={fields.some((field) => field.type === 'packs' || field.type === 'extras') ? 'xl' : 'lg'}
+      >
         <FormCard>
           <h3 className="mb-4 text-lg font-medium">{editing ? `ویرایش ${title}` : `ثبت ${title}`}</h3>
           <div className="grid gap-3">
-            {fields.map((field) => {
-              if (!isVisible(field)) return null;
-              const label = field.required ? `${field.label} *` : field.label;
-              const error = showErrors && missingFor(field) ? 'الزامی است' : undefined;
-
-              if (field.type === 'select' || field.type === 'relation') {
-                const waitingOnParent = Boolean(field.dependsOn) && !form[field.dependsOn!];
-                const parentLabel = fields.find((f) => f.name === field.dependsOn)?.label;
+            {formBlocks.map((block) => {
+              if (block.kind === 'fields') {
+                const body = (
+                  <div
+                    className={cn(
+                      'grid gap-3',
+                      block.row
+                        ? block.fields.length >= 4
+                          ? 'md:grid-cols-2 xl:grid-cols-4'
+                          : block.fields.length === 3
+                            ? 'md:grid-cols-3'
+                            : 'md:grid-cols-2'
+                        : undefined,
+                    )}
+                  >
+                    {block.fields.map((field) => (
+                      <div key={field.name}>{renderField(field)}</div>
+                    ))}
+                  </div>
+                );
+                if (!block.group) {
+                  return (
+                    <div key={block.fields.map((f) => f.name).join('-')} className="grid gap-3">
+                      {block.fields.map((field) => (
+                        <div key={field.name}>{renderField(field)}</div>
+                      ))}
+                    </div>
+                  );
+                }
                 return (
-                  <Select
-                    key={field.name}
-                    label={label}
-                    error={error}
-                    value={form[field.name] || ''}
-                    onChange={(v) => setValue(field, String(v ?? ''))}
-                    options={optionsFor(field)}
-                    searchable={field.searchable ?? field.type === 'relation'}
-                    clearable={!field.required}
-                    disabled={waitingOnParent}
-                    placeholder="انتخاب کنید"
-                    hint={waitingOnParent ? `ابتدا ${parentLabel} را انتخاب کنید` : undefined}
-                    labels={{ search: 'جستجو', remove: 'حذف انتخاب', noOptionsFound: 'موردی یافت نشد' }}
-                  />
+                  <FieldGroup key={block.group} title={block.group}>
+                    {body}
+                  </FieldGroup>
                 );
               }
 
-              if (field.type === 'packs') {
-                const packsError = showErrors ? validatePacksEditor(parsePacksEditorValue(form[field.name])) : undefined;
-                return (
-                  <ClothPacksEditor
-                    key={field.name}
-                    label={label}
-                    value={form[field.name] || ''}
-                    onChange={(next) => setValue(field, next)}
-                    error={packsError || undefined}
-                  />
-                );
-              }
-
-              if (field.type === 'boolean') {
-                return (
-                  <Checkbox
-                    key={field.name}
-                    checked={form[field.name] === 'true'}
-                    onChange={() => setValue(field, form[field.name] === 'true' ? 'false' : 'true')}
-                    label={label}
-                  />
-                );
-              }
-
-              if (field.type === 'datetime') {
-                return (
-                  <Input
-                    key={field.name}
-                    label={label}
-                    error={error}
-                    type="datetime-local"
-                    value={form[field.name] || ''}
-                    onChange={(e) => setValue(field, e.target.value)}
-                  />
-                );
-              }
-
-              if (field.type === 'images') {
-                const imagesError = showErrors
-                  ? clothImageLimitMessage(parseImageList(form[field.name]).length)
-                  : undefined;
-                return (
-                  <ClothImagesEditor
-                    key={field.name}
-                    label={label}
-                    value={form[field.name] || ''}
-                    onChange={(next) => setValue(field, next)}
-                    error={imagesError || undefined}
-                  />
-                );
-              }
-
-              if (field.type === 'textarea') {
-                return (
-                  <Textarea
-                    key={field.name}
-                    label={label}
-                    error={error}
-                    value={form[field.name] || ''}
-                    onChange={(e) => setValue(field, e.target.value)}
-                  />
-                );
-              }
-
+              const current = String(form[block.toggle.name] ?? '');
               return (
-                <Input
-                  key={field.name}
-                  label={label}
-                  error={error}
-                  type={field.type === 'number' ? 'number' : 'text'}
-                  value={form[field.name] || ''}
-                  onChange={(e) => setValue(field, e.target.value)}
-                />
+                <div key={block.toggle.name} className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {block.sections.map((section) => {
+                      const active = current === section.openValue;
+                      const Icon = section.openValue === 'true' ? Scissors : ShoppingBag;
+                      const button = (
+                        <button
+                          type="button"
+                          onClick={() => setValue(block.toggle, active ? '' : section.openValue)}
+                          aria-expanded={active}
+                          className={sectionButtonClass(active)}
+                        >
+                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{section.key}</span>
+                          <ChevronDown
+                            className={cn(
+                              'h-3.5 w-3.5 shrink-0 transition-transform duration-200 ease-out',
+                              active ? 'rotate-180' : 'rotate-0',
+                            )}
+                          />
+                        </button>
+                      );
+                      return (
+                        <div key={section.key} className="min-w-0">
+                          {section.hint ? (
+                            <Tooltip size="sm" content={section.hint} placement="top" color="invert">
+                              {button}
+                            </Tooltip>
+                          ) : (
+                            button
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {block.sections.map((section) => {
+                    const openPanel = current === section.openValue;
+                    return (
+                      <CollapsiblePanel
+                        key={section.key}
+                        open={openPanel}
+                        panelKey={`section-${section.key}`}
+                        contentClassName="space-y-3"
+                      >
+                        <div className="grid gap-3">
+                          {section.fields.map((field) => (
+                            <div key={field.name}>{renderField(field)}</div>
+                          ))}
+                        </div>
+                      </CollapsiblePanel>
+                    );
+                  })}
+                </div>
               );
             })}
-            {fields.find((f) => f.priceFrom) ? (
-              <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-medium">
-                قیمت هر لباس: {toman(computedPrice() || 0)}
-              </p>
-            ) : null}
             {fabricLotComputed() != null ? (
               <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-medium">
                 مبلغ کل: {toman(fabricLotComputed() || 0)}
               </p>
+            ) : null}
+            {fields.some((f) => f.name === 'isProduced') ? (
+              <div className="rounded-xl border border-primary/25 bg-gradient-to-l from-primary/10 to-primary/5 px-4 py-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-primary/70">
+                  قیمت تمام‌شده هر لباس
+                </p>
+                <p className="mt-1 text-xl font-semibold tracking-tight text-primary">
+                  {toman(finishedClothPrice())}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500">{finishedClothDescription()}</p>
+              </div>
             ) : null}
             <Button onClick={submit} disabled={pending}>
               ذخیره

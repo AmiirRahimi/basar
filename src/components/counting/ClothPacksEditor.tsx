@@ -1,7 +1,7 @@
 'use client';
 
 import { Plus, X } from 'lucide-react';
-import { Button, IconButton, Input } from '@/ui';
+import { Button, FieldGroup, IconButton, Input } from '@/ui';
 import { faNumber } from '@/lib/format';
 import {
   encodePacksEditorValue,
@@ -50,12 +50,10 @@ export function ClothPacksEditor({
   const itemTotal = totalItems(parsed.packs);
 
   return (
-    <div className="space-y-3 rounded-xl border border-gray-200 p-3">
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-xs text-gray-500">
-        ابتدا مشخص کنید هر بسته کامل چند لباس دارد، بعد بگویید چند بسته با چه تعدادی موجود است. مثلاً ۱۰ بسته ۱۲ تایی، ۲
-        بسته ۴ تایی و ۱ بسته ۱ تایی.
-      </p>
+    <FieldGroup
+      title={label}
+      description="ابتدا مشخص کنید هر بسته کامل چند لباس دارد، بعد بگویید چند بسته با چه تعدادی موجود است. مثلاً ۱۰ بسته ۱۲ تایی، ۲ بسته ۴ تایی و ۱ بسته ۱ تایی."
+    >
       <Input
         label="تعداد هر بسته کامل *"
         type="number"
@@ -72,7 +70,7 @@ export function ClothPacksEditor({
       {rows.length ? (
         <div className="space-y-2">
           {rows.map((row, index) => (
-            <div key={`pack-row-${index}`} className="grid gap-2 rounded-lg bg-gray-50 p-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <div key={`pack-row-${index}`} className="grid gap-2 rounded-lg bg-white/70 p-3 dark:bg-gray-900/40 md:grid-cols-[1fr_1fr_auto] md:items-end">
               <Input
                 label={index === 0 ? 'تعداد بسته' : undefined}
                 type="number"
@@ -106,15 +104,15 @@ export function ClothPacksEditor({
         <button
           type="button"
           onClick={addRow}
-          className="w-full rounded-xl border-2 border-dashed border-gray-200 py-6 text-sm text-gray-500 hover:border-primary/30 hover:text-primary"
+          className="w-full rounded-xl border-2 border-dashed border-gray-200 py-6 text-sm text-gray-500 hover:border-primary/30 hover:text-primary dark:border-gray-700"
         >
           افزودن بسته
         </button>
       )}
-      <p className="rounded-lg bg-white px-3 py-2 text-sm">
+      <p className="rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-gray-900/50">
         جمع: {faNumber(packTotal)} بسته، {faNumber(itemTotal)} عدد
       </p>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
-    </div>
+    </FieldGroup>
   );
 }

@@ -60,6 +60,11 @@ export {
   CollapsiblePanel,
   type CollapsiblePanelProps,
 } from './components/CollapsiblePanel';
+export {
+  FieldGroup,
+  fieldGroupClassName,
+  type FieldGroupProps,
+} from './components/FieldGroup';
 export { Accordion, type AccordionProps } from './components/Accordion';
 export { SectionCard, type SectionCardProps } from './components/SectionCard';
 export { Tabs, type TabsProps, type TabItem } from './components/Tabs';

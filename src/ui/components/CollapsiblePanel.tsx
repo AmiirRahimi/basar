@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
+import { FieldGroup } from './FieldGroup';
 
 export type CollapsiblePanelProps = {
   open: boolean;
@@ -30,18 +31,7 @@ export function CollapsiblePanel({
           transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
           className={cn('overflow-hidden', className)}
         >
-          <div
-            className={cn(
-              'rounded-xl border border-gray-100/80 dark:border-gray-800/40',
-              'bg-gradient-to-br from-gray-50/50 via-white/30 to-gray-50/50',
-              'dark:from-gray-800/20 dark:via-gray-900/10 dark:to-gray-800/20',
-              'p-5',
-              'shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]',
-              contentClassName
-            )}
-          >
-            {children}
-          </div>
+          <FieldGroup contentClassName={contentClassName}>{children}</FieldGroup>
         </motion.div>
       )}
     </AnimatePresence>

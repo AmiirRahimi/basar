@@ -211,6 +211,7 @@ const ClothSchema = new Schema(
     _style: { type: Schema.Types.ObjectId, ref: 'ClothStyle' },
     _size: { type: Schema.Types.ObjectId, ref: 'Size' },
     _color: { type: Schema.Types.ObjectId, ref: 'Color' },
+    isProduced: { type: Boolean, default: false },
     _tailor: { type: Schema.Types.ObjectId, ref: 'Person' },
     _producedFrom: { type: Schema.Types.ObjectId, ref: 'Fabric' },
     _boughtFrom: { type: Schema.Types.ObjectId, ref: 'Person' },
@@ -220,6 +221,17 @@ const ClothSchema = new Schema(
     boughtFee: Number,
     tailorFee: Number,
     washFee: Number,
+    extras: {
+      type: [
+        {
+          kind: { type: String, required: true },
+          price: { type: Number, required: true, default: 0 },
+          description: { type: String, default: '' },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
     code: { type: String, required: true },
     count: { type: Number, required: true },
     packSize: { type: Number, default: 1 },
@@ -234,8 +246,6 @@ const ClothSchema = new Schema(
       default: [],
     },
     description: String,
-    wholesalePrice: Number,
-    minOrderQty: { type: Number, default: 12 },
     published: { type: Boolean, default: false },
     images: {
       type: [String],
