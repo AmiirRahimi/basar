@@ -17,6 +17,7 @@ import {
 import { InfoRow, SectionCard, TableOverflowText } from '@/ui';
 import { AdminUserEditTrigger } from './AdminUserEditor';
 import { ClothImageGallery } from './ClothImageGallery';
+import { Price } from './Price';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
 import { PERSON_ROLES, personRoleLabel } from '@/lib/constants';
 import { cycleLabel } from '@/lib/plans';
@@ -212,6 +213,11 @@ function recordChips(resource: string, row: Record<string, any>) {
 }
 
 function FieldValue({ row, field }: { row: Record<string, any>; field: DetailField }) {
+  if (field.kind === 'toman') {
+    const value = row[field.key];
+    if (emptyValue(value)) return <span className="text-gray-400">—</span>;
+    return <Price value={value} className="font-medium" />;
+  }
   const text = formatField(row, field);
   if (!text) return <span className="text-gray-400">—</span>;
   if (field.kind === 'phone') {
@@ -330,13 +336,13 @@ export function RecordDetail({
 
       {extras?.balance ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={<Shirt className="size-4" />} label="جمع فاکتور" value={toman(extras.balance.total)} />
-          <StatCard icon={<Banknote className="size-4" />} label="پرداخت‌شده" value={toman(extras.balance.paid)} />
-          <StatCard icon={<Landmark className="size-4" />} label="برگشتی" value={toman(extras.balance.returnTotal)} />
+          <StatCard icon={<Shirt className="size-4" />} label="جمع فاکتور" value={<Price value={extras.balance.total} />} />
+          <StatCard icon={<Banknote className="size-4" />} label="پرداخت‌شده" value={<Price value={extras.balance.paid} />} />
+          <StatCard icon={<Landmark className="size-4" />} label="برگشتی" value={<Price value={extras.balance.returnTotal} />} />
           <StatCard
             icon={<Wallet className="size-4" />}
             label="مانده"
-            value={toman(extras.balance.remaining)}
+            value={<Price value={extras.balance.remaining} />}
             emphasis
           />
         </div>
@@ -344,18 +350,22 @@ export function RecordDetail({
 
       {extras?.account ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="خرید / بدهی" value={toman(extras.account.purchaseTotal)} />
-          <StatCard label="پرداخت‌شده" value={toman(extras.account.paidTotal)} />
+          <StatCard label="خرید / بدهی" value={<Price value={extras.account.purchaseTotal} />} />
+          <StatCard label="پرداخت‌شده" value={<Price value={extras.account.paidTotal} />} />
           {extras.account.kind === 'receivable' ? (
-            <StatCard label="برگشتی" value={toman(extras.account.returnTotal)} />
+            <StatCard label="برگشتی" value={<Price value={extras.account.returnTotal} />} />
           ) : null}
           <StatCard
             label={Number(extras.account.creditToCustomer || 0) > 0 ? 'بستانکار مشتری' : 'مانده'}
-            value={toman(
-              Number(extras.account.creditToCustomer || 0) > 0
-                ? extras.account.creditToCustomer
-                : extras.account.remaining,
-            )}
+            value={
+              <Price
+                value={
+                  Number(extras.account.creditToCustomer || 0) > 0
+                    ? extras.account.creditToCustomer
+                    : extras.account.remaining
+                }
+              />
+            }
             emphasis
           />
         </div>
@@ -447,8 +457,12 @@ export function RecordDetail({
                         ) : null}
                       </td>
                       <td className="px-4 py-3">{faNumber(count)}</td>
-                      <td className="px-4 py-3">{toman(price)}</td>
-                      <td className="px-4 py-3 font-medium">{toman(count * price)}</td>
+                      <td className="px-4 py-3">
+                        <Price value={price} />
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        <Price value={count * price} />
+                      </td>
                     </tr>
                   );
                 })}
@@ -480,7 +494,7 @@ function StatCard({
   emphasis,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   icon?: ReactNode;
   emphasis?: boolean;
 }) {

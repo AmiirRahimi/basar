@@ -10,6 +10,7 @@ import {
   paymentPartTiles,
   paymentTarget,
 } from '@/lib/payment-display';
+import { Price, PriceSection } from './Price';
 
 export function PaidBar({ paid, total }: { paid: number; total: number }) {
   const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
@@ -59,22 +60,30 @@ export function InvoiceSettleCard({
         )}
       </div>
       <div className="mt-3">
-        <p className="text-[11px] text-gray-500">{settled ? 'چیزی برای پرداخت نمانده' : 'باید بپردازد'}</p>
-        <p className={`text-xl font-semibold ${settled ? 'text-emerald-800' : 'text-gray-900'}`}>{toman(row.remaining)}</p>
+        <PriceSection
+          label={settled ? 'چیزی برای پرداخت نمانده' : 'باید بپردازد'}
+          value={row.remaining}
+        />
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
         <div className="rounded-xl bg-white/80 px-3 py-2">
           <dt className="text-[11px] text-gray-500">مبلغ فاکتور</dt>
-          <dd className="font-medium">{toman(row.total)}</dd>
+          <dd className="font-medium">
+            <Price value={row.total} />
+          </dd>
         </div>
         <div className="rounded-xl bg-white/80 px-3 py-2">
           <dt className="text-[11px] text-gray-500">پرداخت‌شده</dt>
-          <dd className="font-medium">{toman(row.paid)}</dd>
+          <dd className="font-medium">
+            <Price value={row.paid} />
+          </dd>
         </div>
         {Number(row.returnTotal || 0) > 0 ? (
           <div className="col-span-2 rounded-xl bg-white/80 px-3 py-2">
             <dt className="text-[11px] text-gray-500">برگشتی</dt>
-            <dd className="font-medium">{toman(row.returnTotal)}</dd>
+            <dd className="font-medium">
+              <Price value={row.returnTotal} />
+            </dd>
           </div>
         ) : null}
       </dl>

@@ -7,6 +7,7 @@ import { ChevronDown, Scissors, ShoppingBag } from 'lucide-react';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { recordViewPath } from '@/lib/record-view';
 import { RowActions } from './RowActions';
+import { Price, PriceSection } from './Price';
 
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
@@ -141,7 +142,7 @@ export function ResourceCrud({
           const row = info.row.original;
           const value = info.getValue();
           if (col.format === 'name') return displayName(value);
-          if (col.format === 'toman') return value == null || value === '' ? '—' : toman(value);
+          if (col.format === 'toman') return value == null || value === '' ? '—' : <Price value={value} />;
           if (col.format === 'date') return faDate(value);
           if (col.format === 'role') return PERSON_ROLES[String(row.role)] || String(row.role ?? '—');
           return String(value ?? '—');
@@ -714,20 +715,14 @@ export function ResourceCrud({
               );
             })}
             {fabricLotComputed() != null ? (
-              <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-medium">
-                مبلغ کل: {toman(fabricLotComputed() || 0)}
-              </p>
+              <PriceSection label="مبلغ کل" value={fabricLotComputed() || 0} />
             ) : null}
             {fields.some((f) => f.name === 'isProduced') ? (
-              <div className="rounded-xl border border-primary/25 bg-gradient-to-l from-primary/10 to-primary/5 px-4 py-3">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-primary/70">
-                  قیمت تمام‌شده هر لباس
-                </p>
-                <p className="mt-1 text-xl font-semibold tracking-tight text-primary">
-                  {toman(finishedClothPrice())}
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">{finishedClothDescription()}</p>
-              </div>
+              <PriceSection
+                label="قیمت تمام‌شده هر لباس"
+                value={finishedClothPrice()}
+                description={finishedClothDescription()}
+              />
             ) : null}
             <Button onClick={submit} disabled={pending}>
               ذخیره

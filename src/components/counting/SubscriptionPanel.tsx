@@ -19,6 +19,7 @@ import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Workspace } from '@/lib/types';
 import { Button, FormCard, Input, Modal, toast } from '@/ui';
+import { Price, PriceSection } from './Price';
 
 type DiscountPreview = {
   price: number;
@@ -246,13 +247,20 @@ export function SubscriptionPanel({
                 </div>
                 <h4 className="text-base font-semibold text-gray-900">{plan.name}</h4>
                 <p className="mt-1 min-h-10 text-xs text-gray-500">{plan.blurb}</p>
-                <p className="mt-3 text-2xl font-semibold text-gray-900">{toman(price)}</p>
-                <p className="text-xs text-gray-500">{cycle === 'year' ? 'برای یک سال' : 'برای هر ماه'}</p>
-                {cycle === 'year' ? (
-                  <p className="mt-1 text-xs text-teal-700">
-                    به‌جای {toman(yearlyFull)} — {faNumber(ANNUAL_DISCOUNT * 100)}٪ تخفیف
-                  </p>
-                ) : null}
+                <PriceSection
+                  className="mt-3"
+                  label={cycle === 'year' ? 'قیمت سالانه' : 'قیمت ماهانه'}
+                  value={price}
+                  description={
+                    cycle === 'year' ? (
+                      <>
+                        به‌جای <Price value={yearlyFull} /> — {faNumber(ANNUAL_DISCOUNT * 100)}٪ تخفیف
+                      </>
+                    ) : (
+                      'برای هر ماه'
+                    )
+                  }
+                />
                 <ul className="mt-4 flex-1 space-y-2 text-sm">
                   {plan.features.map((feature) => (
                     <li key={feature.label} className="flex items-start gap-2">
@@ -303,12 +311,18 @@ export function SubscriptionPanel({
               </Button>
             </div>
             {applied?.percent ? (
-              <p className="text-sm text-teal-800">
-                {faNumber(applied.percent)}٪ تخفیف با کد {applied.code}: از {toman(applied.originalPrice)} به{' '}
-                {toman(applied.price)}
-              </p>
+              <PriceSection
+                label="مبلغ قابل پرداخت"
+                value={applied.price}
+                description={
+                  <>
+                    {faNumber(applied.percent)}٪ تخفیف با کد {applied.code}: از <Price value={applied.originalPrice} /> به{' '}
+                    <Price value={applied.price} />
+                  </>
+                }
+              />
             ) : (
-              <p className="text-sm text-gray-600">مبلغ قابل پرداخت: {toman(payable)}</p>
+              <PriceSection label="مبلغ قابل پرداخت" value={payable} />
             )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" disabled={pending} onClick={closeCheckout}>

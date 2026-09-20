@@ -6,6 +6,7 @@ import { getPersonReturns, receiveReturnedCloth } from '@/actions/crud';
 import { Button, FormCard, IconButton, Input, Select, toast } from '@/ui';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { Price, PriceSection } from './Price';
 import { useWritable } from './useWritable';
 import type { FieldOption } from '@/lib/types';
 
@@ -152,11 +153,12 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
           }}
         />
         {person ? (
-          <div className="mt-4 rounded-xl bg-gray-50 p-3 text-sm">
-            <p>برگشتی‌های {personName || 'این مشتری'} به حسابش بستانکار می‌شود.</p>
-            <p className="mt-1 text-base font-semibold">بستانکار از برگشت: {toman(returnTotal)}</p>
-            <p className="mt-1 text-xs text-gray-500">این مبلغ از مانده بدهی مشتری کم می‌شود؛ اگر بیشتر باشد شما به مشتری بدهکارید.</p>
-          </div>
+          <PriceSection
+            className="mt-4"
+            label="بستانکار از برگشت"
+            value={returnTotal}
+            description="این مبلغ از مانده بدهی مشتری کم می‌شود؛ اگر بیشتر باشد شما به مشتری بدهکارید."
+          />
         ) : null}
         <h3 className="mt-5 mb-2 font-medium">لباس خریده‌شده</h3>
         {pending ? <p className="text-sm text-gray-500">در حال بارگذاری...</p> : null}
@@ -233,7 +235,9 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
               value={price}
               onChange={(event) => setPrice(Number(event.target.value))}
             />
-            <p className="text-xs text-gray-500">قیمت خرید این لباس {toman(selected.boughtPrice)} است. می‌توانید همان را بزنید یا قیمت دیگری بدهید.</p>
+            <p className="text-xs text-gray-500">
+              قیمت خرید این لباس <Price value={selected.boughtPrice} /> است. می‌توانید همان را بزنید یا قیمت دیگری بدهید.
+            </p>
             <Input
               label="توضیحات"
               value={description}

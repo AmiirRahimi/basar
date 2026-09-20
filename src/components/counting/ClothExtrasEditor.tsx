@@ -2,7 +2,7 @@
 
 import { Plus, X } from 'lucide-react';
 import { Button, FieldGroup, IconButton, Input, Select, Textarea } from '@/ui';
-import { faNumber, toman } from '@/lib/format';
+import { faNumber } from '@/lib/format';
 import {
   CLOTH_EXTRA_KINDS,
   clothExtrasTotal,
@@ -10,6 +10,7 @@ import {
   parseClothExtras,
   type ClothExtra,
 } from '@/lib/cloth-extras';
+import { Price } from './Price';
 
 const KIND_OPTIONS = CLOTH_EXTRA_KINDS.map((row) => ({
   value: row.value,
@@ -109,7 +110,7 @@ export function ClothExtrasEditor({
       )}
 
       <p className="rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-gray-900/50">
-        جمع خرج‌ها: {toman(total)} · {faNumber(rows.length)} ردیف
+        جمع خرج‌ها: <Price value={total} /> · {faNumber(rows.length)} ردیف
       </p>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </FieldGroup>

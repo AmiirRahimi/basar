@@ -184,7 +184,7 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
       title: 'خرید پارچه',
       fields: [
         { key: '_mercer', label: 'بنکدار', kind: 'name', linkResource: 'person' },
-        { key: '_tailor', label: 'خیاط', kind: 'name', linkResource: 'person' },
+        { key: '_tailor', label: 'این پارچه را به کدام خیاط بفرستید؟', kind: 'name', linkResource: 'person' },
         { key: 'amount', label: 'متراژ' },
         { key: 'priceForUnit', label: 'فی هر متر', kind: 'toman' },
         { key: 'priceForShipingForUnit', label: 'حمل هر متر', kind: 'toman' },

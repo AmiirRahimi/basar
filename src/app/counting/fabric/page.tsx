@@ -24,7 +24,7 @@ export default async function FabricPage() {
         rows={rows}
         columns={[
           { header: 'بنکدار', accessor: '_mercer', format: 'name' },
-          { header: 'خیاط', accessor: '_tailor', format: 'name' },
+          { header: 'خیاط گیرنده', accessor: '_tailor', format: 'name' },
           { header: 'متراژ', accessor: 'amount' },
           { header: 'فی', accessor: 'priceForUnit', format: 'toman' },
           { header: 'حمل', accessor: 'priceForShipingForUnit', format: 'toman' },
@@ -33,7 +33,13 @@ export default async function FabricPage() {
         ]}
         fields={[
           { name: '_mercer', label: 'بنکدار', type: 'relation', options: mercers, required: true },
-          { name: '_tailor', label: 'خیاط', type: 'relation', options: tailors, required: true },
+          {
+            name: '_tailor',
+            label: 'این پارچه را به کدام خیاط بفرستید؟',
+            type: 'relation',
+            options: tailors,
+            required: true,
+          },
           { name: 'amount', label: 'متراژ', type: 'number', required: true },
           { name: 'priceForUnit', label: 'فی هر متر', type: 'number', required: true },
           { name: 'priceForShipingForUnit', label: 'حمل هر متر', type: 'number', required: true },

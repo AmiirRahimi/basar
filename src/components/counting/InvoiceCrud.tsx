@@ -25,6 +25,7 @@ import { displayName, faDate, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { checkAvailableForPayment } from '@/lib/checks';
 import { PaymentForm } from './PaymentForm';
+import { Price, PriceSection } from './Price';
 import { RowActions } from './RowActions';
 import { useWritable } from './useWritable';
 import {
@@ -535,7 +536,7 @@ export function InvoiceCrud({
                       onChange={(e) => setItem(item.key, { price: Number(e.target.value) })}
                     />
                     <div className="pb-2 text-sm text-gray-600 md:pt-8">
-                      {toman(Number(item.count || 0) * Number(item.price || 0))}
+                      <Price value={Number(item.count || 0) * Number(item.price || 0)} />
                     </div>
                     <IconButton
                       type="button"
@@ -551,10 +552,7 @@ export function InvoiceCrud({
                   </div>
                 );
               })}
-              <div className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm">
-                <span>جمع تعداد: {totals.count}</span>
-                <span className="font-medium">جمع مبلغ: {toman(totals.amount)}</span>
-              </div>
+              <PriceSection label="جمع مبلغ فاکتور" value={totals.amount} description={`جمع تعداد: ${totals.count}`} />
             </div>
 
             <Button onClick={submit} disabled={pending}>
@@ -595,17 +593,22 @@ export function InvoiceCrud({
                           <TableOverflowText>{formatPacksFa(item.packs || [])}</TableOverflowText>
                         </td>
                         <td className="p-3">{item.count}</td>
-                        <td className="p-3">{toman(item.price)}</td>
-                        <td className="p-3">{toman(item.count * item.price)}</td>
+                        <td className="p-3">
+                          <Price value={item.price} />
+                        </td>
+                        <td className="p-3">
+                          <Price value={item.count * item.price} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="flex flex-wrap justify-between gap-2 font-medium">
-                <span>جمع تعداد: {summaryTotals.count}</span>
-                <span>جمع مبلغ: {toman(summaryTotals.amount)}</span>
-              </div>
+              <PriceSection
+                label="جمع مبلغ فاکتور"
+                value={summaryTotals.amount}
+                description={`جمع تعداد: ${summaryTotals.count}`}
+              />
               {writable ? (
                 <PaymentForm
                   personId={summary.personId}

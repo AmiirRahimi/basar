@@ -5,6 +5,7 @@ import { DashboardCharts } from './DashboardCharts';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkStatus, persianMonthLabel } from '@/lib/checks';
 import { displayName, faNumber, toman } from '@/lib/format';
 import type { Check } from '@/lib/types';
+import { Price } from './Price';
 
 type SalesPeriod = { amount?: number; count?: number };
 
@@ -229,7 +230,9 @@ function StatCard({
         <p className="text-sm font-semibold">{title}</p>
         <Icon className="h-5 w-5 opacity-80" />
       </div>
-      <p className="text-2xl font-semibold tracking-tight text-gray-900">{toman(amount)}</p>
+      <p className="text-2xl font-semibold tracking-tight text-gray-900">
+        <Price value={amount} />
+      </p>
       <p className="mt-1 text-sm opacity-80">{hint}</p>
     </div>
   );

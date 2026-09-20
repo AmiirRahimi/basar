@@ -7,6 +7,7 @@ import { createPayment, createReceivedCheck } from '@/actions/crud';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { toman } from '@/lib/format';
 import type { FieldOption } from '@/lib/types';
+import { Price, PriceSection } from './Price';
 
 const selectLabels = {
   search: 'جستجو',
@@ -131,9 +132,15 @@ export function PaymentForm({
 
   return (
     <div className="grid gap-3">
-      <p className="text-sm text-gray-600">
-        جمع مبلغ: {toman(total)} — {payable ? 'باید بپردازید' : 'باید بپردازد'}: {toman(remaining)}
-      </p>
+      <PriceSection
+        label={payable ? 'باید بپردازید' : 'باید بپردازد'}
+        value={remaining}
+        description={
+          <>
+            جمع مبلغ: <Price value={total} />
+          </>
+        }
+      />
       <Input
         label="تخفیف"
         type="number"
@@ -213,13 +220,18 @@ export function PaymentForm({
           </Button>
         </div>
       ) : null}
-      <div className="rounded-lg bg-gray-50 px-3 py-2 text-sm">
-        <p>جمع نقد و چک و تخفیف: {toman(cashValue + appliedCheck + Number(discount || 0))}</p>
-        <p className="font-medium">{payable ? 'مانده بدهی شما' : 'مانده نسیه (دفتر)'}: {toman(credit)}</p>
-        {method === 'credit' && !payable ? (
-          <p className="mt-1 text-xs text-gray-500">این مانده مثل دفتر نسیه قدیم برای مشتری ثبت می‌شود.</p>
-        ) : null}
-      </div>
+      <PriceSection
+        label={payable ? 'مانده بدهی شما' : 'مانده نسیه (دفتر)'}
+        value={credit}
+        description={
+          <>
+            جمع نقد و چک و تخفیف: <Price value={cashValue + appliedCheck + Number(discount || 0)} />
+            {method === 'credit' && !payable ? (
+              <span className="mt-1 block">این مانده مثل دفتر نسیه قدیم برای مشتری ثبت می‌شود.</span>
+            ) : null}
+          </>
+        }
+      />
       <Button onClick={submit} disabled={pending || !personId}>
         ثبت پرداخت
       </Button>

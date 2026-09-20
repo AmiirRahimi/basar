@@ -17,6 +17,7 @@ import { parseImageList } from '@/lib/shop-cart';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, FormCard, Modal, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
+import { Price, PriceSection } from './Price';
 
 export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
   const router = useRouter();
@@ -59,15 +60,23 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
             <p className="mt-1 min-h-10 text-sm text-gray-500">{pack.blurb}</p>
             <p className="mt-4 text-3xl font-semibold tracking-tight text-gray-900">{faNumber(pack.tokens)}</p>
             <p className="text-sm text-gray-500">توکن ویرایش تصویر</p>
-            <p className="mt-3 text-xl font-semibold text-gray-900">{toman(pack.price)}</p>
-            <p className="text-xs text-gray-500">{toman(tokenUnitPrice(pack))} برای هر ویرایش</p>
-            {save ? (
-              <p className="mt-1 text-xs text-teal-700">
-                {faNumber(save)}٪ ارزان‌تر از خرید تکی {toman(IMAGE_TOKEN_LIST_PRICE)}
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-gray-400">قیمت پایه هر توکن</p>
-            )}
+            <PriceSection
+              className="mt-3"
+              label="قیمت بسته"
+              value={pack.price}
+              description={
+                <>
+                  <Price value={tokenUnitPrice(pack)} /> برای هر ویرایش
+                  {save ? (
+                    <span className="mt-1 block text-teal-700">
+                      {faNumber(save)}٪ ارزان‌تر از خرید تکی <Price value={IMAGE_TOKEN_LIST_PRICE} />
+                    </span>
+                  ) : (
+                    <span className="mt-1 block text-gray-400">قیمت پایه هر توکن</span>
+                  )}
+                </>
+              }
+            />
             <ul className="mt-4 flex-1 space-y-2 text-sm text-gray-700">
               <li className="flex items-start gap-2">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />

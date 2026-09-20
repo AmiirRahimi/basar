@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { Button } from '@/ui';
-import { displayName, faDate, toman } from '@/lib/format';
+import { displayName, faDate } from '@/lib/format';
 import { formatPacksFa } from '@/lib/packs';
 import type { CartLine, Invoice } from '@/lib/types';
+import { Price } from './Price';
 
 export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: CartLine[] }) {
   const totalCount = lines.reduce((sum, line) => sum + Number(line.count || 0), 0);
@@ -62,8 +63,12 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
                   <td className="p-3">{displayName(line._cloth)}</td>
                   <td className="p-3">{formatPacksFa(line.packs || [])}</td>
                   <td className="p-3">{line.count}</td>
-                  <td className="p-3">{toman(line.price)}</td>
-                  <td className="p-3">{toman(Number(line.count || 0) * Number(line.price || 0))}</td>
+                  <td className="p-3">
+                    <Price value={line.price} />
+                  </td>
+                  <td className="p-3">
+                    <Price value={Number(line.count || 0) * Number(line.price || 0)} />
+                  </td>
                 </tr>
               ))
             ) : (
@@ -80,7 +85,9 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
               <td className="p-3" />
               <td className="p-3">{totalCount}</td>
               <td className="p-3" />
-              <td className="p-3">{toman(totalAmount)}</td>
+              <td className="p-3">
+                <Price value={totalAmount} />
+              </td>
             </tr>
           </tfoot>
         </table>
