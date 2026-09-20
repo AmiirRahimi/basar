@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import mongoose from 'mongoose';
-import { fabricLotTotal, fabricUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
+import { fabricLotTotal, fabricUnitCost, clothFinishedUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
 import { sanitizeClothExtras } from '@/lib/cloth-extras';
 import { sanitizeFabricExtras } from '@/lib/fabric-extras';
 import {
@@ -2424,6 +2424,161 @@ export async function invoiceBalance(invoiceId: string): Promise<ActionResult> {
       returnTotal: returned,
       remaining: Math.max(0, total - paid - returned),
       payments: invoicePayments,
+    }),
+  );
+}
+
+export async function clothProfitSummary(clothId: string): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  const denied = denyRead(auth.session, 'cloth');
+  if (denied) return denied;
+  const cloth = await M().Cloth.findOne({ _id: oid(clothId), ...clothVisibleFilter(auth.session) })
+    .populate({
+      path: '_producedFrom',
+      select: 'amount priceForUnit priceForShipingForUnit discount extras',
+    })
+    .lean();
+  if (!cloth) return fail('لباس پیدا نشد', 404);
+
+  const finishedUnit = clothFinishedUnitCost(cloth);
+  const listUnit = clothUnitPrice(cloth);
+
+  const [saleLines, returnItems] = await Promise.all([
+    M().CustomerCart.find(storeFilter(auth.session, { _cloth: oid(clothId) }))
+      .populate({
+        path: '_invoice',
+        select: '_id invoiceNumber timeStamp _client',
+        populate: { path: '_client', select: '_id fullName' },
+      })
+      .lean(),
+    M().ReturnedItems.find({ _cloth: oid(clothId), isDeleted: false }).lean(),
+  ]);
+
+  const priceQty = new Map<number, number>();
+  const clothByInvoice = new Map<string, number>();
+  const sales: Array<{
+    _id: string;
+    invoiceId: string;
+    invoiceNumber?: string | number;
+    timeStamp?: string;
+    clientId?: string;
+    clientName?: string;
+    count: number;
+    price: number;
+    amount: number;
+    packs?: unknown;
+  }> = [];
+  let soldQty = 0;
+  let grossRevenue = 0;
+  for (const line of saleLines as any[]) {
+    const qty = Number(line.count || 0);
+    const price = Number(line.price || 0);
+    if (qty <= 0) continue;
+    soldQty += qty;
+    grossRevenue += qty * price;
+    priceQty.set(price, (priceQty.get(price) || 0) + qty);
+    const invoice = line._invoice && typeof line._invoice === 'object' ? line._invoice : null;
+    const invoiceId = relationKey(line._invoice);
+    if (invoiceId) {
+      clothByInvoice.set(invoiceId, (clothByInvoice.get(invoiceId) || 0) + qty * price);
+    }
+    const client = invoice?._client && typeof invoice._client === 'object' ? invoice._client : null;
+    sales.push({
+      _id: String(line._id),
+      invoiceId,
+      invoiceNumber: invoice?.invoiceNumber,
+      timeStamp: invoice?.timeStamp || line.timeStamp,
+      clientId: relationKey(invoice?._client),
+      clientName: client?.fullName ? String(client.fullName) : '',
+      count: qty,
+      price,
+      amount: qty * price,
+      packs: line.packs,
+    });
+  }
+  sales.sort(
+    (a, b) => new Date(b.timeStamp || 0).getTime() - new Date(a.timeStamp || 0).getTime(),
+  );
+
+  let returnedQty = 0;
+  let returnedRevenue = 0;
+  for (const row of returnItems as any[]) {
+    const qty = Number(row.count || 0);
+    if (qty <= 0) continue;
+    returnedQty += qty;
+    returnedRevenue += qty * Number(row.price ?? row.boughtPrice ?? 0);
+  }
+
+  const netQty = Math.max(0, soldQty - returnedQty);
+  const revenue = Math.max(0, grossRevenue - returnedRevenue);
+  const cogs = netQty * finishedUnit;
+  const totalProfit = revenue - cogs;
+  const avgSell = netQty > 0 ? revenue / netQty : 0;
+
+  const invoiceIds = [...clothByInvoice.keys()];
+  let cashShare = 0;
+  let checkShare = 0;
+  if (invoiceIds.length) {
+    const oids = invoiceIds.map((id) => oid(id));
+    const [invoiceLines, payments] = await Promise.all([
+      M().CustomerCart.find(storeFilter(auth.session, { _invoice: { $in: oids } })).lean(),
+      M().Payment.find(storeFilter(auth.session, { _invoice: { $in: oids } })).lean(),
+    ]);
+    const invoiceTotals = new Map<string, number>();
+    for (const line of invoiceLines as any[]) {
+      const id = relationKey(line._invoice);
+      if (!id) continue;
+      invoiceTotals.set(
+        id,
+        (invoiceTotals.get(id) || 0) + Number(line.count || 0) * Number(line.price || 0),
+      );
+    }
+    const cashByInvoice = new Map<string, number>();
+    const checkByInvoice = new Map<string, number>();
+    for (const payment of payments as any[]) {
+      const id = relationKey(payment._invoice);
+      if (!id) continue;
+      cashByInvoice.set(
+        id,
+        (cashByInvoice.get(id) || 0) + Number(payment.cashAmount ?? payment.cash ?? 0),
+      );
+      checkByInvoice.set(id, (checkByInvoice.get(id) || 0) + Number(payment.checkAmount || 0));
+    }
+    for (const [invoiceId, clothRevenue] of clothByInvoice) {
+      const total = invoiceTotals.get(invoiceId) || 0;
+      if (total <= 0 || clothRevenue <= 0) continue;
+      const ratio = Math.min(1, clothRevenue / total);
+      cashShare += (cashByInvoice.get(invoiceId) || 0) * ratio;
+      checkShare += (checkByInvoice.get(invoiceId) || 0) * ratio;
+    }
+  }
+
+  const paidMix = cashShare + checkShare;
+  const profitCash = paidMix > 0 ? totalProfit * (cashShare / paidMix) : 0;
+  const profitCheck = paidMix > 0 ? totalProfit * (checkShare / paidMix) : 0;
+
+  const sellPrices = [...priceQty.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([price, count]) => ({ price, count }));
+
+  return ok(
+    serialize({
+      finishedUnit,
+      listUnit,
+      soldQty,
+      returnedQty,
+      netQty,
+      revenue,
+      cogs,
+      totalProfit,
+      avgSell,
+      cashShare,
+      checkShare,
+      profitCash,
+      profitCheck,
+      sellPrices,
+      sales,
     }),
   );
 }

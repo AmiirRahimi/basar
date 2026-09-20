@@ -1,4 +1,10 @@
-import { getInvoiceBalance, getInvoiceCart, getPersonAccount, getResource } from '@/actions/crud';
+import {
+  getClothProfit,
+  getInvoiceBalance,
+  getInvoiceCart,
+  getPersonAccount,
+  getResource,
+} from '@/actions/crud';
 import { CountingShell } from '@/components/counting/CountingShell';
 import { RecordDetail, RecordMissing } from '@/components/counting/RecordDetail';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
@@ -38,6 +44,44 @@ export async function RecordDetailPage({ resource, id }: { resource: string; id:
             purchaseTotal: Number(account.purchaseTotal || account.owedTotal || 0),
             creditToCustomer: Number(account.creditToCustomer || 0),
             returnTotal: Number(account.returnTotal || 0),
+          },
+        };
+      }
+    } else if (resource === 'cloth') {
+      const profitRes = await getClothProfit(id);
+      if (profitRes.ok && profitRes.data) {
+        const profit = profitRes.data as Record<string, unknown>;
+        extras = {
+          profit: {
+            finishedUnit: Number(profit.finishedUnit || 0),
+            avgSell: Number(profit.avgSell || 0),
+            netQty: Number(profit.netQty || 0),
+            soldQty: Number(profit.soldQty || 0),
+            returnedQty: Number(profit.returnedQty || 0),
+            revenue: Number(profit.revenue || 0),
+            cogs: Number(profit.cogs || 0),
+            totalProfit: Number(profit.totalProfit || 0),
+            cashShare: Number(profit.cashShare || 0),
+            checkShare: Number(profit.checkShare || 0),
+            profitCash: Number(profit.profitCash || 0),
+            profitCheck: Number(profit.profitCheck || 0),
+            sellPrices: Array.isArray(profit.sellPrices)
+              ? (profit.sellPrices as Array<{ price: number; count: number }>)
+              : [],
+            sales: Array.isArray(profit.sales)
+              ? (profit.sales as Array<{
+                  _id: string;
+                  invoiceId?: string;
+                  invoiceNumber?: string | number;
+                  timeStamp?: string;
+                  clientId?: string;
+                  clientName?: string;
+                  count: number;
+                  price: number;
+                  amount: number;
+                  packs?: unknown;
+                }>)
+              : [],
           },
         };
       }

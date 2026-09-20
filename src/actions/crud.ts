@@ -25,6 +25,7 @@ import {
   personReturns,
   placeWholesaleOrder,
   receiveReturnedCloth as receiveCloth,
+  clothProfitSummary,
   updateResource as update,
 } from '@/server/domain';
 import { listUsers as usersDb } from '@/server/auth';
@@ -159,6 +160,10 @@ export async function getPersonAccount(personId: string) {
 
 export async function getInvoiceBalance(invoiceId: string) {
   return invoiceBalance(invoiceId);
+}
+
+export async function getClothProfit(clothId: string) {
+  return clothProfitSummary(clothId);
 }
 
 export async function listChanges(page = 1, skip = 50) {

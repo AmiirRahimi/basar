@@ -38,6 +38,37 @@ export function clothUnitPrice(cloth: {
   return Math.max(0, base + clothExtrasTotal(cloth.extras));
 }
 
+/** Full finished unit cost: fabric/buy + tailor/wash/trim/print fees + extras. */
+export function clothFinishedUnitCost(cloth: {
+  isProduced?: boolean | string | number | null;
+  amountUsed?: number | string | null;
+  _producedFrom?: unknown;
+  boughtFee?: number | string | null;
+  tailorFee?: number | string | null;
+  washFee?: number | string | null;
+  trimFee?: number | string | null;
+  printFee?: number | string | null;
+  extras?: unknown;
+}): number {
+  const produced =
+    cloth.isProduced === true || cloth.isProduced === 'true' || cloth.isProduced === 1;
+  const extras = clothExtrasTotal(cloth.extras);
+  if (produced) {
+    const fromFabric = Number(cloth.amountUsed || 0) * fabricUnitCost(cloth._producedFrom);
+    const base = fromFabric > 0 ? fromFabric : Number(cloth.boughtFee || 0);
+    return Math.max(
+      0,
+      base +
+        Number(cloth.tailorFee || 0) +
+        Number(cloth.washFee || 0) +
+        Number(cloth.trimFee || 0) +
+        Number(cloth.printFee || 0) +
+        extras,
+    );
+  }
+  return Math.max(0, Number(cloth.boughtFee || 0) + extras);
+}
+
 export function clothPayTotal(
   cloth: { count?: number | string | null },
   fee?: number | string | null,

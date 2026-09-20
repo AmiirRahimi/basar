@@ -281,6 +281,33 @@ export type RecordDetailExtras = {
     creditToCustomer?: number;
     returnTotal?: number;
   };
+  profit?: {
+    finishedUnit?: number;
+    avgSell?: number;
+    netQty?: number;
+    soldQty?: number;
+    returnedQty?: number;
+    revenue?: number;
+    cogs?: number;
+    totalProfit?: number;
+    cashShare?: number;
+    checkShare?: number;
+    profitCash?: number;
+    profitCheck?: number;
+    sellPrices?: Array<{ price: number; count: number }>;
+    sales?: Array<{
+      _id: string;
+      invoiceId?: string;
+      invoiceNumber?: string | number;
+      timeStamp?: string;
+      clientId?: string;
+      clientName?: string;
+      count: number;
+      price: number;
+      amount: number;
+      packs?: unknown;
+    }>;
+  };
 };
 
 export function RecordDetail({
@@ -354,6 +381,136 @@ export function RecordDetail({
 
       {resource === 'cloth' ? (
         <ClothImageGallery clothId={String(row._id)} images={images} name={title} />
+      ) : null}
+
+      {extras?.profit ? (
+        <SectionCard title="سود این لباس" flush={false}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="قیمت تمام‌شده (هر عدد)" value={<Price value={extras.profit.finishedUnit} />} />
+            <StatCard label="میانگین فروش" value={<Price value={extras.profit.avgSell} />} />
+            <StatCard
+              label="فروش خالص"
+              value={`${faNumber(extras.profit.netQty || 0)} عدد${
+                Number(extras.profit.returnedQty || 0) > 0
+                  ? ` (برگشتی ${faNumber(extras.profit.returnedQty)})`
+                  : ''
+              }`}
+            />
+            <StatCard
+              label="سود کل"
+              value={<Price value={extras.profit.totalProfit} />}
+              emphasis
+            />
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label="درآمد فروش" value={<Price value={extras.profit.revenue} />} />
+            <StatCard label="هزینه تمام‌شده فروش" value={<Price value={extras.profit.cogs} />} />
+            <StatCard
+              icon={<Banknote className="size-4" />}
+              label="سود از نقد"
+              value={<Price value={extras.profit.profitCash} />}
+            />
+            <StatCard
+              icon={<Landmark className="size-4" />}
+              label="سود از چک"
+              value={<Price value={extras.profit.profitCheck} />}
+            />
+          </div>
+          {extras.profit.sellPrices?.length ? (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-medium text-gray-500">قیمت‌های فروش ثبت‌شده</p>
+              <ul className="space-y-1.5 text-sm text-gray-700">
+                {extras.profit.sellPrices.map((item) => (
+                  <li
+                    key={`${item.price}-${item.count}`}
+                    className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2"
+                  >
+                    <span>
+                      <Price value={item.price} />
+                      <span className="mr-2 text-xs text-gray-500">هر عدد</span>
+                    </span>
+                    <span className="text-xs text-gray-500">{faNumber(item.count)} عدد</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-gray-500">هنوز فروشی برای این لباس ثبت نشده است.</p>
+          )}
+
+          {extras.profit.sales?.length ? (
+            <div className="mt-5">
+              <p className="mb-2 text-sm font-medium text-gray-800">فاکتورهای فروش این لباس</p>
+              <div className="overflow-hidden rounded-2xl border border-gray-100">
+                <table className="w-full table-fixed divide-y divide-gray-100 text-sm">
+                  <thead className="bg-gray-50 text-xs text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2.5 text-right font-medium">فاکتور</th>
+                      <th className="px-3 py-2.5 text-right font-medium">خریدار</th>
+                      <th className="px-3 py-2.5 text-right font-medium">تاریخ</th>
+                      <th className="px-3 py-2.5 text-right font-medium">تعداد</th>
+                      <th className="px-3 py-2.5 text-right font-medium">فی</th>
+                      <th className="px-3 py-2.5 text-right font-medium">مبلغ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 bg-white">
+                    {extras.profit.sales.map((sale) => (
+                      <tr key={sale._id}>
+                        <td className="px-3 py-3">
+                          {sale.invoiceId ? (
+                            <Link
+                              href={recordViewPath('invoice', sale.invoiceId)}
+                              className="text-primary hover:underline"
+                            >
+                              {sale.invoiceNumber || sale.invoiceId}
+                            </Link>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="max-w-0 overflow-hidden px-3 py-3">
+                          <TableOverflowText>
+                            {sale.clientId ? (
+                              <Link
+                                href={recordViewPath('person', sale.clientId)}
+                                className="text-primary hover:underline"
+                              >
+                                {sale.clientName || '—'}
+                              </Link>
+                            ) : (
+                              sale.clientName || '—'
+                            )}
+                          </TableOverflowText>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap text-xs text-gray-500">
+                          {faDate(sale.timeStamp)}
+                        </td>
+                        <td className="px-3 py-3">
+                          {faNumber(sale.count)}
+                          {Array.isArray(sale.packs) && sale.packs.length ? (
+                            <span className="mt-0.5 block text-[11px] text-gray-400">
+                              {formatPacksFa(sale.packs as any)}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-3">
+                          <Price value={sale.price} />
+                        </td>
+                        <td className="px-3 py-3 font-medium">
+                          <Price value={sale.amount} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          <p className="mt-3 text-[11px] text-gray-400">
+            سود نقد و چک بر اساس سهم این لباس از پرداخت‌های فاکتورهای مربوطه برآورد می‌شود.
+          </p>
+        </SectionCard>
       ) : null}
 
       {extras?.balance ? (
