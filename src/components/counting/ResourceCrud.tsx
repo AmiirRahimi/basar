@@ -8,6 +8,7 @@ import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { recordViewPath } from '@/lib/record-view';
 import { RowActions } from './RowActions';
 import { Price, PriceField, PriceSection } from './Price';
+import { PersonRolePicker } from './PersonRolePicker';
 
 import { displayName, faDate, toman } from '@/lib/format';
 import { PERSON_ROLES } from '@/lib/constants';
@@ -43,7 +44,19 @@ export type VisibleWhen = { field: string; values: string[] };
 export type Field = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'price' | 'select' | 'textarea' | 'relation' | 'packs' | 'extras' | 'boolean' | 'datetime' | 'images';
+  type?:
+    | 'text'
+    | 'number'
+    | 'price'
+    | 'select'
+    | 'textarea'
+    | 'relation'
+    | 'packs'
+    | 'extras'
+    | 'boolean'
+    | 'datetime'
+    | 'images'
+    | 'person-role';
   options?: FieldOption[];
   /** Kind options preset for `type: 'extras'` (default cloth). */
   extrasVariant?: 'cloth' | 'fabric';
@@ -474,6 +487,18 @@ export function ResourceCrud({
           checked={form[field.name] === 'true'}
           onChange={() => setValue(field, form[field.name] === 'true' ? 'false' : 'true')}
           label={label}
+        />
+      );
+    }
+
+    if (field.type === 'person-role') {
+      return (
+        <PersonRolePicker
+          label={field.label}
+          value={form[field.name] || ''}
+          required={field.required}
+          error={error}
+          onChange={(next) => setValue(field, next)}
         />
       );
     }

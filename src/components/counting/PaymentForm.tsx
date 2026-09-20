@@ -149,13 +149,7 @@ export function PaymentForm({
           </>
         }
       />
-      <Input
-        label="تخفیف"
-        type="number"
-        min={0}
-        value={discount}
-        onChange={(e) => setDiscount(Number(e.target.value))}
-      />
+      <PriceField label="تخفیف" value={discount} onChange={setDiscount} />
       <Select
         label="نحوه پرداخت"
         value={method}
@@ -163,13 +157,7 @@ export function PaymentForm({
         options={Object.entries(PAY_METHODS).map(([value, label]) => ({ value, label }))}
       />
       {usesCash ? (
-        <Input
-          label="مبلغ نقد"
-          type="number"
-          min={0}
-          value={cash}
-          onChange={(e) => setCash(Number(e.target.value))}
-        />
+        <PriceField label="مبلغ نقد" value={cash} onChange={setCash} />
       ) : null}
       {usesCheck ? (
         <div className="grid gap-3">

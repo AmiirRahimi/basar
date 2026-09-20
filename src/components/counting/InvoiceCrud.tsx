@@ -25,7 +25,7 @@ import { displayName, faDate, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { checkAvailableForPayment, checkSerialLabel } from '@/lib/checks';
 import { PaymentForm } from './PaymentForm';
-import { Price, PriceSection } from './Price';
+import { Price, PriceField, PriceSection } from './Price';
 import { RowActions } from './RowActions';
 import { useWritable } from './useWritable';
 import {
@@ -507,7 +507,7 @@ export function InvoiceCrud({
                 return (
                   <div
                     key={item.key}
-                    className="grid gap-3 rounded-lg bg-gray-50 p-3 md:grid-cols-[minmax(0,1.2fr)_minmax(14rem,1fr)_8rem_auto_auto] md:items-start"
+                    className="grid gap-3 rounded-lg bg-gray-50 p-3 md:grid-cols-[minmax(0,1.2fr)_minmax(14rem,1fr)_minmax(10rem,12rem)_auto_auto] md:items-start"
                   >
                     <Select
                       label="محصول *"
@@ -531,12 +531,10 @@ export function InvoiceCrud({
                     ) : (
                       <p className="self-center text-sm text-gray-500">ابتدا محصول را انتخاب کنید</p>
                     )}
-                    <Input
+                    <PriceField
                       label="فی"
-                      type="number"
-                      min={0}
                       value={item.price}
-                      onChange={(e) => setItem(item.key, { price: Number(e.target.value) })}
+                      onChange={(price) => setItem(item.key, { price })}
                     />
                     <div className="pb-2 text-sm text-gray-600 md:pt-8">
                       <Price value={Number(item.count || 0) * Number(item.price || 0)} />

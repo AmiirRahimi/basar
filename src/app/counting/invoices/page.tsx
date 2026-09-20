@@ -8,7 +8,7 @@ import type { Check } from '@/lib/types';
 export default async function InvoicesPage() {
   const [res, people, clothes, checks] = await Promise.all([
     listInvoices(),
-    personOptions(),
+    personOptions('1'),
     clothOptions(),
     listChecks(1, 200),
   ]);
