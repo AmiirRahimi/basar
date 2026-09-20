@@ -4,7 +4,11 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // No ESLint config in this repo; don't block the production build on a lint pass.
   eslint: { ignoreDuringBuilds: true },
-  serverExternalPackages: ['jimp'],
+  serverExternalPackages: ['jimp', 'argon2'],
+  // Keep argon2 native binaries in the Vercel serverless bundle.
+  outputFileTracingIncludes: {
+    '/*': ['./node_modules/argon2/prebuilds/**/*'],
+  },
   images: {
     unoptimized: true,
     remotePatterns: [
