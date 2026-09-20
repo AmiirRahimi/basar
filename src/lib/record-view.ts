@@ -162,7 +162,7 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
         { key: '_client', label: 'صاحب فاکتور', kind: 'name', linkResource: 'person' },
         { key: 'receiverAddress', label: 'آدرس' },
         { key: 'timeStamp', label: 'تاریخ', kind: 'date' },
-        { key: 'isSent', label: 'ارسال شده', kind: 'bool' },
+        { key: 'statusLabel', label: 'وضعیت' },
         { key: 'storeName', label: 'فروشگاه' },
         { key: 'brandName', label: 'برند' },
       ],

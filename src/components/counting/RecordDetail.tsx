@@ -27,6 +27,7 @@ import { clothUnitPrice, fabricLotTotal } from '@/lib/cloth-price';
 import { clothExtraKindLabel, parseClothExtras } from '@/lib/cloth-extras';
 import { fabricExtraKindLabel, parseFabricExtras } from '@/lib/fabric-extras';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
+import { invoiceStatusLabel, STOREFRONT_CHANNEL } from '@/lib/storefront';
 import { formatPacksFa, openingFromCloth, packsFromCloth, totalItems } from '@/lib/packs';
 import { parseImageList } from '@/lib/shop-cart';
 import type { AccountPayment } from '@/lib/payment-display';
@@ -204,9 +205,10 @@ function recordChips(resource: string, row: Record<string, any>) {
   const chips: ReactNode[] = [];
   chips.push(<Chip key="type" tone="info">{RECORD_TYPE_LABEL[resource] || resource}</Chip>);
   if (resource === 'invoice') {
+    const storefront = String(row.channel || '') === STOREFRONT_CHANNEL;
     chips.push(
-      <Chip key="sent" tone={row.isSent ? 'ok' : 'warn'}>
-        {row.isSent ? 'ارسال شده' : 'پیش‌نویس'}
+      <Chip key="sent" tone={storefront || row.isSent ? 'ok' : 'warn'}>
+        {invoiceStatusLabel(row)}
       </Chip>,
     );
   }

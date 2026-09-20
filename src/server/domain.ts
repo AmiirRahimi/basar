@@ -39,7 +39,7 @@ import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import { clampDiscountPercent, isTruthyFlag, saleState } from '@/lib/product-sale';
 import { fail, failDb, ok, type ActionResult } from './result';
 import type { PublicOrderSummary, StorefrontOrder, StorefrontOrderBoard } from '@/lib/types';
-import { GATEWAY_FEE_PERCENT, splitGatewayAmount, STOREFRONT_CHANNEL } from '@/lib/storefront';
+import { GATEWAY_FEE_PERCENT, invoiceStatusLabel, splitGatewayAmount, STOREFRONT_CHANNEL } from '@/lib/storefront';
 import type { Session } from './session';
 import { withWorkspace, accessibleStores } from './workspace';
 import { denyPlanFeature, subscriptionForSession } from './subscription';
@@ -350,6 +350,7 @@ function decorateInvoice(row: any) {
     ...row,
     storeName: store && typeof store === 'object' ? store.name || '' : '',
     brandName: brand && typeof brand === 'object' ? brand.name || '' : '',
+    statusLabel: invoiceStatusLabel(row),
   };
 }
 
@@ -1236,10 +1237,30 @@ export async function getPublicSharedClothes(token: string): Promise<ActionResul
   );
 }
 
+function idFromRef(value: unknown) {
+  if (!value) return '';
+  if (typeof value === 'object' && value && '_id' in value) return String((value as { _id?: unknown })._id || '');
+  return String(value);
+}
+
 function storeIdOf(cloth: any) {
-  const value = cloth?._storeId;
-  if (value && typeof value === 'object' && '_id' in value) return String(value._id);
-  return String(value || '');
+  const direct = idFromRef(cloth?._storeId);
+  if (direct) return direct;
+  const extra = Array.isArray(cloth?._storeIds) ? cloth._storeIds[0] : null;
+  return idFromRef(extra);
+}
+
+async function shareCheckoutContext(shareToken?: string) {
+  const token = String(shareToken || '').trim();
+  if (!token) return null;
+  const share = await (M().ProductShare.findOne({ token, isDeleted: false }) as any).lean();
+  if (!share) return { token, storeId: '', brandId: '', sellerId: '' };
+  return {
+    token,
+    storeId: idFromRef(share._storeId),
+    brandId: idFromRef(share._brandId),
+    sellerId: idFromRef(share._userId),
+  };
 }
 
 async function sellPublicPacks(items: any[]): Promise<ActionResult<any[]>> {
@@ -1323,11 +1344,12 @@ export async function placeWholesaleOrder(input: {
   const items = Array.isArray(input.items) ? input.items.filter((item) => item?.productId).slice(0, 20) : [];
   if (!items.length) return fail('سبد خالی است');
 
+  const share = await shareCheckoutContext(input.shareToken);
   const grouped = new Map<string, any[]>();
   for (const item of items) {
     const cloth = await (M().Cloth.findOne({ _id: oid(item.productId), isDeleted: false }) as any).lean();
     if (!cloth) return fail('لباس پیدا نشد');
-    const storeId = storeIdOf(cloth);
+    const storeId = share?.storeId || storeIdOf(cloth);
     if (!storeId) return fail('فروشگاه این لباس مشخص نیست');
     const bucket = grouped.get(storeId) || [];
     bucket.push({
@@ -1363,19 +1385,19 @@ export async function placeWholesaleOrder(input: {
         (sum: number, item: any) => sum + Number(item.count || 0) * Number(item.price || 0),
         0,
       );
-      const shareToken = String(input.shareToken || '').trim();
-      const storefront = Boolean(shareToken);
+      const storefront = Boolean(share?.token);
       const split = storefront ? splitGatewayAmount(invoiceTotal) : null;
-      const sellerId = store?._userId;
+      const sellerId = share?.sellerId || idFromRef(store?._userId);
+      const brandId = share?.brandId || idFromRef(store?._brandId);
       const created = await M().Invoice.create({
         _storeId: oid(storeId),
-        _brandId: store?._brandId ? oid(store._brandId) : undefined,
+        _brandId: brandId ? oid(brandId) : undefined,
         _client: oid(clientId),
         receiverAddress: address,
         invoiceNumber,
         publicToken: publicOrderToken(),
         channel: storefront ? STOREFRONT_CHANNEL : '',
-        shareToken: storefront ? shareToken : '',
+        shareToken: storefront ? share?.token : '',
         _sellerUserId: storefront && sellerId ? oid(sellerId) : undefined,
         platformFeePercent: split ? split.feePercent : 0,
         platformFee: split ? split.platformFee : 0,
@@ -1395,6 +1417,20 @@ export async function placeWholesaleOrder(input: {
             isDeleted: false,
           })),
         );
+      }
+      if (storefront && invoiceTotal > 0) {
+        await M().Payment.create({
+          _storeId: oid(storeId),
+          _invoice: created._id,
+          _person: oid(clientId),
+          cash: invoiceTotal,
+          cashAmount: invoiceTotal,
+          checkAmount: 0,
+          creditAmount: 0,
+          discount: 0,
+          description: 'پرداخت از درگاه باسار',
+          isDeleted: false,
+        });
       }
       const lines = await (M().CustomerCart.find({ _invoice: created._id, isDeleted: false }) as any)
         .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })

@@ -1,6 +1,7 @@
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
 import { personRoleLabel, personRolesLabel } from '@/lib/constants';
 import { displayName, faDate, toman } from '@/lib/format';
+import { invoiceStatusLabel } from '@/lib/storefront';
 
 const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
@@ -197,10 +198,11 @@ export function tableRowSearchExtra(resource: string, row: Record<string, any>) 
     parts.push(
       displayName(row._client),
       faDate(row.timeStamp),
-      row.isSent ? 'ارسال شده' : 'پیش‌نویس',
+      invoiceStatusLabel(row),
       row.storeName,
       row.brandName,
       row.receiverAddress,
+      row.shareToken,
     );
   }
   if (resource === 'check') {

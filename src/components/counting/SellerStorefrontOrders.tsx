@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { faDate, faNumber, toman } from '@/lib/format';
 import type { StorefrontOrderBoard } from '@/lib/types';
 
@@ -11,7 +12,7 @@ export function SellerStorefrontOrders({ board }: { board: StorefrontOrderBoard 
       <div className="mb-4">
         <h2 className="text-base font-semibold text-gray-900">سفارش مشتریان از لینک</h2>
         <p className="mt-1 text-sm text-gray-600">
-          وقتی مشتری از لینک شما سبد ببندد و بپردازد، اینجا می‌بینید چه کسی چه لباسی گرفته و چقدر پرداخته. پرداخت از
+          وقتی مشتری از لینک شما سبد ببندد و بپردازد، فاکتور همان مشتری در بخش فاکتور فروشگاهتان ثبت می‌شود. پرداخت از
           درگاه بیرونی باسار است و مبلغ در راه است تا به شما برسد.
         </p>
       </div>
@@ -60,7 +61,7 @@ export function SellerStorefrontOrders({ board }: { board: StorefrontOrderBoard 
                   </li>
                 ))}
               </ul>
-              <div className="mt-3 flex flex-wrap justify-between gap-2 border-t border-gray-200/80 pt-3 text-sm">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/80 pt-3 text-sm">
                 <p className="text-gray-600">
                   پرداخت مشتری: <span className="font-medium tabular-nums text-gray-900">{toman(row.total)}</span>
                 </p>
@@ -68,6 +69,12 @@ export function SellerStorefrontOrders({ board }: { board: StorefrontOrderBoard 
                   سهم شما (در راه):{' '}
                   <span className="font-medium tabular-nums">{toman(row.sellerPayout || row.total)}</span>
                 </p>
+                <Link
+                  href={`/counting/invoices/${row._id}`}
+                  className="text-xs font-medium text-gray-700 underline-offset-2 hover:underline"
+                >
+                  مشاهده فاکتور
+                </Link>
               </div>
             </article>
           ))}

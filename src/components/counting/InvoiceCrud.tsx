@@ -25,6 +25,7 @@ import {
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { checkAvailableForPayment, checkSerialLabel } from '@/lib/checks';
+import { invoiceStatusLabel, STOREFRONT_CHANNEL } from '@/lib/storefront';
 import { PaymentForm } from './PaymentForm';
 import { Price, PriceField, PriceSection } from './Price';
 import { RowActions } from './RowActions';
@@ -219,10 +220,10 @@ export function InvoiceCrud({
         header: 'تاریخ',
         cell: (info) => faDate(info.getValue()),
       }),
-      helper.accessor((row) => row.isSent, {
+      helper.accessor((row) => invoiceStatusLabel(row), {
         id: 'isSent',
         header: 'وضعیت',
-        cell: (info) => (info.getValue() ? 'ارسال شده' : 'پیش‌نویس'),
+        cell: (info) => info.getValue(),
       }),
     ];
     defs.push(
@@ -237,7 +238,7 @@ export function InvoiceCrud({
             viewUrl={recordViewPath('invoice', String(row.original._id))}
             onEdit={writable ? () => openEdit(row.original) : undefined}
             extraActions={[
-              ...(writable
+              ...(writable && row.original.channel !== STOREFRONT_CHANNEL
                 ? [
                     {
                       label: 'پرداخت',
@@ -287,7 +288,7 @@ export function InvoiceCrud({
     return [
       displayName(row._client),
       faDate(row.timeStamp),
-      row.isSent ? 'ارسال شده' : 'پیش‌نویس',
+      invoiceStatusLabel(row),
       storeName,
       brand,
       row.receiverAddress,

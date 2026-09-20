@@ -214,6 +214,10 @@ export type Invoice = {
   invoiceNumber?: string | number;
   receiverAddress?: string;
   isSent?: boolean;
+  channel?: string;
+  shareToken?: string;
+  platformFee?: number;
+  sellerPayout?: number;
   timeStamp?: string;
   _client?: Person | string;
   _storeId?: string | StoreRecord;
