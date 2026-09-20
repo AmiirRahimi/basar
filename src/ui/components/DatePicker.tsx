@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import MultiDatePicker from 'react-multi-date-picker';
 import TimePicker from 'react-multi-date-picker/plugins/time_picker';
+import DateObject from 'react-date-object';
 import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
 import { PiCalendarBlank, PiCaretDownBold } from 'react-icons/pi';
@@ -14,6 +15,7 @@ import { zIndex } from '../lib/zIndex';
 import type { SizeType } from '../types';
 
 export type DatePickerType = 'date' | 'time' | 'dateTime';
+export type DatePickerValueCalendar = 'persian' | 'gregorian';
 
 export type DatePickerProps = {
   label?: React.ReactNode;
@@ -28,16 +30,38 @@ export type DatePickerProps = {
   /** Intl locale for display fallback (default fa-IR) */
   displayLocale?: string;
   outputFormat?: 'space' | 'iso';
+  /**
+   * Calendar used for string value parse/output.
+   * Use `persian` for values like `1404/06/24` (check due dates).
+   * Default `gregorian` keeps `YYYY-MM-DD` form values.
+   */
+  valueCalendar?: DatePickerValueCalendar;
 };
 
+const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+
 const pad = (n: number) => String(n).padStart(2, '0');
+
+const toLatinDigits = (value: string) =>
+  String(value || '').replace(/[۰-۹]/g, (d) => String(FA_DIGITS.indexOf(d)));
 
 const dateToFormValue = (
   value: Date | null,
   type: DatePickerType,
-  outputFormat: 'space' | 'iso' = 'space'
+  outputFormat: 'space' | 'iso' = 'space',
+  valueCalendar: DatePickerValueCalendar = 'gregorian'
 ): string | null => {
   if (!value) return null;
+
+  if (valueCalendar === 'persian') {
+    const persianDate = new DateObject({ date: value, calendar: persian, locale: persian_fa });
+    if (!persianDate.isValid) return null;
+    const date = toLatinDigits(persianDate.format('YYYY/MM/DD'));
+    const time = `${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+    if (type === 'time') return time;
+    if (type === 'dateTime') return `${date}${outputFormat === 'space' ? ' ' : 'T'}${time}`;
+    return date;
+  }
 
   const time = `${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(
     value.getSeconds()
@@ -84,7 +108,7 @@ const timeStringToDate = (value: unknown): Date | null => {
 
 const parseDateTimeString = (value: string): Date | null => {
   const match =
-    /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(
       value.trim()
     );
   if (!match) return null;
@@ -102,7 +126,33 @@ const parseDateTimeString = (value: string): Date | null => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const toDateOrNull = (value: unknown): Date | null => {
+const parsePersianDateString = (value: string): Date | null => {
+  const normalized = toLatinDigits(value).trim().replace(/-/g, '/');
+  const match =
+    /^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/.exec(
+      normalized
+    );
+  if (!match) return null;
+
+  const [, year, month, day, hours = '0', minutes = '0', seconds = '0'] = match;
+  const parsed = new DateObject({
+    calendar: persian,
+    locale: persian_fa,
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hours),
+    minute: Number(minutes),
+    second: Number(seconds),
+  });
+
+  return parsed.isValid ? parsed.toDate() : null;
+};
+
+const toDateOrNull = (
+  value: unknown,
+  valueCalendar: DatePickerValueCalendar = 'gregorian'
+): Date | null => {
   if (!value) return null;
   if (value instanceof Date) return value;
 
@@ -112,8 +162,16 @@ const toDateOrNull = (value: unknown): Date | null => {
   }
 
   if (typeof value === 'string') {
+    if (valueCalendar === 'persian') {
+      const persianParsed = parsePersianDateString(value);
+      if (persianParsed) return persianParsed;
+    }
     const parsedDateTime = parseDateTimeString(value);
     if (parsedDateTime) return parsedDateTime;
+    if (valueCalendar !== 'persian') {
+      const persianFallback = parsePersianDateString(value);
+      if (persianFallback) return persianFallback;
+    }
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? null : d;
   }
@@ -133,6 +191,7 @@ export function DatePicker({
   error,
   displayLocale = 'fa-IR',
   outputFormat = 'space',
+  valueCalendar = 'gregorian',
 }: DatePickerProps) {
   const [isCalenderOpen, setIsCalenderOpen] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | undefined>(undefined);
@@ -140,8 +199,8 @@ export function DatePicker({
   const datePickerRef = useRef<{ closeCalendar?: () => void } | null>(null);
 
   const selected = useMemo(
-    () => (type === 'time' ? timeStringToDate(value) : toDateOrNull(value)),
-    [value, type]
+    () => (type === 'time' ? timeStringToDate(value) : toDateOrNull(value, valueCalendar)),
+    [value, type, valueCalendar]
   );
 
   const showTime = type === 'dateTime';
@@ -245,7 +304,7 @@ export function DatePicker({
         value={selected}
         onChange={(date: { isValid?: boolean; toDate?: () => Date } | null) => {
           if (date?.isValid && date.toDate) {
-            onChange?.(dateToFormValue(date.toDate(), type,outputFormat));
+            onChange?.(dateToFormValue(date.toDate(), type, outputFormat, valueCalendar));
           } else {
             onChange?.(null);
           }

@@ -170,6 +170,7 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
         { key: '_owner', label: 'شخص', kind: 'name', linkResource: 'person' },
         { key: 'amount', label: 'مبلغ', kind: 'toman' },
         { key: 'dueDate', label: 'سررسید' },
+        { key: 'series', label: 'سری' },
         { key: 'serialNumber', label: 'سریال' },
         { key: 'sayadiNumber', label: 'صیادی' },
         { key: 'sourceLabel', label: 'منبع' },

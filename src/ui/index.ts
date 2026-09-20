@@ -165,6 +165,7 @@ export {
   DatePicker,
   type DatePickerProps,
   type DatePickerType,
+  type DatePickerValueCalendar,
 } from './components/DatePicker';
 export {
   TablePagination,

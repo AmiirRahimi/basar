@@ -312,6 +312,7 @@ const CheckSchema = new Schema(
     direction: { type: String, default: 'in' },
     dueDate: { type: String, required: true },
     amount: { type: Number, required: true },
+    series: String,
     serialNumber: Number,
     sayadiNumber: Number,
     isCashed: { type: Boolean, required: true, default: false },

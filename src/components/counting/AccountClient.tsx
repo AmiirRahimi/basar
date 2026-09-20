@@ -13,7 +13,7 @@ import { paymentMethodCounts, personPaymentsHref } from '@/lib/payment-display';
 import { PaymentForm } from './PaymentForm';
 import { InvoiceSettleCard } from './PaymentRecordCard';
 import { useWritable } from './useWritable';
-import { checkAvailableForPayment, checkAvailableToTransfer } from '@/lib/checks';
+import { checkAvailableForPayment, checkAvailableToTransfer, checkSerialLabel } from '@/lib/checks';
 import type { FieldOption } from '@/lib/types';
 import type { AccountInvoice, AccountPayment } from '@/lib/payment-display';
 
@@ -73,11 +73,14 @@ export function AccountClient({
       }
       return checkAvailableForPayment(row) && String(relation(row._owner)) === person;
     })
-    .map((row) => ({
-      value: String(row._id),
-      label: `${toman(row.amount)} — ${row.dueDate || ''}${row.serialNumber ? ` — ${row.serialNumber}` : ''}`,
-      price: Number(row.amount || 0),
-    }));
+    .map((row) => {
+      const serial = checkSerialLabel(row);
+      return {
+        value: String(row._id),
+        label: `${toman(row.amount)} — ${row.dueDate || ''}${serial ? ` — ${serial}` : ''}`,
+        price: Number(row.amount || 0),
+      };
+    });
 
   const invoiceOptions = useMemo<FieldOption[]>(() => {
     const allLabel = `همه فاکتورها — باید بپردازد ${toman(account?.remaining)}`;

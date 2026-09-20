@@ -3,15 +3,17 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
-import { Button, FormCard, Input, Modal, Select, toast } from '@/ui';
+import { Button, DatePicker, FieldLabel, FormCard, Input, Modal, Select, toast, cn } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import {
   CHECK_DIRECTIONS,
   CHECK_SOURCES,
   CHECK_STATUSES,
   checkAvailableToTransfer,
+  checkSerialLabel,
   checkSourceLabel,
   checkStatus,
+  type CheckStatus,
 } from '@/lib/checks';
 import { displayName, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
@@ -20,6 +22,7 @@ import { recordViewPath } from '@/lib/record-view';
 import { SearchableTable } from './SearchableTable';
 import { usePageAddButton } from './PageAction';
 import { useWritable } from './useWritable';
+import { PriceField } from './Price';
 import type { Check, FieldOption } from '@/lib/types';
 
 const selectLabels = {
@@ -27,6 +30,66 @@ const selectLabels = {
   remove: 'حذف انتخاب',
   noOptionsFound: 'موردی یافت نشد',
 };
+
+const STATUS_STYLES: Record<
+  CheckStatus,
+  { idle: string; active: string; dot: string }
+> = {
+  pending: {
+    idle: 'border-amber-200/80 bg-amber-50/50 text-amber-800 hover:border-amber-300 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200',
+    active:
+      'border-amber-400 bg-amber-100 text-amber-900 shadow-sm ring-2 ring-amber-400/30 dark:border-amber-500 dark:bg-amber-900/50 dark:text-amber-50 dark:ring-amber-500/30',
+    dot: 'bg-amber-500',
+  },
+  passed: {
+    idle: 'border-emerald-200/80 bg-emerald-50/50 text-emerald-800 hover:border-emerald-300 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200',
+    active:
+      'border-emerald-400 bg-emerald-100 text-emerald-900 shadow-sm ring-2 ring-emerald-400/30 dark:border-emerald-500 dark:bg-emerald-900/50 dark:text-emerald-50 dark:ring-emerald-500/30',
+    dot: 'bg-emerald-500',
+  },
+  failed: {
+    idle: 'border-rose-200/80 bg-rose-50/50 text-rose-800 hover:border-rose-300 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200',
+    active:
+      'border-rose-400 bg-rose-100 text-rose-900 shadow-sm ring-2 ring-rose-400/30 dark:border-rose-500 dark:bg-rose-900/50 dark:text-rose-50 dark:ring-rose-500/30',
+    dot: 'bg-rose-500',
+  },
+};
+
+function CheckStatusPicker({
+  value,
+  onChange,
+}: {
+  value: CheckStatus;
+  onChange: (next: CheckStatus) => void;
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <FieldLabel>وضعیت</FieldLabel>
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="وضعیت چک">
+        {(Object.keys(CHECK_STATUSES) as CheckStatus[]).map((key) => {
+          const selected = value === key;
+          const styles = STATUS_STYLES[key];
+          return (
+            <button
+              key={key}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onChange(key)}
+              className={cn(
+                'flex items-center justify-center gap-2 rounded-xl border px-2 py-2.5 text-sm font-medium transition',
+                selected ? styles.active : styles.idle,
+              )}
+            >
+              <span className={cn('size-2 shrink-0 rounded-full', styles.dot)} />
+              {CHECK_STATUSES[key]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function relationId(value: unknown) {
   if (value == null || value === '') return '';
@@ -44,6 +107,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
   const [sourceCheck, setSourceCheck] = useState('');
   const [amount, setAmount] = useState(0);
   const [dueDate, setDueDate] = useState('');
+  const [series, setSeries] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [sayadiNumber, setSayadiNumber] = useState('');
   const [status, setStatus] = useState<'pending' | 'passed' | 'failed'>('pending');
@@ -101,10 +165,10 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
           return <span className={color}>{CHECK_STATUSES[status]}</span>;
         },
       }),
-      helper.accessor((row) => row.serialNumber, {
+      helper.accessor((row) => checkSerialLabel(row), {
         id: 'serialNumber',
-        header: 'سریال',
-        cell: (info) => String(info.getValue() || '—'),
+        header: 'سری / سریال',
+        cell: (info) => info.getValue() || '—',
       }),
       helper.accessor((row) => row.sayadiNumber, {
         id: 'sayadiNumber',
@@ -166,6 +230,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
     setSourceCheck('');
     setAmount(0);
     setDueDate('');
+    setSeries('');
     setSerialNumber('');
     setSayadiNumber('');
     setStatus('pending');
@@ -180,6 +245,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
     setSourceCheck(relationId(row._sourceCheck));
     setAmount(Number(row.amount || 0));
     setDueDate(String(row.dueDate || ''));
+    setSeries(row.series != null ? String(row.series) : '');
     setSerialNumber(row.serialNumber != null ? String(row.serialNumber) : '');
     setSayadiNumber(row.sayadiNumber != null ? String(row.sayadiNumber) : '');
     setStatus(checkStatus(row));
@@ -193,6 +259,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
     if (!row) return;
     setAmount(Number(row.amount || 0));
     setDueDate(String(row.dueDate || ''));
+    setSeries(row.series != null ? String(row.series) : '');
     setSerialNumber(row.serialNumber != null ? String(row.serialNumber) : '');
     setSayadiNumber(row.sayadiNumber != null ? String(row.sayadiNumber) : '');
   }
@@ -214,6 +281,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
         _owner: owner,
         amount: Number(amount || 0),
         dueDate,
+        series: series.trim() || undefined,
         serialNumber: serialNumber ? Number(serialNumber) : undefined,
         sayadiNumber: sayadiNumber ? Number(sayadiNumber) : undefined,
         status,
@@ -295,27 +363,40 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
                 labels={selectLabels}
               />
             ) : null}
-            <Input
+            <PriceField
               label="مبلغ *"
-              type="number"
-              min={0}
               value={amount}
               disabled={direction === 'out' && source === 'received'}
-              onChange={(e) => setAmount(Number(e.target.value))}
+              onChange={setAmount}
             />
-            <Input
-              label="سررسید (مثلاً 1404/06/24) *"
-              value={dueDate}
+            <DatePicker
+              label="سررسید *"
+              value={dueDate || null}
+              valueCalendar="persian"
               disabled={direction === 'out' && source === 'received'}
-              onChange={(e) => setDueDate(e.target.value)}
+              placeholderText="انتخاب سررسید"
+              onChange={(v) => setDueDate(v || '')}
             />
-            <Input
-              label="سریال"
-              type="number"
-              value={serialNumber}
-              disabled={direction === 'out' && source === 'received'}
-              onChange={(e) => setSerialNumber(e.target.value)}
-            />
+            <div className="flex items-end gap-2" dir="ltr">
+              <div className="w-24 shrink-0 sm:w-28">
+                <Input
+                  label="سری"
+                  value={series}
+                  disabled={direction === 'out' && source === 'received'}
+                  onChange={(e) => setSeries(e.target.value)}
+                />
+              </div>
+              <span className="mb-2 select-none text-lg leading-none text-gray-400">-</span>
+              <div className="min-w-0 flex-1">
+                <Input
+                  label="سریال"
+                  type="number"
+                  value={serialNumber}
+                  disabled={direction === 'out' && source === 'received'}
+                  onChange={(e) => setSerialNumber(e.target.value)}
+                />
+              </div>
+            </div>
             <Input
               label="صیادی"
               type="number"
@@ -323,12 +404,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
               disabled={direction === 'out' && source === 'received'}
               onChange={(e) => setSayadiNumber(e.target.value)}
             />
-            <Select
-              label="وضعیت"
-              value={status}
-              onChange={(v) => setStatus((String(v) as 'pending' | 'passed' | 'failed') || 'pending')}
-              options={Object.entries(CHECK_STATUSES).map(([value, label]) => ({ value, label }))}
-            />
+            <CheckStatusPicker value={status} onChange={setStatus} />
             <Button onClick={submit} disabled={pending}>
               ذخیره
             </Button>

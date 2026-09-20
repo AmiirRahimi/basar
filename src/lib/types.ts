@@ -217,6 +217,7 @@ export type CartLine = {
 export type Check = {
   _id: string;
   amount?: number;
+  series?: string;
   serialNumber?: number;
   sayadiNumber?: number;
   dueDate?: string;

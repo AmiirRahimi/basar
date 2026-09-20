@@ -2,12 +2,13 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { Minus, Plus } from 'lucide-react';
-import { Button, FormCard, IconButton, Input, Modal, Select, toast } from '@/ui';
+import { Button, DatePicker, FormCard, IconButton, Input, Modal, Select, toast } from '@/ui';
 import { createPayment, createReceivedCheck } from '@/actions/crud';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { toman } from '@/lib/format';
+import { checkSerialLabel } from '@/lib/checks';
 import type { FieldOption } from '@/lib/types';
-import { Price, PriceSection } from './Price';
+import { Price, PriceField, PriceSection } from './Price';
 
 const selectLabels = {
   search: 'جستجو',
@@ -29,10 +30,17 @@ function emptyRow(): CheckRow {
   return { key: crypto.randomUUID(), checkId: '' };
 }
 
-function checkOption(row: { _id?: unknown; amount?: number; dueDate?: string; serialNumber?: number }): FieldOption {
+function checkOption(row: {
+  _id?: unknown;
+  amount?: number;
+  dueDate?: string;
+  series?: string;
+  serialNumber?: number;
+}): FieldOption {
+  const serial = checkSerialLabel(row);
   return {
     value: String(row._id),
-    label: `${toman(row.amount)} — ${row.dueDate || ''}${row.serialNumber ? ` — ${row.serialNumber}` : ''}`,
+    label: `${toman(row.amount)} — ${row.dueDate || ''}${serial ? ` — ${serial}` : ''}`,
     price: Number(row.amount || 0),
   };
 }
@@ -265,6 +273,7 @@ function CheckCreateModal({
 }) {
   const [amount, setAmount] = useState(0);
   const [dueDate, setDueDate] = useState('');
+  const [series, setSeries] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [sayadiNumber, setSayadiNumber] = useState('');
   const [pending, start] = useTransition();
@@ -272,6 +281,7 @@ function CheckCreateModal({
   function reset() {
     setAmount(0);
     setDueDate('');
+    setSeries('');
     setSerialNumber('');
     setSayadiNumber('');
   }
@@ -287,6 +297,7 @@ function CheckCreateModal({
         direction,
         amount: Number(amount),
         dueDate,
+        series: series.trim() || undefined,
         serialNumber: serialNumber ? Number(serialNumber) : undefined,
         sayadiNumber: sayadiNumber ? Number(sayadiNumber) : undefined,
       });
@@ -296,7 +307,17 @@ function CheckCreateModal({
         return;
       }
       toast.success(res.message || 'چک ثبت شد');
-      onCreated(checkOption(res.data as { _id?: unknown; amount?: number; dueDate?: string; serialNumber?: number }));
+      onCreated(
+        checkOption(
+          res.data as {
+            _id?: unknown;
+            amount?: number;
+            dueDate?: string;
+            series?: string;
+            serialNumber?: number;
+          },
+        ),
+      );
       reset();
     });
   }
@@ -311,24 +332,28 @@ function CheckCreateModal({
             : 'این چک در جدول چک هم ذخیره می‌شود و برای همین ردیف انتخاب می‌شود.'}
         </p>
         <div className="grid gap-3">
-          <Input
-            label="مبلغ *"
-            type="number"
-            min={0}
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
+          <PriceField label="مبلغ *" value={amount} onChange={setAmount} />
+          <DatePicker
+            label="سررسید *"
+            value={dueDate || null}
+            valueCalendar="persian"
+            placeholderText="انتخاب سررسید"
+            onChange={(v) => setDueDate(v || '')}
           />
-          <Input
-            label="سررسید (مثلاً 1404/06/24) *"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-          />
-          <Input
-            label="سریال"
-            type="number"
-            value={serialNumber}
-            onChange={(e) => setSerialNumber(e.target.value)}
-          />
+          <div className="flex items-end gap-2" dir="ltr">
+            <div className="w-24 shrink-0 sm:w-28">
+              <Input label="سری" value={series} onChange={(e) => setSeries(e.target.value)} />
+            </div>
+            <span className="mb-2 select-none text-lg leading-none text-gray-400">-</span>
+            <div className="min-w-0 flex-1">
+              <Input
+                label="سریال"
+                type="number"
+                value={serialNumber}
+                onChange={(e) => setSerialNumber(e.target.value)}
+              />
+            </div>
+          </div>
           <Input
             label="صیادی"
             type="number"

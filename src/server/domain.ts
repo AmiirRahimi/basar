@@ -108,6 +108,7 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     'direction',
     'dueDate',
     'amount',
+    'series',
     'serialNumber',
     'sayadiNumber',
     'status',
@@ -539,6 +540,7 @@ async function applyCheckPayload(session: Session, body: Record<string, unknown>
   body.direction = 'out';
   body.amount = source.amount;
   body.dueDate = source.dueDate;
+  body.series = source.series;
   body.serialNumber = source.serialNumber;
   body.sayadiNumber = source.sayadiNumber;
   await M().Check.findOneAndUpdate({ _id: source._id, _storeId: oid(session._storeId) }, { isTransferred: true });
@@ -1342,6 +1344,7 @@ export async function createReceivedCheck(payload: unknown): Promise<ActionResul
     _owner: raw._owner,
     amount: Number(raw.amount),
     dueDate: raw.dueDate,
+    series: raw.series != null && String(raw.series).trim() ? String(raw.series).trim() : undefined,
     serialNumber: raw.serialNumber ? Number(raw.serialNumber) : undefined,
     sayadiNumber: raw.sayadiNumber ? Number(raw.sayadiNumber) : undefined,
     isCashed: false,
@@ -1374,6 +1377,7 @@ async function resolvePaymentChecks(session: Session, item: any) {
       _owner: item._person || item._owner,
       amount: item.check.amount,
       dueDate: item.check.dueDate,
+      series: item.check.series,
       serialNumber: item.check.serialNumber,
       sayadiNumber: item.check.sayadiNumber,
       isCashed: false,

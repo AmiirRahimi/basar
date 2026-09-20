@@ -23,7 +23,7 @@ import {
 } from '@/actions/crud';
 import { displayName, faDate, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { checkAvailableForPayment } from '@/lib/checks';
+import { checkAvailableForPayment, checkSerialLabel } from '@/lib/checks';
 import { PaymentForm } from './PaymentForm';
 import { Price, PriceSection } from './Price';
 import { RowActions } from './RowActions';
@@ -437,11 +437,14 @@ export function InvoiceCrud({
   function checksForPerson(personId: string): FieldOption[] {
     return checks
       .filter((row) => checkAvailableForPayment(row) && (!personId || relationId(row._owner) === personId))
-      .map((row) => ({
-        value: row._id,
-        label: `${toman(row.amount)} — ${row.dueDate || ''}${row.serialNumber ? ` — ${row.serialNumber}` : ''}`,
-        price: Number(row.amount || 0),
-      }));
+      .map((row) => {
+        const serial = checkSerialLabel(row);
+        return {
+          value: row._id,
+          label: `${toman(row.amount)} — ${row.dueDate || ''}${serial ? ` — ${serial}` : ''}`,
+          price: Number(row.amount || 0),
+        };
+      });
   }
 
   const summaryTotals = summary

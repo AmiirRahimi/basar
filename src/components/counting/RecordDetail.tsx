@@ -75,7 +75,7 @@ function fieldIcon(field: DetailField) {
   if (field.key === 'city' || field.key === 'address' || field.key === 'receiverAddress') {
     return <MapPin className="size-3.5" />;
   }
-  if (field.key === 'code' || field.key === 'invoiceNumber' || field.key === 'serialNumber') {
+  if (field.key === 'code' || field.key === 'invoiceNumber' || field.key === 'serialNumber' || field.key === 'series') {
     return <Hash className="size-3.5" />;
   }
   if (field.linkResource === 'person' || field.key === 'fullName') return <User className="size-3.5" />;

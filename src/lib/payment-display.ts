@@ -1,8 +1,9 @@
 import { displayName } from '@/lib/format';
-import { paymentApplied } from '@/lib/checks';
+import { checkSerialLabel, paymentApplied } from '@/lib/checks';
 
 export type PaymentCheck = {
   _id?: string;
+  series?: string | number;
   serialNumber?: number | string;
   dueDate?: string;
   amount?: number;
@@ -60,7 +61,8 @@ export function paymentTarget(row: Pick<AccountPayment, '_invoice'>, payable: bo
 
 export function checkNote(check?: PaymentCheck | string | null) {
   if (!check || typeof check !== 'object') return '';
-  return [check.serialNumber ? `شماره ${check.serialNumber}` : '', check.dueDate ? `سررسید ${check.dueDate}` : '']
+  const serial = checkSerialLabel(check);
+  return [serial ? `شماره ${serial}` : '', check.dueDate ? `سررسید ${check.dueDate}` : '']
     .filter(Boolean)
     .join(' · ');
 }

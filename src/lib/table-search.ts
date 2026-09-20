@@ -212,6 +212,7 @@ export function tableRowSearchExtra(resource: string, row: Record<string, any>) 
       displayName(row._owner),
       row.isTransferred ? 'بله واگذار شده' : 'خیر',
       toman(row.amount),
+      row.series,
       row.serialNumber,
       row.sayadiNumber,
       row.dueDate,

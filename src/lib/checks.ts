@@ -111,6 +111,18 @@ export function checkAvailableToTransfer(row: {
   );
 }
 
+export function checkSerialLabel(row?: {
+  series?: string | number | null;
+  serialNumber?: string | number | null;
+} | null) {
+  if (!row) return '';
+  const series = row.series != null && String(row.series).trim() ? String(row.series).trim() : '';
+  const serial =
+    row.serialNumber != null && String(row.serialNumber).trim() ? String(row.serialNumber).trim() : '';
+  if (series && serial) return `${series} - ${serial}`;
+  return serial || series;
+}
+
 export function checkAvailableForPayment(row: {
   direction?: string;
   isTransferred?: boolean;
