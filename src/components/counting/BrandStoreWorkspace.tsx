@@ -137,16 +137,18 @@ function StringListField({
         </Button>
       </div>
       {rows.map((value, index) => (
-        <div key={`${label}-${index}`} className="flex items-center gap-2">
-          <Input
-            value={value}
-            placeholder={placeholder}
-            onChange={(event) => {
-              const next = [...rows];
-              next[index] = event.target.value;
-              onChange(next);
-            }}
-          />
+        <div key={`${label}-${index}`} className="flex min-w-0 items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <Input
+              value={value}
+              placeholder={placeholder}
+              onChange={(event) => {
+                const next = [...rows];
+                next[index] = event.target.value;
+                onChange(next);
+              }}
+            />
+          </div>
           {rows.length > 1 ? (
             <IconButton
               type="button"

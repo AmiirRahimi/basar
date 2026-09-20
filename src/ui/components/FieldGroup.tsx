@@ -30,7 +30,7 @@ export function FieldGroup({
   const hasHeader = title != null || description != null || headerAction != null;
 
   return (
-    <div className={cn(fieldGroupClassName, className)}>
+    <div className={cn(fieldGroupClassName, 'min-w-0 max-w-full', className)}>
       {hasHeader ? (
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

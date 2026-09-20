@@ -521,7 +521,7 @@ export function InvoiceCrud({
       />
 
       <Modal isOpen={open} onClose={() => setOpen(false)} size="xl">
-        <FormCard>
+        <FormCard className="border-0 shadow-none rounded-[inherit]">
           <h3 className="mb-4 text-lg font-medium">{editing ? 'ویرایش فاکتور' : 'ثبت فاکتور'}</h3>
           <div className="grid gap-3">
             <Select
@@ -559,7 +559,7 @@ export function InvoiceCrud({
                 const takenSummary = formatPacksFa(item.packs);
                 return (
                   <div key={item.key} className="space-y-2 rounded-lg bg-gray-50 p-3">
-                    <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(11rem,auto)_minmax(9rem,11rem)_minmax(6rem,auto)_auto] md:items-start">
+                    <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,11rem)_minmax(0,9rem)_minmax(0,7rem)_auto] lg:items-start">
                       <Select
                         label="محصول *"
                         error={itemError && !item._cloth ? 'الزامی است' : undefined}
@@ -635,7 +635,7 @@ export function InvoiceCrud({
       </Modal>
 
       <Modal isOpen={Boolean(summary)} onClose={() => setSummary(null)} size="lg">
-        <FormCard>
+        <FormCard className="border-0 shadow-none rounded-[inherit]">
           <h3 className="mb-4 text-lg font-medium">شرح فاکتور</h3>
           {summary ? (
             <div className="space-y-4 text-sm">
@@ -708,7 +708,7 @@ export function InvoiceCrud({
       </Modal>
 
       <Modal isOpen={Boolean(payFor)} onClose={() => setPayFor(null)} size="lg">
-        <FormCard>
+        <FormCard className="border-0 shadow-none rounded-[inherit]">
           <h3 className="mb-4 text-lg font-medium">پرداخت فاکتور</h3>
           {payFor ? (
             <PaymentForm

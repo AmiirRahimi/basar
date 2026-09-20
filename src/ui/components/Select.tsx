@@ -247,15 +247,15 @@ export function Select({
   };
 
   return (
-    <div className={cn('flex flex-col gap-1.5 w-full', fullWidth && 'w-full')}>
+    <div className={cn('flex min-w-0 w-full flex-col gap-1.5')}>
       {label && <FieldLabel disabled={disabled}>{label}</FieldLabel>}
-      <div ref={containerRef} className="relative">
+      <div ref={containerRef} className="relative min-w-0 w-full">
         <button
           type="button"
           onClick={handleTriggerClick}
           disabled={disabled}
           className={cn(
-            'w-full rounded-xl border bg-white text-left',
+            'w-full min-w-0 rounded-xl border bg-white text-left',
             'transition-all duration-200 ease-out',
             'focus:outline-none focus:ring-2 focus:ring-offset-0',
             'disabled:cursor-not-allowed disabled:opacity-50',
@@ -485,9 +485,9 @@ export function MultiSelect({
   };
 
   return (
-    <div className={cn('flex flex-col gap-1.5 w-full', fullWidth && 'w-full')}>
+    <div className={cn('flex min-w-0 w-full flex-col gap-1.5')}>
       {label && <FieldLabel disabled={disabled}>{label}</FieldLabel>}
-      <div ref={containerRef} className="relative">
+      <div ref={containerRef} className="relative min-w-0 w-full">
         <button
           type="button"
           onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -495,7 +495,7 @@ export function MultiSelect({
           onMouseLeave={() => setIsHovering(false)}
           disabled={disabled}
           className={cn(
-            'w-full rounded-xl border bg-white text-left',
+            'w-full min-w-0 rounded-xl border bg-white text-left',
             'transition-all duration-200 ease-out',
             'focus:outline-none focus:ring-2 focus:ring-offset-0',
             'disabled:cursor-not-allowed disabled:opacity-50',

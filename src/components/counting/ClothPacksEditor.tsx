@@ -61,7 +61,7 @@ export function ClothPacksEditor({
         value={parsed.packSize || ''}
         onChange={(e) => setPackSize(Number(e.target.value) || 0)}
       />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-medium">بسته‌های موجود</h4>
         <Button type="button" size="sm" variant="outline" onClick={addRow} icon={<Plus className="h-4 w-4" />}>
           افزودن نوع بسته
@@ -70,7 +70,7 @@ export function ClothPacksEditor({
       {rows.length ? (
         <div className="space-y-2">
           {rows.map((row, index) => (
-            <div key={`pack-row-${index}`} className="grid gap-2 rounded-lg bg-white/70 p-3 dark:bg-gray-900/40 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <div key={`pack-row-${index}`} className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-white/70 p-3 dark:bg-gray-900/40 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
               <Input
                 label={index === 0 ? 'تعداد بسته' : undefined}
                 type="number"

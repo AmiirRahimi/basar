@@ -85,9 +85,9 @@ export function InvoicePackStepper({
   }
 
   return (
-    <div ref={rootRef} className="relative flex flex-col gap-1.5">
+    <div ref={rootRef} className="relative flex min-w-0 flex-col gap-1.5">
       <span className={fieldLabelClassName()}>بسته</span>
-      <div className="flex h-9 items-center gap-2">
+      <div className="flex h-9 min-w-0 items-center gap-2">
         <IconButton
           type="button"
           variant="outline"
@@ -98,7 +98,7 @@ export function InvoicePackStepper({
         >
           <Minus className="h-4 w-4" />
         </IconButton>
-        <div className="flex h-9 min-w-[4.5rem] items-center justify-center rounded-xl border border-gray-200 bg-white px-3 text-sm">
+        <div className="flex h-9 min-w-0 flex-1 items-center justify-center rounded-xl border border-gray-200 bg-white px-2 text-sm sm:px-3">
           {faNumber(totalPacks(taken))} بسته
         </div>
         <IconButton
@@ -120,7 +120,7 @@ export function InvoicePackStepper({
         </IconButton>
       </div>
       {pickerOpen ? (
-        <div className="absolute start-0 top-full z-20 mt-1 w-56 space-y-2 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+        <div className="absolute start-0 top-full z-20 mt-1 w-56 max-w-[calc(100vw-2rem)] space-y-2 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
           <p className="text-sm font-medium">انتخاب بسته</p>
           {choices.length ? (
             <div className="grid gap-2">

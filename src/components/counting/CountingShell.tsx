@@ -100,7 +100,7 @@ export function CountingShell({
   }
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
+    <main className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
       <CountingSidebar
         pathname={pathname}
         menuSections={visibleMenu}

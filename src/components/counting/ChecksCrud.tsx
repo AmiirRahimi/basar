@@ -324,7 +324,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
         emptyMessage="هنوز چکی ثبت نشده"
       />
       <Modal isOpen={open} onClose={() => setOpen(false)} size="lg">
-        <FormCard>
+        <FormCard className="border-0 shadow-none rounded-[inherit]">
           <h3 className="mb-4 text-lg font-medium">{editing ? 'ویرایش چک' : 'ثبت چک'}</h3>
           <div className="grid gap-3">
             <Select
@@ -377,7 +377,7 @@ export function ChecksCrud({ checks, people }: { checks: Check[]; people: FieldO
               placeholderText="انتخاب سررسید"
               onChange={(v) => setDueDate(v || '')}
             />
-            <div className="flex items-end gap-2" dir="ltr">
+          <div className="flex min-w-0 items-end gap-2" dir="ltr">
               <div className="w-24 shrink-0 sm:w-28">
                 <Input
                   label="سری"

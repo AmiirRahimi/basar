@@ -788,9 +788,9 @@ export function ResourceCrud({
         onClose={() => setOpen(false)}
         size={fields.some((field) => field.type === 'packs' || field.type === 'extras') ? 'xl' : 'lg'}
       >
-        <FormCard>
+        <FormCard className="border-0 shadow-none rounded-[inherit]">
           <h3 className="mb-4 text-lg font-medium">{editing ? `ویرایش ${title}` : `ثبت ${title}`}</h3>
-          <div className="grid gap-3">
+          <div className="grid min-w-0 gap-3">
             {formBlocks.map((block) => {
               if (block.kind === 'fields') {
                 const body = (
@@ -799,15 +799,17 @@ export function ResourceCrud({
                       'grid gap-3',
                       block.row
                         ? block.fields.length >= 4
-                          ? 'md:grid-cols-2 xl:grid-cols-4'
+                          ? 'sm:grid-cols-2 xl:grid-cols-4'
                           : block.fields.length === 3
-                            ? 'md:grid-cols-3'
-                            : 'md:grid-cols-2'
+                            ? 'sm:grid-cols-2 lg:grid-cols-3'
+                            : 'sm:grid-cols-2'
                         : undefined,
                     )}
                   >
                     {block.fields.map((field) => (
-                      <div key={field.name}>{renderField(field)}</div>
+                      <div key={field.name} className="min-w-0 w-full">
+                        {renderField(field)}
+                      </div>
                     ))}
                   </div>
                 );
@@ -815,7 +817,9 @@ export function ResourceCrud({
                   return (
                     <div key={block.fields.map((f) => f.name).join('-')} className="grid gap-3">
                       {block.fields.map((field) => (
-                        <div key={field.name}>{renderField(field)}</div>
+                        <div key={field.name} className="min-w-0 w-full">
+                          {renderField(field)}
+                        </div>
                       ))}
                     </div>
                   );
@@ -897,13 +901,15 @@ export function ResourceCrud({
                                 'grid gap-3',
                                 chunk.row
                                   ? chunk.fields.length >= 3
-                                    ? 'md:grid-cols-3'
-                                    : 'md:grid-cols-2'
+                                    ? 'sm:grid-cols-2 lg:grid-cols-3'
+                                    : 'sm:grid-cols-2'
                                   : undefined,
                               )}
                             >
                               {chunk.fields.map((field) => (
-                                <div key={field.name}>{renderField(field)}</div>
+                                <div key={field.name} className="min-w-0 w-full">
+                                  {renderField(field)}
+                                </div>
                               ))}
                             </div>
                           ))}

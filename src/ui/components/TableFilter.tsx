@@ -101,7 +101,7 @@ export function TableFilter({
       <div className="overflow-visible bg-white/80 pb-4 shadow-sm backdrop-blur-md dark:border-gray-700/50 dark:bg-gray-900 dark:shadow-none">
         <div className="flex flex-wrap items-center gap-2 overflow-visible px-1 pt-1 sm:px-0 sm:pt-0">
           {search ? (
-            <div className="relative z-20 min-w-[220px] flex-1 overflow-visible">{search}</div>
+            <div className="relative z-20 min-w-0 w-full flex-1 overflow-visible sm:min-w-[12rem]">{search}</div>
           ) : null}
 
           <div className={cn('flex items-center gap-2', search && 'ms-auto')}>

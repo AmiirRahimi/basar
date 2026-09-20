@@ -1471,7 +1471,7 @@ div[style='z-index: 1000001;'],
 
 /* wrapper & container — matches Select dropdown */
 .rmdp-wrapper {
-  @apply !w-full !mt-1 !overflow-hidden !rounded-xl !border !border-gray-200/80 !bg-white !shadow-lg;
+  @apply !mt-1 !w-full !max-w-full !overflow-hidden !rounded-xl !border !border-gray-200/80 !bg-white !shadow-lg;
   @apply dark:!border-gray-700/50 dark:!bg-gray-900/95;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);

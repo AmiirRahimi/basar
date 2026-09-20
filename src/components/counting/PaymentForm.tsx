@@ -312,7 +312,7 @@ function CheckCreateModal({
 
   return (
     <Modal isOpen={open} onClose={onClose} size="md" className="z-[1050]">
-      <FormCard>
+      <FormCard className="border-0 shadow-none rounded-[inherit]">
         <h3 className="mb-4 text-lg font-medium">ثبت چک جدید</h3>
         <p className="mb-3 text-sm text-gray-500">
           {direction === 'out'
@@ -328,7 +328,7 @@ function CheckCreateModal({
             placeholderText="انتخاب سررسید"
             onChange={(v) => setDueDate(v || '')}
           />
-          <div className="flex items-end gap-2" dir="ltr">
+          <div className="flex min-w-0 items-end gap-2" dir="ltr">
             <div className="w-24 shrink-0 sm:w-28">
               <Input label="سری" value={series} onChange={(e) => setSeries(e.target.value)} />
             </div>

@@ -116,7 +116,7 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
 
   return (
     <Modal isOpen onClose={onClose} size="lg" rounded="lg">
-      <FormCard>
+      <FormCard className="border-0 shadow-none rounded-[inherit]">
         <div className="mb-5 space-y-1">
           <h3 className="text-lg font-semibold text-gray-900">ویرایش کاربر و اشتراک</h3>
           <p className="text-sm text-gray-500">

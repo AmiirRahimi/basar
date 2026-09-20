@@ -62,7 +62,7 @@ export function ModalWizard({
       rounded="lg"
       overlayClassName="dark:bg-opacity-40 dark:backdrop-blur-lg"
       containerClassName={cn(
-        'bg-white p-10 shadow-xl dark:bg-gray-900 md:p-12 lg:p-16',
+        'bg-white p-4 shadow-xl dark:bg-gray-900 sm:p-8 md:p-10 lg:p-12',
         className
       )}
     >

@@ -13,11 +13,11 @@ export function FormCard({ children, className, contentClassName }: FormCardProp
   return (
     <div
       className={cn(
-        'rounded-xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800/70 dark:bg-gray-900',
+        'min-w-0 max-w-full overflow-x-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800/70 dark:bg-gray-900',
         className
       )}
     >
-      <div className={cn('p-5 sm:p-6 lg:p-8', contentClassName)}>{children}</div>
+      <div className={cn('min-w-0 p-4 sm:p-5 lg:p-6', contentClassName)}>{children}</div>
     </div>
   );
 }

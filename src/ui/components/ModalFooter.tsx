@@ -33,7 +33,7 @@ export function ModalFooter({
   const copy = { ...DEFAULT_LABELS, ...labels };
 
   return (
-    <div className="flex items-center justify-end gap-3 rounded-xl border border-gray-100/80 bg-gradient-to-r from-gray-50/80 via-white/50 to-gray-50/80 px-6 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:border-gray-800/40 dark:from-gray-800/30 dark:via-gray-900/20 dark:to-gray-800/30 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+    <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-gray-100/80 bg-gradient-to-r from-gray-50/80 via-white/50 to-gray-50/80 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:border-gray-800/40 dark:from-gray-800/30 dark:via-gray-900/20 dark:to-gray-800/30 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] sm:gap-3 sm:px-6 sm:py-5">
       <Button size="lg" type="button" variant="outline" onClick={onCancel}>
         {copy.cancel}
       </Button>

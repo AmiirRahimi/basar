@@ -101,7 +101,7 @@ export function PriceField({ label, value, onChange, error, hint, disabled, clas
   }
 
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div className={cn('flex min-w-0 w-full flex-col gap-1.5', className)}>
       {label != null && label !== '' ? (
         <FieldLabel htmlFor={inputId} disabled={disabled}>
           {label}
@@ -117,7 +117,7 @@ export function PriceField({ label, value, onChange, error, hint, disabled, clas
           }
         }}
         className={cn(
-          'flex h-9 items-stretch overflow-hidden rounded-xl border bg-white transition-all duration-200',
+          'flex h-9 min-w-0 w-full items-stretch overflow-hidden rounded-xl border bg-white transition-all duration-200',
           'focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-0',
           disabled && 'cursor-not-allowed opacity-50',
           error

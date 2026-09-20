@@ -285,7 +285,7 @@ export function SubscriptionPanel({
       </section>
 
       <Modal isOpen={checkoutOpen} onClose={closeCheckout} size="md" rounded="lg">
-        <FormCard>
+        <FormCard className="border-0 shadow-none rounded-[inherit]">
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">کد تخفیف</h3>

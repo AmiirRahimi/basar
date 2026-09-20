@@ -91,7 +91,7 @@ export function ClothExtrasEditor({
           {rows.map((row, index) => (
             <div
               key={`extra-row-${index}`}
-              className="grid gap-2 rounded-lg bg-white/70 p-3 dark:bg-gray-900/40 md:grid-cols-[minmax(0,1fr)_8rem_auto] md:items-start"
+              className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-white/70 p-3 dark:bg-gray-900/40 sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_auto] sm:items-start"
             >
               <Select
                 label={index === 0 ? 'نوع خرج' : undefined}
@@ -112,13 +112,13 @@ export function ClothExtrasEditor({
                 type="button"
                 variant="outline"
                 size="sm"
-                className={index === 0 ? 'mt-7' : 'mt-1'}
+                className={index === 0 ? 'mt-1 sm:mt-7' : 'mt-1'}
                 onClick={() => setRows(rows.filter((_, rowIndex) => rowIndex !== index))}
                 aria-label="حذف خرج"
               >
                 <X className="h-4 w-4" />
               </IconButton>
-              <div className="md:col-span-3">
+              <div className="sm:col-span-3 min-w-0">
                 <Textarea
                   label={index === 0 ? 'توضیح' : undefined}
                   value={row.description || ''}

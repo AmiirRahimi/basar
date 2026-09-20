@@ -60,13 +60,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || React.useId();
 
     return (
-      <div className={cn('flex flex-col gap-1.5', fullWidth && 'w-full')}>
+      <div className={cn('flex min-w-0 w-full flex-col gap-1.5', fullWidth && 'w-full')}>
         {label && (
           <FieldLabel htmlFor={inputId} disabled={disabled}>
             {label}
           </FieldLabel>
         )}
-        <div className="relative">
+        <div className="relative min-w-0 w-full">
           {icon && iconPosition === 'left' && (
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
               {icon}
@@ -77,7 +77,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             disabled={disabled}
             className={cn(
-              'w-full rounded-xl border bg-white text-gray-900 placeholder:text-gray-400',
+              'w-full min-w-0 max-w-full rounded-xl border bg-white text-gray-900 placeholder:text-gray-400',
               'transition-all duration-200 ease-out',
               'focus:outline-none focus:ring-2 focus:ring-offset-0',
               'disabled:cursor-not-allowed disabled:opacity-50',
@@ -141,7 +141,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const inputId = id || React.useId();
 
     return (
-      <div className={cn('flex flex-col gap-1.5', fullWidth && 'w-full')}>
+      <div className={cn('flex min-w-0 w-full flex-col gap-1.5', fullWidth && 'w-full')}>
         {label && (
           <FieldLabel htmlFor={inputId} disabled={disabled}>
             {label}
@@ -152,7 +152,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={inputId}
           disabled={disabled}
           className={cn(
-            'w-full rounded-xl border bg-white text-gray-900 placeholder:text-gray-400',
+            'w-full min-w-0 max-w-full rounded-xl border bg-white text-gray-900 placeholder:text-gray-400',
             'transition-all duration-200 ease-out resize-y',
             'focus:outline-none focus:ring-2 focus:ring-offset-0',
             'disabled:cursor-not-allowed disabled:opacity-50',

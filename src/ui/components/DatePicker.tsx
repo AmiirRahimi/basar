@@ -298,7 +298,7 @@ export function DatePicker({
   };
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className="relative min-w-0 w-full">
       <MultiDatePicker
         ref={datePickerRef}
         value={selected}
