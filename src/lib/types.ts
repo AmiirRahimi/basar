@@ -176,6 +176,7 @@ export type Cloth = {
   saleEndsAt?: string;
   newCollection?: boolean;
   sellInAllStores?: boolean;
+  _brandIds?: string[];
   _storeIds?: string[];
   _brandId?: string;
   _storeId?: string | StoreRecord;

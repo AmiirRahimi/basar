@@ -63,6 +63,10 @@ function matchField(doc: Doc, key: string, value: unknown) {
       const exists = doc[key] !== undefined && doc[key] !== null;
       return Boolean(op.$exists) === exists;
     }
+    if ('$size' in op) {
+      const n = Array.isArray(doc[key]) ? doc[key].length : 0;
+      return n === Number(op.$size);
+    }
     if ('$gte' in op || '$gt' in op) {
       const t = new Date(doc[key]).getTime();
       if (op.$gte && t < new Date(op.$gte as string | Date).getTime()) return false;

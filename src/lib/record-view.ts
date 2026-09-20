@@ -114,7 +114,7 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
         { key: '_style', label: 'مدل', kind: 'name', linkResource: 'cloth-style' },
         { key: '_size', label: 'سایز', kind: 'name', linkResource: 'size' },
         { key: '_color', label: 'رنگ', kind: 'name', linkResource: 'color' },
-        { key: '_storeId', label: 'فروشگاه', kind: 'name' },
+        { key: 'shareLabel', label: 'اشتراک' },
       ],
     },
     {

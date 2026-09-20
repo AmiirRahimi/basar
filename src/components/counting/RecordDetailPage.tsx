@@ -9,7 +9,8 @@ import { CountingShell } from '@/components/counting/CountingShell';
 import { RecordDetail, RecordMissing } from '@/components/counting/RecordDetail';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { RECORD_LIST_TITLE, RECORD_TYPE_LABEL } from '@/lib/record-view';
-import type { AccountPayment } from '@/lib/payment-display';
+import { getWorkspace } from '@/actions/workspace';
+import { clothShareLabel } from '@/lib/cloth-share';
 
 export async function RecordDetailPage({ resource, id }: { resource: string; id: string }) {
   const rowRes = await getResource<Record<string, any>>(resource, id);
@@ -48,7 +49,9 @@ export async function RecordDetailPage({ resource, id }: { resource: string; id:
         };
       }
     } else if (resource === 'cloth') {
-      const profitRes = await getClothProfit(id);
+      const [profitRes, workspace] = await Promise.all([getClothProfit(id), getWorkspace()]);
+      const data = workspace.data;
+      rowRes.data.shareLabel = clothShareLabel(rowRes.data, data?.brands || [], data?.stores || []);
       if (profitRes.ok && profitRes.data) {
         const profit = profitRes.data as Record<string, unknown>;
         extras = {

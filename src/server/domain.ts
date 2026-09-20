@@ -30,6 +30,7 @@ import { DEFAULT_MOQ, isPayablePersonRole, normalizePersonRoles, personIsCustome
 import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
 import { canAccessMenu, canReadResource, canWriteResource } from '@/lib/roles';
 import { allocateIncome, partnersForStore } from '@/lib/partners';
+import { clothAppliesToStore } from '@/lib/cloth-share';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
@@ -89,6 +90,8 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     '_partner',
     '_storeId',
     '_storeIds',
+    '_brandIds',
+    'sellInAllStores',
     'amountUsed',
     'boughtFee',
     'tailorFee',
@@ -162,9 +165,17 @@ function pickAllowed(resource: string, payload: Record<string, unknown>) {
 }
 
 function clothVisibleFilter(session: Session) {
+  const storeId = oid(session._storeId);
+  const brandId = oid(session._brandId);
   return {
     isDeleted: false,
-    $or: [{ _storeId: oid(session._storeId) }, { _storeIds: oid(session._storeId) }],
+    $or: [
+      { sellInAllStores: true, _brandIds: brandId },
+      { _storeIds: storeId },
+      { _storeId: storeId },
+      { $and: [{ _brandIds: brandId }, { _storeIds: { $size: 0 } }] },
+      { $and: [{ _brandIds: brandId }, { _storeIds: { $exists: false } }] },
+    ],
   };
 }
 
@@ -331,6 +342,11 @@ export async function listResource(resource: string, page = 1, skip = 50, extra 
     if (cfg.populate) q = q.populate(cfg.populate);
     const scanned = await q.limit(MAX_LIST_SCAN).lean();
     let rows = (scanned as any[]).map((row) => decorateListRow(resource, row));
+    if (resource === 'cloth') {
+      rows = rows.filter((row) =>
+        clothAppliesToStore(row, String(auth.session._storeId || ''), auth.session._brandId),
+      );
+    }
     if (parsed.q) {
       rows = rows.filter((row) =>
         matchesTableSearch(row, parsed.q, tableRowSearchExtra(resource, row), parsed.fields, resource),
@@ -391,7 +407,7 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
   const next = pickAllowed(resource, payload);
   Object.keys(next).forEach((key) => {
     if (!key.startsWith('_')) return;
-    if (key === '_storeIds') {
+    if (key === '_storeIds' || key === '_brandIds') {
       next[key] = convertIdList(next[key]);
       return;
     }
@@ -414,32 +430,46 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
   return next;
 }
 
-async function applyClothAvailability(
+async function applyClothShare(
   session: Session,
   body: Record<string, unknown>,
-  requestedStoreId?: string,
-  required = true,
-) {
-  const wanted = String(requestedStoreId || '');
-  if (!wanted && !required) {
-    delete body._storeId;
-    delete body._brandId;
-    delete body._storeIds;
-    body.sellInAllStores = false;
-    return body;
-  }
+): Promise<ActionResult<Record<string, unknown> | null>> {
   const { stores } = await accessibleStores(session._id, session.phonenumber);
-  const store =
-    stores.find((row: any) => String(row._id) === wanted) ||
-    stores.find((row: any) => String(row._id) === String(session._storeId)) ||
-    stores[0];
-  const storeId = store?._id || session._storeId;
-  const brandId = store?._brandId || session._brandId;
-  body.sellInAllStores = false;
-  body._storeId = oid(storeId);
-  body._brandId = oid(brandId);
-  body._storeIds = [oid(storeId)];
-  return body;
+  const accessibleStoreIds = new Set(stores.map((row: any) => String(row._id)));
+  const accessibleBrandIds = new Set(stores.map((row: any) => String(row._brandId || '')).filter(Boolean));
+  const sellAll = isTruthyFlag(body.sellInAllStores);
+  let brandIds = convertIdList(body._brandIds)
+    .map((id) => String(id))
+    .filter((id) => accessibleBrandIds.has(id));
+  let storeIds = convertIdList(body._storeIds)
+    .map((id) => String(id))
+    .filter((id) => accessibleStoreIds.has(id));
+  storeIds = storeIds.filter((id) => {
+    const store = stores.find((row: any) => String(row._id) === id);
+    return store && brandIds.includes(String(store._brandId || ''));
+  });
+  if (sellAll) {
+    brandIds = [...accessibleBrandIds];
+    storeIds = [];
+    body.sellInAllStores = true;
+  } else {
+    body.sellInAllStores = Boolean(brandIds.length === accessibleBrandIds.size && accessibleBrandIds.size && !storeIds.length);
+    if (!brandIds.length) {
+      const fallback = String(session._brandId || '');
+      if (fallback && accessibleBrandIds.has(fallback)) brandIds = [fallback];
+      else if (accessibleBrandIds.size) brandIds = [[...accessibleBrandIds][0]];
+    }
+    if (!brandIds.length) return fail('حداقل یک برند را انتخاب کنید');
+  }
+  body._brandIds = brandIds.map((id) => oid(id));
+  body._storeIds = storeIds.map((id) => oid(id));
+  const originStore =
+    storeIds[0] ||
+    stores.find((row: any) => String(row._brandId || '') === brandIds[0])?._id ||
+    session._storeId;
+  body._storeId = oid(originStore);
+  body._brandId = oid(brandIds[0] || session._brandId);
+  return ok(body);
 }
 
 function applyClothInventory(body: Record<string, unknown>): ActionResult<Record<string, unknown> | null> {
@@ -611,10 +641,7 @@ function lineClothId(item: any) {
 }
 
 function clothSellsInStore(cloth: any, session: Session) {
-  if (!cloth) return false;
-  const assigned = (cloth._storeIds || []).map((id: unknown) => String(id));
-  if (assigned.includes(String(session._storeId))) return true;
-  return String(cloth._storeId) === String(session._storeId);
+  return clothAppliesToStore(cloth, String(session._storeId || ''), session._brandId);
 }
 
 async function writeStock(
@@ -752,10 +779,11 @@ export async function createResource(resource: string, payload: unknown): Promis
 
   const cfg = lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
-  const requestedStoreId = String(body._storeId || '');
   let next = preparePayload(auth.session, resource, body);
   if (resource === 'cloth') {
-    next = await applyClothAvailability(auth.session, next, requestedStoreId);
+    const shared = await applyClothShare(auth.session, { ...next, sellInAllStores: body.sellInAllStores });
+    if (!shared.ok) return shared;
+    next = shared.data || next;
     const inventoried = applyClothInventory(next);
     if (!inventoried.ok) return inventoried;
     next = inventoried.data || next;
@@ -841,7 +869,6 @@ export async function updateResource(resource: string, id: string, payload: unkn
     Object.assign(raw, sold.data?.[0] || {});
   }
 
-  const requestedStoreId = String(raw._storeId || '');
   let body = preparePayload(auth.session, resource, raw);
   delete body._storeId;
   const cfg = resource === 'customer-cart' ? { model: M().CustomerCart, populate: { path: '_cloth' } } : lookups()[resource];
@@ -854,7 +881,9 @@ export async function updateResource(resource: string, id: string, payload: unkn
         : { _id: id, _storeId: oid(auth.session._storeId) };
   const previous = resource === 'cloth' ? await cfg.model.findOne(filter).lean() : null;
   if (resource === 'cloth') {
-    body = await applyClothAvailability(auth.session, body, requestedStoreId, false);
+    const shared = await applyClothShare(auth.session, { ...body, sellInAllStores: raw.sellInAllStores, _brandIds: raw._brandIds, _storeIds: raw._storeIds });
+    if (!shared.ok) return shared;
+    body = shared.data || body;
     const inventoried = applyClothInventoryUpdate(body, previous as Record<string, unknown> | null);
     if (!inventoried.ok) return inventoried;
     body = inventoried.data || body;

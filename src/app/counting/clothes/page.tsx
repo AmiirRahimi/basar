@@ -15,6 +15,7 @@ import { clothUnitPrice } from '@/lib/cloth-price';
 import { formatPacksFa, openingFromCloth, packsFromCloth, totalItems } from '@/lib/packs';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { saleState } from '@/lib/product-sale';
+import { clothShareLabel } from '@/lib/cloth-share';
 import { canWriteResource } from '@/lib/roles';
 
 export default async function ClothesPage() {
@@ -35,6 +36,9 @@ export default async function ClothesPage() {
       getWorkspace(),
     ]);
   guardSession(res);
+  const data = workspace.data;
+  const brands = data?.brands || [];
+  const stores = data?.stores || [];
   const rows = (Array.isArray(res.data) ? res.data : []).map((row: Record<string, any>) => {
     const current = packsFromCloth(row);
     const opening = openingFromCloth(row);
@@ -52,14 +56,16 @@ export default async function ClothesPage() {
       saleLabel: sale.active ? `${sale.percent}٪` : '—',
       collectionLabel: row.newCollection ? 'جدید' : '—',
       publishLabel: row.published ? 'منتشر' : '—',
+      shareLabel: clothShareLabel(row, brands, stores),
     };
   });
-  const data = workspace.data;
-  const storeOptions = (data?.stores || []).map((store) => {
-    const brand = (data?.brands || []).find((row) => row._id === store._brandId);
+  const brandOptions = brands.map((brand) => ({ value: brand._id, label: brand.name || 'برند' }));
+  const storeOptions = stores.map((store) => {
+    const brand = brands.find((row) => row._id === store._brandId);
     return {
       value: store._id,
       label: brand?.name ? `${store.name || 'فروشگاه'} — ${brand.name}` : store.name || 'فروشگاه',
+      parent: store._brandId,
     };
   });
   const allowWrite = canWriteResource(workspace.data?.storeRole || 'owner', 'cloth', workspace.data?.isPlatformAdmin);
@@ -70,7 +76,8 @@ export default async function ClothesPage() {
         title="لباس"
         rows={rows}
         allowWrite={allowWrite}
-        defaults={{ _storeId: data?.activeStoreId || '' }}
+        defaults={{ _brandIds: data?.activeBrandId || '', sellInAllStores: 'false' }}
+        headingDescription="لباس به یک فروشگاه وابسته نیست. پیش‌فرض روی همه فروشگاه‌های برند فعال است."
         columns={[
           { header: 'کد', accessor: 'code' },
           { header: 'نوع', accessor: '_type', format: 'name' },
@@ -82,7 +89,7 @@ export default async function ClothesPage() {
           { header: 'حراج', accessor: 'saleLabel' },
           { header: 'کالکشن', accessor: 'collectionLabel' },
           { header: 'وب‌سایت', accessor: 'publishLabel' },
-          { header: 'فروشگاه', accessor: '_storeId', format: 'name' },
+          { header: 'اشتراک', accessor: 'shareLabel' },
           { header: 'مانده بسته‌ها', accessor: 'packSummary' },
           { header: 'بسته‌های ثبت‌شده', accessor: 'openingSummary' },
           { header: 'رنگ', accessor: '_color', format: 'name' },
@@ -100,7 +107,15 @@ export default async function ClothesPage() {
           { header: 'شریک', accessor: '_partner', format: 'name' },
         ]}
         fields={[
-          { name: '_storeId', label: 'فروشگاه', type: 'relation', options: storeOptions, required: true },
+          {
+            name: 'clothShare',
+            label: 'اشتراک در برند و فروشگاه',
+            type: 'cloth-share',
+            options: brandOptions,
+            storeOptions,
+            defaultBrandId: data?.activeBrandId || '',
+            required: true,
+          },
           { name: 'code', label: 'کد', required: true },
           { name: '_partner', label: 'شریک فروش این لباس', type: 'relation', options: partners },
           { name: 'packs', label: 'موجودی ثبت‌شده (اولیه)', type: 'packs', required: true },

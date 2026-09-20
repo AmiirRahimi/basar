@@ -15,6 +15,7 @@ import { normalizePersonRoles, personRolesLabel } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { ClothImagesEditor } from './ClothImagesEditor';
 import { ClothPacksEditor } from './ClothPacksEditor';
+import { ClothShareFields } from './ClothShareFields';
 import { ClothExtrasEditor } from './ClothExtrasEditor';
 import { SearchableTable } from './SearchableTable';
 import { AddPlusButton, usePageAddButton } from './PageAction';
@@ -56,8 +57,11 @@ export type Field = {
     | 'boolean'
     | 'datetime'
     | 'images'
-    | 'person-role';
+    | 'person-role'
+    | 'cloth-share';
   options?: FieldOption[];
+  storeOptions?: FieldOption[];
+  defaultBrandId?: string;
   /** Kind options preset for `type: 'extras'` (default cloth). */
   extrasVariant?: 'cloth' | 'fabric';
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
@@ -166,6 +170,11 @@ export function ResourceCrud({
       if (f.type === 'boolean' && next[f.name] == null) {
         next[f.name] = f.name === 'isProduced' ? '' : 'false';
       }
+      if (f.type === 'cloth-share') {
+        if (next.sellInAllStores == null) next.sellInAllStores = 'false';
+        if (next._brandIds == null) next._brandIds = f.defaultBrandId || '';
+        if (next._storeIds == null) next._storeIds = '';
+      }
     });
     setForm(next);
     setShowErrors(false);
@@ -237,10 +246,29 @@ export function ResourceCrud({
                         next[f.name] = toDateTimeLocal(value);
                         return;
                       }
-                      if (f.type === 'images') {
-                        next[f.name] = Array.isArray(value)
-                          ? value.filter(Boolean).join('\n')
-                          : String(value ?? '');
+                      if (f.type === 'cloth-share') {
+                        const brands = Array.isArray(row.original._brandIds)
+                          ? row.original._brandIds.map((item: unknown) =>
+                              item && typeof item === 'object' && item && '_id' in item
+                                ? String((item as { _id: unknown })._id)
+                                : String(item || ''),
+                            )
+                          : String(row.original._brandId?._id || row.original._brandId || '')
+                            ? [String(row.original._brandId?._id || row.original._brandId)]
+                            : [];
+                        const stores = Array.isArray(row.original._storeIds)
+                          ? row.original._storeIds.map((item: unknown) =>
+                              item && typeof item === 'object' && item && '_id' in item
+                                ? String((item as { _id: unknown })._id)
+                                : String(item || ''),
+                            )
+                          : [];
+                        const sellAll = Boolean(row.original.sellInAllStores);
+                        next.sellInAllStores = sellAll ? 'true' : 'false';
+                        next._brandIds = (sellAll ? (f.options || []).map((option) => String(option.value)) : brands.filter(Boolean)).join(
+                          ',',
+                        );
+                        next._storeIds = sellAll ? '' : stores.filter(Boolean).join(',');
                         return;
                       }
                       next[f.name] =
@@ -294,7 +322,11 @@ export function ResourceCrud({
     if (!field.dependsOn) return all;
     const parentValue = form[field.dependsOn];
     if (!parentValue) return [];
-    return all.filter((option) => !option.parent || option.parent === parentValue);
+    const parents = parentValue
+      .split(/[,\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return all.filter((option) => !option.parent || parents.includes(String(option.parent)));
   }
 
   function setValue(field: Field, value: string) {
@@ -336,6 +368,10 @@ export function ResourceCrud({
     }
     if (field.type === 'person-role') {
       return Boolean(field.required) && normalizePersonRoles(form[field.name]).length === 0;
+    }
+    if (field.type === 'cloth-share') {
+      if (form.sellInAllStores === 'true') return false;
+      return !String(form._brandIds || '').trim();
     }
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
@@ -428,6 +464,18 @@ export function ResourceCrud({
         }
         if (f.type === 'person-role') {
           payload[f.name] = normalizePersonRoles(form[f.name]);
+          return;
+        }
+        if (f.type === 'cloth-share') {
+          payload.sellInAllStores = form.sellInAllStores === 'true';
+          payload._brandIds = String(form._brandIds || '')
+            .split(/[,\s]+/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+          payload._storeIds = String(form._storeIds || '')
+            .split(/[,\s]+/)
+            .map((item) => item.trim())
+            .filter(Boolean);
           return;
         }
         if (f.type === 'boolean') {
@@ -524,6 +572,29 @@ export function ResourceCrud({
           required={field.required}
           error={error}
           onChange={(next) => setValue(field, next)}
+        />
+      );
+    }
+
+    if (field.type === 'cloth-share') {
+      return (
+        <ClothShareFields
+          brandOptions={field.options || []}
+          storeOptions={field.storeOptions || []}
+          sellInAllStores={form.sellInAllStores === 'true'}
+          brandIds={form._brandIds || ''}
+          storeIds={form._storeIds || ''}
+          defaultBrandId={field.defaultBrandId}
+          error={error}
+          disabled={!writable}
+          onChange={(next) =>
+            setForm((s) => ({
+              ...s,
+              sellInAllStores: next.sellInAllStores ? 'true' : 'false',
+              _brandIds: next.brandIds,
+              _storeIds: next.storeIds,
+            }))
+          }
         />
       );
     }

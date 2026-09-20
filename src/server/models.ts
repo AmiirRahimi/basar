@@ -219,9 +219,10 @@ const FabricSchema = defineSchema(
 
 const ClothSchema = defineSchema(
   {
-    _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
+    _storeId: { type: Schema.Types.ObjectId, ref: 'Store' },
     _brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     sellInAllStores: { type: Boolean, default: false },
+    _brandIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Brand' }], default: [] },
     _storeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Store' }], default: [] },
     _type: { type: Schema.Types.ObjectId, ref: 'ClothKind' },
     _style: { type: Schema.Types.ObjectId, ref: 'ClothStyle' },
