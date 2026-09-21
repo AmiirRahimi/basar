@@ -38,7 +38,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'cloth',
     title: 'هر لباس، کامل',
-    copy: 'برای هر مدل پارچه، خیاط، شست‌وشو و چاپ را جدا ثبت کن. بعداً می‌فهمی این شلوار از کجا آمده و به کی بدهکاری.',
+    copy: 'برای هر مدل پارچه، خیاط، شست‌وشو و چاپ رو جدا ثبت کن. بعداً می‌فهمی این شلوار از کجا اومده و به کی بدهکاری.',
     icon: Shirt,
     tone: 'ink',
     className:
@@ -47,7 +47,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'invoice',
     title: 'فاکتور و چاپ',
-    copy: 'فاکتور عمده را همان لحظه بزن و چاپ بگیر. مشتری نایستد، تو هم یادداشت نکن.',
+    copy: 'فاکتور عمده رو همون لحظه بزن و چاپ بگیر. مشتری معطل نشه، تو هم یادداشت نکن.',
     icon: FileText,
     tone: 'saffron',
     className: 'md:col-span-2 rounded-[1.4rem] rounded-tr-[3.2rem] md:-rotate-1',
@@ -55,7 +55,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'bijak',
     title: 'بیجک',
-    copy: 'بیجک را از روی همان فاکتور بساز و چاپ کن. بار که می‌رود، کاغذش هم آماده‌ست.',
+    copy: 'بیجک رو از روی همون فاکتور بساز و چاپ کن. بار که می‌ره، کاغذش هم آماده‌ست.',
     icon: ScrollText,
     tone: 'paper',
     className: 'md:col-span-2 rounded-[2.2rem] rounded-bl-[3rem] md:rotate-1',
@@ -63,7 +63,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'photos',
     title: 'عکس با هوش مصنوعی',
-    copy: 'عکس لباس را بگذار؛ پس‌زمینه را بردار یا هر جور که می‌خواهی ادیت کن. ویترین تمیز می‌ماند.',
+    copy: 'عکس لباس رو بذار؛ پس‌زمینه رو بردار یا هر جور که می‌خوای ادیت کن. ویترین تمیز می‌مونه.',
     icon: Sparkles,
     tone: 'wash',
     className: 'md:col-span-3 rounded-[2.8rem] rounded-tl-xl',
@@ -71,7 +71,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'share',
     title: 'لینک اختصاصی',
-    copy: 'برای مشتری یک لینک بساز، مثل ویترین خودت. مدل‌ها را می‌بیند، انتخاب می‌کند، می‌خرد.',
+    copy: 'برای مشتری یک لینک بساز، مثل ویترین خودت. مدل‌ها رو می‌بینه، انتخاب می‌کنه، می‌خره.',
     icon: Link2,
     tone: 'ink',
     className: 'md:col-span-3 rounded-3xl rounded-br-[3.4rem] md:-rotate-[0.6deg]',
@@ -79,7 +79,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'stores',
     title: 'چند فروشگاه',
-    copy: 'چند حجره داشته باش. لباس را بین‌شان شریک کن یا فقط مال یک جا نگه دار.',
+    copy: 'چند حجره داشته باش. لباس رو بینشون شریک کن یا فقط مال یک جا نگه دار.',
     icon: Building2,
     tone: 'paper',
     className: 'md:col-span-2 rounded-[1.75rem] rounded-tl-[2.8rem]',
@@ -87,7 +87,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'brands',
     title: 'چند برند',
-    copy: 'هر برند یک فروشگاه یا چند تا. کارها قاطی نمی‌شود.',
+    copy: 'هر برند یک فروشگاه یا چند تا. کارها قاطی نمی‌شه.',
     icon: Layers,
     tone: 'saffron',
     className: 'md:col-span-2 rounded-[2.4rem] md:rotate-1',
@@ -95,7 +95,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'partners',
     title: 'شریک و سود',
-    copy: 'شریک را روی برند یا فروشگاه بگذار. سهم هر کس جدا دیده می‌شود.',
+    copy: 'شریک رو روی برند یا فروشگاه بذار. سهم هر کس جدا دیده می‌شه.',
     icon: Handshake,
     tone: 'wash',
     className: 'md:col-span-2 rounded-2xl rounded-br-[2.8rem]',
@@ -103,7 +103,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'privacy',
     title: 'فقط خودت می‌بینی',
-    copy: 'داده‌ها مال خودت است. کس دیگری از حجره تو خبر ندارد.',
+    copy: 'داده‌ها مال خودته. کس دیگه‌ای از حجره تو خبر نداره.',
     icon: Shield,
     tone: 'ink',
     className: 'md:col-span-2 rounded-[2.1rem] rounded-tr-[3rem] md:-rotate-1',
@@ -111,7 +111,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'sms',
     title: 'پیامک محصول جدید',
-    copy: 'مدل تازه که آمد، برای مشتری‌ها خودش پیامک می‌رود. تو دنبال شماره نگرد.',
+    copy: 'مدل تازه که اومد، برای مشتری‌ها خودش پیامک می‌ره. تو دنبال شماره نگرد.',
     icon: MessageSquare,
     tone: 'paper',
     className: 'md:col-span-2 rounded-[1.9rem] rounded-bl-[2.6rem]',
@@ -119,7 +119,7 @@ const FEATURES: FeatureCard[] = [
   {
     id: 'shop',
     title: 'فروش در فروشگاه آنلاین',
-    copy: 'لباس را روی فروشگاه بگذار و مستقیم بفروش. از حجره تا خرید آنلاین، یک مسیر.',
+    copy: 'لباس رو روی فروشگاه بذار و مستقیم بفروش. از حجره تا خرید آنلاین، یک مسیر.',
     icon: Store,
     tone: 'saffron',
     className: 'md:col-span-2 rounded-[2.5rem] rounded-tl-[1rem] md:rotate-[0.8deg]',
@@ -127,9 +127,9 @@ const FEATURES: FeatureCard[] = [
 ];
 
 const BENEFITS = [
-  'دفتر و چک و موجودی توی یک جا جمع می‌شود؛ شب که می‌بندی، گیج نیستی.',
-  'مشتری عمده لینک می‌گیرد، خودش می‌بیند و سفارش می‌دهد. تو فقط آماده‌سازی.',
-  'هر لباس هزینه‌اش مشخص است: پارچه، خیاط، شست، چاپ. سود را حدس نمی‌زنی.',
+  'دفتر و چک و موجودی توی یک جا جمع می‌شه؛ شب که می‌بندی، گیج نیستی.',
+  'مشتری عمده لینک می‌گیره، خودش می‌بینه و سفارش می‌ده. تو فقط آماده کن.',
+  'هر لباس هزینه‌اش مشخصه: پارچه، خیاط، شست، چاپ. سود رو حدس نمی‌زنی.',
 ];
 
 function NavLink({ href, children }: { href: string; children: ReactNode }) {
@@ -235,12 +235,12 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی
           </p>
           <h1 className="mt-4 max-w-3xl text-[2.15rem] font-semibold leading-[1.25] text-shop-bone sm:text-5xl md:text-[3.4rem]">
-            حجره لباس را از روی دفتر پاره اداره نکن
+            حجره لباس رو از روی دفتر پاره اداره نکن
             <span className="mt-2 block text-shop-saffron">از پارچه تا فروش، همه‌ش اینجاست</span>
           </h1>
           <p className="mt-5 max-w-xl text-base leading-8 text-shop-bone/75 sm:text-lg">
-            باسار حسابداری تحت وب است، فقط برای عمده‌فروشی لباس — شلوار، پیراهن، تیشرت و هر مدلی که می‌فروشی. موجودی،
-            فاکتور، شریک و مشتری یک‌جا می‌ماند تا سر ماه حساب‌ها قاطی نشود.
+            باسار حسابداری وبه، فقط برای عمده‌فروشی لباس — شلوار، پیراهن، تیشرت و هر مدلی که می‌فروشی. موجودی،
+            فاکتور، شریک و مشتری یک‌جا می‌مونه تا سر ماه حساب‌ها قاطی نشه.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <ShopButton href={primaryHref} className="px-6 py-3 text-base">
@@ -263,7 +263,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             <p className="text-[11px] tracking-[0.22em] text-shop-saffron">امکانات</p>
             <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">کار روز حجره، روی چند کارت کنار هم</h2>
             <p className="mt-3 leading-8 text-shop-ink/65">
-              حسابداری عمومی نیست؛ مخصوص عمده‌فروشی پوشاک است. برای کسی که لباس می‌خرد، می‌دوزد، می‌شوید و عمده می‌فروشد.
+            حسابداری عمومی نیست؛ مخصوص عمده‌فروشی پوشاکه. برای کسی که لباس می‌خره، می‌دوزه، می‌شوره و عمده می‌فروشه.
             </p>
           </div>
 
@@ -290,10 +290,10 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
         <div className="mx-auto max-w-7xl px-4 py-14 lg:px-6 lg:py-20">
           <div className="mb-10 max-w-2xl">
             <p className="text-[11px] tracking-[0.22em] text-shop-saffron">اشتراک</p>
-            <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">هر حجره به اندازه خودش شروع می‌کند</h2>
+            <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">هر حجره به اندازه خودش شروع می‌کنه</h2>
             <p className="mt-3 leading-8 text-shop-ink/65">
-              از یک فروشگاه ساده تا چند برند و ویترین لینک‌دار. قیمت‌ها ماهانه‌اند؛ سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪
-              کمتر می‌دهی.
+              از یک فروشگاه ساده تا چند برند و ویترین لینک‌دار. قیمت‌ها ماهانه‌ان؛ سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪
+              کمتر می‌دی.
             </p>
           </div>
 
@@ -335,7 +335,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             ))}
           </div>
 
-          <p className="mt-6 text-center text-sm text-shop-ink/50">طرح را بعد از ورود، از تنظیمات پنل فعال می‌کنی.</p>
+          <p className="mt-6 text-center text-sm text-shop-ink/50">طرح رو بعد از ورود، از تنظیمات پنل فعال می‌کنی.</p>
         </div>
       </section>
 
@@ -343,9 +343,9 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
         <div className="shop-grain absolute inset-0 opacity-80" />
         <div className="relative mx-auto flex max-w-7xl flex-col items-start gap-6 px-4 py-16 sm:items-center sm:text-center lg:px-6 lg:py-24">
           <p className="text-[11px] tracking-[0.22em] text-shop-saffron">شروع</p>
-          <h2 className="max-w-3xl text-3xl font-semibold text-shop-bone sm:text-4xl md:text-5xl">یک هفته باهاش کار کن؛ دفتر را کنار می‌گذاری</h2>
+          <h2 className="max-w-3xl text-3xl font-semibold text-shop-bone sm:text-4xl md:text-5xl">یک هفته باهاش کار کن؛ دفتر رو کنار می‌ذاری</h2>
           <p className="max-w-xl leading-8 text-shop-bone/70">
-            وارد شو، برند و فروشگاه را بساز، لباس‌ها را بگذار. حسابداری عمده‌فروشی‌ات روی وب می‌ماند؛ دفتر را کنار می‌گذاری.
+            وارد شو، برند و فروشگاه رو بساز، لباس‌ها رو بذار. حسابداری عمده‌فروشی‌ات روی وب می‌مونه؛ دفتر رو کنار می‌ذاری.
           </p>
           <div className="flex flex-wrap gap-3 sm:justify-center">
             <ShopButton href={primaryHref} className="px-6 py-3 text-base">

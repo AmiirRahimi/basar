@@ -26,7 +26,7 @@ const CORE_FEATURES = {
   invoice: { label: 'فاکتور، چک، البسه و پارچه', included: true as const },
   partners: { label: 'شریک درآمد', included: true as const },
   images: { label: 'تصویر محصول', included: false as const },
-  vitrin: { label: 'ویترین اختصاصی: لینک محصول، سبد و پرداخت مشتری (مثل فروشگاه خودتان)', included: false as const },
+  vitrin: { label: 'ویترین اختصاصی: لینک محصول، سبد و پرداخت مشتری (مثل فروشگاه خودت)', included: false as const },
   smsLink: { label: 'ارسال لینک با پیامک', included: false as const },
   smsNew: { label: 'پیامک محصول جدید به مشتری‌ها', included: false as const },
 };
@@ -81,7 +81,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'partners',
     name: 'شرکا',
-    blurb: 'همان چند حجره، به‌اضافه ثبت شریک و سهم سود.',
+    blurb: 'همون چند حجره، به‌علاوه ثبت شریک و سهم سود.',
     monthlyPrice: 2_500_000,
     maxBrands: 1,
     maxStores: 5,
