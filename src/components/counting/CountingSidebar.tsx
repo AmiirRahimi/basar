@@ -133,35 +133,38 @@ export function CountingSidebar({
           mobileOpen ? 'max-md:w-[min(320px,88vw)] max-md:translate-x-0' : 'max-md:pointer-events-none max-md:w-[min(320px,88vw)] max-md:translate-x-full',
         )}
       >
-        <div className={cn('shrink-0 pb-2', expanded ? 'px-2.5' : 'px-1.5')}>
+        <div className={cn('shrink-0', expanded ? 'px-2.5 pb-2' : 'px-1.5 pb-1')}>
           <div
             className={cn(
-              'mb-2 flex rounded-2xl bg-white/[0.07] py-2 ring-1 ring-white/10 transition',
-              EASE,
-              expanded ? 'items-center gap-2 px-2' : 'flex-col items-center gap-1.5 px-1',
+              'mb-2 flex rounded-2xl bg-white/[0.07] ring-1 ring-white/10',
+              expanded ? 'items-center gap-2 px-2 py-2' : 'mx-auto w-fit items-center justify-center p-1',
             )}
           >
             <BrandLogo variant="mark" className="h-9 w-9 shrink-0" />
-            <SidebarReveal show={expanded} className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-semibold leading-5 tracking-tight">باسار</p>
-              <p className="text-[10px] leading-4 text-white/45">نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی</p>
-            </SidebarReveal>
-            <button
-              type="button"
-              title={pinned ? 'بازگشت به حالت هاور' : 'همیشه باز بماند'}
-              aria-label={pinned ? 'بازگشت به حالت هاور' : 'همیشه باز بماند'}
-              aria-pressed={pinned}
-              onClick={(event) => {
-                event.stopPropagation();
-                onPinnedChange(!pinned);
-              }}
-              className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition',
-                pinned ? 'bg-white/15 text-white' : 'text-white/45 hover:bg-white/10 hover:text-white',
-              )}
-            >
-              {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-            </button>
+            {expanded ? (
+              <>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold leading-5 tracking-tight">باسار</p>
+                  <p className="text-[10px] leading-4 text-white/45">نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی</p>
+                </div>
+                <button
+                  type="button"
+                  title={pinned ? 'بازگشت به حالت هاور' : 'همیشه باز بماند'}
+                  aria-label={pinned ? 'بازگشت به حالت هاور' : 'همیشه باز بماند'}
+                  aria-pressed={pinned}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onPinnedChange(!pinned);
+                  }}
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition',
+                    pinned ? 'bg-white/15 text-white' : 'text-white/45 hover:bg-white/10 hover:text-white',
+                  )}
+                >
+                  {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                </button>
+              </>
+            ) : null}
           </div>
           <SidebarWorkspace expanded={expanded} />
         </div>
