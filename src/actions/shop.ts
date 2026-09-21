@@ -41,10 +41,23 @@ export async function getPublicKinds(): Promise<{ id: string; name: string }[]> 
 export async function getSharedCatalog(token: string) {
   const found = await loadSharedClothes(token);
   if (!found.ok || !found.data) return { ok: false as const, title: '', products: [] as CatalogProduct[], message: found.message };
-  const data = found.data as { title?: string; clothes?: Cloth[] };
+  const data = found.data as {
+    title?: string;
+    clothes?: Cloth[];
+    showAll?: boolean;
+    catalogSlug?: string;
+    token?: string;
+    slug?: string;
+    storeName?: string;
+  };
   return {
     ok: true as const,
     title: String(data.title || ''),
+    showAll: Boolean(data.showAll),
+    catalogSlug: String(data.catalogSlug || ''),
+    token: String(data.token || token),
+    slug: String(data.slug || token),
+    storeName: String(data.storeName || ''),
     products: (Array.isArray(data.clothes) ? data.clothes : []).map((cloth) => clothToProduct(cloth)),
     message: '',
   };

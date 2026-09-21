@@ -7,14 +7,15 @@ import { createProductShare, deleteProductShare, sendProductShareSms } from '@/a
 import { displayName, faDate, faNumber } from '@/lib/format';
 import { parseImageList } from '@/lib/shop-cart';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { normalizeShareSlug, sharePath, shareSlugError } from '@/lib/share-slug';
 import type { ProductShare } from '@/lib/types';
 import type { ReactNode } from 'react';
 import { Button, FormCard, Input, Modal, Textarea, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 import { PlanLocked } from './PlanLocked';
 
-function sharePath(token: string) {
-  return `/s/${token}`;
+function linkKey(share: ProductShare) {
+  return String(share.slug || share.token || '');
 }
 
 function personPhone(row: Record<string, any>) {
@@ -52,6 +53,9 @@ export function ShareLinksBoard({
   const allowSms = Boolean(workspace?.isPlatformAdmin || workspace?.subscription?.allowShareSms);
   const [pending, start] = useTransition();
   const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
+  const [catalogSlug, setCatalogSlug] = useState('');
+  const [catalogTitle, setCatalogTitle] = useState('همه محصولات');
   const [phone, setPhone] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [q, setQ] = useState('');
@@ -71,6 +75,9 @@ export function ShareLinksBoard({
       return hay.includes(term.toLowerCase());
     });
   }, [clothes, q]);
+
+  const catalogShare = shares.find((row) => row.showAll);
+  const subsetShares = shares.filter((row) => !row.showAll);
 
   const filteredCustomers = useMemo(() => {
     const term = customerQ.trim().toLowerCase();
@@ -101,8 +108,8 @@ export function ShareLinksBoard({
       toast.error('ارسال لینک با پیامک فقط در طرح ویترین است');
       return;
     }
-    const url = shareUrlForToken(share.token);
-    setSmsModal({ shareId: share._id, token: share.token, title: share.title || 'لینک محصولات' });
+    const url = shareUrlForToken(linkKey(share));
+    setSmsModal({ shareId: share._id, token: linkKey(share), title: share.title || 'لینک محصولات' });
     setCustomerId('');
     setCustomerQ('');
     setSmsPhone('');
@@ -151,18 +158,29 @@ export function ShareLinksBoard({
       toast.error('حداقل یک لباس انتخاب کنید');
       return;
     }
+    const name = normalizeShareSlug(slug);
+    const nameError = shareSlugError(name);
+    if (nameError) {
+      toast.error(nameError);
+      return;
+    }
     if (withSms && !phone.trim()) {
       toast.error('شماره موبایل را وارد کنید');
       return;
     }
     start(async () => {
-      const res = await createProductShare({ title, clothIds: selected, phone: withSms ? phone.trim() : undefined });
+      const res = await createProductShare({
+        title,
+        slug: name,
+        clothIds: selected,
+        phone: withSms ? phone.trim() : undefined,
+      });
       if (redirectIfUnauthorized(res)) return;
       if (!res.ok || !res.data) {
         toast.error(res.message || 'لینک ساخته نشد');
         return;
       }
-      const token = String((res.data as { token?: string }).token || '');
+      const token = String((res.data as { slug?: string; token?: string }).slug || (res.data as { token?: string }).token || '');
       const url = shareUrlForToken(token);
       try {
         await navigator.clipboard.writeText(url);
@@ -172,6 +190,7 @@ export function ShareLinksBoard({
       }
       setSelected([]);
       setTitle('');
+      setSlug('');
       router.refresh();
     });
   }
@@ -182,6 +201,36 @@ export function ShareLinksBoard({
       () => toast.success('لینک کپی شد'),
       () => toast.error('کپی نشد'),
     );
+  }
+
+  function saveCatalog() {
+    const name = normalizeShareSlug(catalogSlug || (catalogShare ? linkKey(catalogShare) : ''));
+    const nameError = shareSlugError(name);
+    if (nameError) {
+      toast.error(nameError);
+      return;
+    }
+    start(async () => {
+      const res = await createProductShare({
+        title: catalogTitle,
+        slug: name,
+        showAll: true,
+      });
+      if (redirectIfUnauthorized(res)) return;
+      if (!res.ok || !res.data) {
+        toast.error(res.message || 'لینک ذخیره نشد');
+        return;
+      }
+      const token = String((res.data as { slug?: string; token?: string }).slug || '');
+      try {
+        await navigator.clipboard.writeText(shareUrlForToken(token));
+        toast.success('لینک همه محصولات ذخیره شد و کپی شد');
+      } catch {
+        toast.success(res.message || 'لینک همه محصولات ذخیره شد');
+      }
+      setCatalogSlug(name);
+      router.refresh();
+    });
   }
 
   function sendSms() {
@@ -226,16 +275,61 @@ export function ShareLinksBoard({
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-gray-900">لینک همه محصولات</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          یک نام انگلیسی یکتا انتخاب کنید. مشتری با این آدرس همه لباس‌های منتشرشده شما را می‌بیند.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <Input
+            label="نام انگلیسی یکتا"
+            value={catalogSlug || (catalogShare ? linkKey(catalogShare) : '')}
+            onChange={(e) => setCatalogSlug(e.target.value)}
+            placeholder="jeanpoosh-store"
+            dir="ltr"
+          />
+          <Input label="عنوان نمایشی (اختیاری)" value={catalogTitle} onChange={(e) => setCatalogTitle(e.target.value)} />
+        </div>
+        {(catalogSlug || catalogShare) && (
+          <p className="mt-2 text-xs text-gray-500" dir="ltr">
+            {typeof window !== 'undefined'
+              ? `${window.location.origin}${sharePath(catalogSlug || (catalogShare ? linkKey(catalogShare) : ''))}`
+              : sharePath(catalogSlug || (catalogShare ? linkKey(catalogShare) : ''))}
+          </p>
+        )}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button disabled={pending || !allowShare} onClick={saveCatalog} icon={<Link2 className="h-4 w-4" />}>
+            {catalogShare ? 'به‌روزرسانی لینک همه محصولات' : 'ساخت لینک همه محصولات'}
+          </Button>
+          {catalogShare ? (
+            <Button
+              variant="outline"
+              icon={<Copy className="h-4 w-4" />}
+              onClick={() => copy(linkKey(catalogShare))}
+            >
+              کپی لینک
+            </Button>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">ساخت لینک برای مشتری</h2>
+            <h2 className="text-base font-semibold text-gray-900">لینک انتخابی برای مشتری</h2>
             <p className="mt-1 text-sm text-gray-500">
-              لباس‌ها را انتخاب کنید. مشتری فقط همین مدل‌ها را می‌بیند، از سبد سفارش می‌دهد و می‌تواند به همه محصولات برود.
+              نام انگلیسی یکتا بدهید و لباس‌ها را انتخاب کنید. مشتری همان مدل‌ها را می‌بیند و دکمه‌ای برای همه محصولات شما و فروشگاه آنلاین دارد.
             </p>
           </div>
           <p className="text-sm text-gray-500">{faNumber(selected.length)} انتخاب‌شده</p>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <Input
+            label="نام انگلیسی یکتا"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="summer-denim"
+            dir="ltr"
+          />
           <Input label="عنوان لینک (اختیاری)" value={title} onChange={(e) => setTitle(e.target.value)} />
           <Input
             label="شماره موبایل برای پیامک هنگام ساخت"
@@ -245,6 +339,11 @@ export function ShareLinksBoard({
             disabled={!allowSms}
           />
         </div>
+        {slug ? (
+          <p className="mt-2 text-xs text-gray-500" dir="ltr">
+            {sharePath(slug)}
+          </p>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           <Button disabled={pending || !selected.length || !allowShare} onClick={() => create(false)} icon={<Link2 className="h-4 w-4" />}>
             ساخت و کپی لینک
@@ -306,18 +405,21 @@ export function ShareLinksBoard({
           <h3 className="text-sm font-semibold text-gray-900">لینک‌های ساخته‌شده</h3>
           <p className="mt-1 text-xs text-gray-500">برای ارسال به مشتری، روی «ارسال به شماره» کلیک کنید.</p>
         </div>
-        {shares.length ? (
+        {subsetShares.length ? (
           <ul className="divide-y divide-gray-100">
-            {shares.map((row) => (
+            {subsetShares.map((row) => (
               <li key={row._id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-gray-900">{row.title || 'لینک محصولات'}</p>
+                  <p className="text-xs text-gray-500" dir="ltr">
+                    {sharePath(linkKey(row))}
+                  </p>
                   <p className="text-xs text-gray-500">
                     {faNumber(row.clothCount || row._clothIds.length)} لباس · {faDate(row.timeStamp)}
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => copy(row.token)}>
+                  <Button size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => copy(linkKey(row))}>
                     کپی لینک
                   </Button>
                   {allowSms ? (
@@ -339,7 +441,7 @@ export function ShareLinksBoard({
             ))}
           </ul>
         ) : (
-          <p className="px-4 py-8 text-center text-sm text-gray-500">هنوز لینکی ساخته نشده</p>
+          <p className="px-4 py-8 text-center text-sm text-gray-500">هنوز لینک انتخابی ساخته نشده</p>
         )}
       </section>
 

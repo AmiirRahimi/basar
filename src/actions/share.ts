@@ -8,7 +8,13 @@ import {
   sendProductShareSms as sendShareSms,
 } from '@/server/domain';
 
-export async function createProductShare(payload: { title?: string; clothIds: string[]; phone?: string }) {
+export async function createProductShare(payload: {
+  title?: string;
+  clothIds?: string[];
+  phone?: string;
+  slug?: string;
+  showAll?: boolean;
+}) {
   return createShare(payload);
 }
 

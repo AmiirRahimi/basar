@@ -107,6 +107,7 @@ const StoreSchema = defineSchema(
     warehouses: { type: [WarehouseSchema], default: [] },
     city: { type: Schema.Types.Mixed, default: '' },
     isMain: { type: Boolean, required: true, default: false },
+    catalogSlug: { type: String, default: '', index: true },
     timeStamp: { type: Date, required: true, default: Date.now },
     isDeleted: { type: Boolean, required: true, default: false },
   },
@@ -474,7 +475,10 @@ const ImageEditSchema = defineSchema(
 const ProductShareSchema = defineSchema(
   {
     token: { type: String, required: true, unique: true, index: true },
+    slug: { type: String, default: '', index: true },
     title: { type: String, default: '' },
+    showAll: { type: Boolean, default: false, index: true },
+    catalogSlug: { type: String, default: '' },
     _clothIds: { type: [Schema.Types.ObjectId], ref: 'Cloth', default: [] },
     _storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true, index: true },
     _brandId: { type: Schema.Types.ObjectId, ref: 'Brand' },

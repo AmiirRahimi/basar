@@ -13,10 +13,15 @@ export function SellerStorefrontOrders({
   shares?: ProductShare[];
 }) {
   const { orders, totals } = board;
-  const titleByToken = useMemo(
-    () => new Map(shares.map((share) => [share.token, share.title || ''])),
-    [shares],
-  );
+  const titleByToken = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const share of shares) {
+      const title = share.title || '';
+      map.set(share.token, title);
+      if (share.slug) map.set(share.slug, title);
+    }
+    return map;
+  }, [shares]);
   const groups = useMemo(() => {
     const map = new Map<string, StorefrontOrder[]>();
     for (const row of orders) {

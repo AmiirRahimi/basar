@@ -80,6 +80,7 @@ export type StoreRecord = {
   warehouses?: StoreWarehouse[];
   city?: string | number;
   isMain?: boolean;
+  catalogSlug?: string;
 };
 
 export type StoreMember = {
@@ -357,7 +358,10 @@ export type StorefrontOrderBoard = {
 export type ProductShare = {
   _id: string;
   token: string;
+  slug?: string;
   title?: string;
+  showAll?: boolean;
+  catalogSlug?: string;
   _clothIds: string[];
   clothCount?: number;
   timeStamp?: string;

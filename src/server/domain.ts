@@ -46,6 +46,7 @@ import { denyPlanFeature, subscriptionForSession } from './subscription';
 import { publicAppOrigin, sendSmsText, shareUrl } from './sms';
 import { clampPage, MAX_LIST_SCAN } from './paging';
 import { clientIp, rateLimit } from './rate-limit';
+import { normalizeShareSlug, shareSlugError } from '@/lib/share-slug';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -1064,6 +1065,7 @@ export async function getShopClothById(id: string): Promise<ActionResult> {
 }
 
 const MAX_SHARE_CLOTHES = 40;
+const MAX_CATALOG_CLOTHES = 240;
 
 function shareClothIds(value: unknown) {
   if (!Array.isArray(value)) return [];
@@ -1078,11 +1080,51 @@ function shareClothIds(value: unknown) {
   return ids;
 }
 
-async function insertProductShare(session: Session, title: string, clothIds: string[]) {
-  const token = publicOrderToken();
+async function findShareByKey(value: string) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const slug = normalizeShareSlug(raw);
+  const byToken = await M().ProductShare.findOne({ token: raw, isDeleted: false }).lean();
+  if (byToken) return byToken;
+  if (slug && slug !== raw) {
+    const bySlugToken = await M().ProductShare.findOne({ token: slug, isDeleted: false }).lean();
+    if (bySlugToken) return bySlugToken;
+  }
+  if (slug) return M().ProductShare.findOne({ slug, isDeleted: false }).lean();
+  return null;
+}
+
+async function assertShareSlugFree(slug: string, except?: { shareId?: string; storeId?: string }) {
+  const error = shareSlugError(slug);
+  if (error) return error;
+  const shareFilter: Record<string, unknown> = {
+    isDeleted: false,
+    $or: [{ slug }, { token: slug }],
+  };
+  if (except?.shareId) shareFilter._id = { $ne: oid(except.shareId) };
+  const shareClash = await M().ProductShare.findOne(shareFilter).select('_id').lean();
+  if (shareClash) return 'این نام قبلاً گرفته شده است. نام انگلیسی دیگری انتخاب کنید.';
+  const storeFilter: Record<string, unknown> = { isDeleted: false, catalogSlug: slug };
+  if (except?.storeId) storeFilter._id = { $ne: oid(except.storeId) };
+  const storeClash = await M().Store.findOne(storeFilter).select('_id').lean();
+  if (storeClash) return 'این نام قبلاً برای فروشگاه دیگری ثبت شده است.';
+  return '';
+}
+
+async function insertProductShare(
+  session: Session,
+  title: string,
+  clothIds: string[],
+  extra?: { slug?: string; showAll?: boolean; catalogSlug?: string },
+) {
+  const slug = extra?.slug ? normalizeShareSlug(extra.slug) : '';
+  const token = slug || publicOrderToken();
   const created = await M().ProductShare.create({
     token,
+    slug,
     title: title.trim().slice(0, 80),
+    showAll: Boolean(extra?.showAll),
+    catalogSlug: extra?.catalogSlug || '',
     _clothIds: clothIds.map((id) => oid(id)),
     _storeId: oid(session._storeId),
     _brandId: oid(session._brandId),
@@ -1093,10 +1135,28 @@ async function insertProductShare(session: Session, title: string, clothIds: str
   return { token, created, clothIds };
 }
 
+function shareRowPayload(row: any, catalogSlug = '', clothCount?: number) {
+  const ids = shareClothIds(row._clothIds);
+  const slug = String(row.slug || '').trim() || String(row.token || '');
+  return {
+    _id: row._id,
+    token: row.token,
+    slug,
+    title: row.title || '',
+    showAll: Boolean(row.showAll),
+    catalogSlug: String(row.catalogSlug || catalogSlug || ''),
+    _clothIds: ids,
+    clothCount: clothCount ?? ids.length,
+    timeStamp: row.timeStamp,
+  };
+}
+
 export async function createProductShare(payload: {
   title?: string;
-  clothIds: unknown;
+  clothIds?: unknown;
   phone?: string;
+  slug?: string;
+  showAll?: boolean;
 }): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
@@ -1110,10 +1170,52 @@ export async function createProductShare(payload: {
     const smsBlocked = denyPlanFeature(sub, 'share-sms');
     if (smsBlocked) return smsBlocked;
   }
+  const slug = normalizeShareSlug(String(payload.slug || ''));
+  const slugBlocked = shareSlugError(slug);
+  if (slugBlocked) return fail(slugBlocked);
+  const showAll = Boolean(payload.showAll);
+  await db();
+  const storeId = String(access.session._storeId);
+  if (showAll) {
+    const existing = await M()
+      .ProductShare.findOne({ _storeId: oid(storeId), showAll: true, isDeleted: false })
+      .lean();
+    const taken = await assertShareSlugFree(slug, {
+      shareId: existing ? String(existing._id) : undefined,
+      storeId,
+    });
+    if (taken) return fail(taken);
+    const title = String(payload.title || '').trim().slice(0, 80) || 'همه محصولات';
+    let saved: any = existing;
+    if (existing) {
+      await M().ProductShare.findByIdAndUpdate(existing._id, {
+        token: slug,
+        slug,
+        title,
+        showAll: true,
+        catalogSlug: slug,
+        _clothIds: [],
+      });
+      saved = { ...existing, token: slug, slug, title, showAll: true, catalogSlug: slug, _clothIds: [] };
+    } else {
+      const created = await insertProductShare(access.session, title, [], { slug, showAll: true, catalogSlug: slug });
+      saved = created.created;
+    }
+    await M().Store.findByIdAndUpdate(storeId, { catalogSlug: slug });
+    let smsMessage = '';
+    if (phone) {
+      const sent = await dispatchShareSms(access.session, slug, phone);
+      if (!sent.ok) return fail(sent.message);
+      smsMessage = sent.message;
+    }
+    return ok(serialize(shareRowPayload(saved, slug, 0)), smsMessage || 'لینک همه محصولات ذخیره شد');
+  }
+
+  const taken = await assertShareSlugFree(slug);
+  if (taken) return fail(taken);
   const clothIds = shareClothIds(payload.clothIds);
   if (!clothIds.length) return fail('حداقل یک لباس انتخاب کنید');
   if (clothIds.length > MAX_SHARE_CLOTHES) return fail(`حداکثر ${MAX_SHARE_CLOTHES} لباس در هر لینک مجاز است`);
-  await db();
   const clothes = await M()
     .Cloth.find({ _id: { $in: clothIds.map((id) => oid(id)) }, ...clothVisibleFilter(access.session) })
     .select('_id')
@@ -1121,23 +1223,19 @@ export async function createProductShare(payload: {
   const allowed = new Set((clothes as any[]).map((row) => String(row._id)));
   const kept = clothIds.filter((id) => allowed.has(id));
   if (!kept.length) return fail('لباس معتبری انتخاب نشده');
-  const { token, created } = await insertProductShare(access.session, String(payload.title || ''), kept);
+  const store = await M().Store.findById(storeId).select('catalogSlug').lean();
+  const catalogSlug = String((store as any)?.catalogSlug || '').trim();
+  const { token, created } = await insertProductShare(access.session, String(payload.title || ''), kept, {
+    slug,
+    catalogSlug,
+  });
   let smsMessage = '';
   if (phone) {
     const sent = await dispatchShareSms(access.session, token, phone);
     if (!sent.ok) return fail(sent.message);
     smsMessage = sent.message;
   }
-  return ok(
-    serialize({
-      _id: created._id,
-      token,
-      title: created.title,
-      _clothIds: kept,
-      clothCount: kept.length,
-    }),
-    smsMessage || 'لینک ساخته شد',
-  );
+  return ok(serialize(shareRowPayload(created, catalogSlug, kept.length)), smsMessage || 'لینک ساخته شد');
 }
 
 export async function sendProductShareSms(payload: {
@@ -1219,23 +1317,14 @@ export async function listProductShares(): Promise<ActionResult> {
   const denied = denyRead(access.session, 'product-share');
   if (denied) return denied;
   await db();
+  const store = await M().Store.findById(access.session._storeId).select('catalogSlug').lean();
+  const catalogSlug = String((store as any)?.catalogSlug || '').trim();
   const rows = await M()
     .ProductShare.find({ _storeId: oid(access.session._storeId), isDeleted: false })
     .sort({ timeStamp: -1 })
     .limit(200)
     .lean();
-  return ok(
-    serialize(
-      (rows as any[]).map((row) => ({
-        _id: row._id,
-        token: row.token,
-        title: row.title || '',
-        _clothIds: shareClothIds(row._clothIds),
-        clothCount: shareClothIds(row._clothIds).length,
-        timeStamp: row.timeStamp,
-      })),
-    ),
-  );
+  return ok(serialize((rows as any[]).map((row) => shareRowPayload(row, catalogSlug))));
 }
 
 export async function deleteProductShare(id: string): Promise<ActionResult> {
@@ -1254,26 +1343,56 @@ export async function deleteProductShare(id: string): Promise<ActionResult> {
   }).lean();
   if (!row) return fail('لینک پیدا نشد', 404);
   await M().ProductShare.findByIdAndUpdate(id, { isDeleted: true });
+  if (row.showAll) {
+    const store = await M().Store.findById(access.session._storeId).select('catalogSlug').lean();
+    if (String((store as any)?.catalogSlug || '') === String(row.slug || row.token || '')) {
+      await M().Store.findByIdAndUpdate(access.session._storeId, { catalogSlug: '' });
+    }
+  }
   return ok({ _id: id }, 'لینک حذف شد');
 }
 
 export async function getPublicSharedClothes(token: string): Promise<ActionResult> {
   const value = String(token || '').trim();
-  if (value.length < 16 || value.length > 128) return fail('لینک نامعتبر است', 404);
+  if (value.length < 3 || value.length > 128) return fail('لینک نامعتبر است', 404);
   await db();
-  const share = await M().ProductShare.findOne({ token: value, isDeleted: false }).lean();
+  const share = await findShareByKey(value);
   if (!share) return fail('این لینک پیدا نشد', 404);
-  const ids = shareClothIds(share._clothIds);
-  if (!ids.length) return fail('محصولی در این لینک نیست', 404);
-  const query: any = M().Cloth.find({ _id: { $in: ids.map((id) => oid(id)) }, isDeleted: false });
-  const rows = await query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).lean();
-  const byId = new Map((Array.isArray(rows) ? rows : []).map((row: any) => [String(row._id), row]));
-  const ordered = ids.map((id) => byId.get(id)).filter(Boolean);
+  const store = await M().Store.findById(share._storeId).select('catalogSlug name').lean();
+  const catalogSlug = String((store as any)?.catalogSlug || share.catalogSlug || '').trim();
+  const showAll = Boolean(share.showAll);
+  let ordered: any[] = [];
+  if (showAll) {
+    const session = {
+      _storeId: String(share._storeId),
+      _brandId: String(share._brandId || ''),
+    } as Session;
+    const rows = await M()
+      .Cloth.find({ ...clothVisibleFilter(session), published: true })
+      .select(PUBLIC_CLOTH_SELECT)
+      .populate(PUBLIC_CLOTH_POPULATE)
+      .sort('code')
+      .limit(MAX_CATALOG_CLOTHES)
+      .lean();
+    ordered = Array.isArray(rows) ? rows : [];
+  } else {
+    const ids = shareClothIds(share._clothIds);
+    if (!ids.length) return fail('محصولی در این لینک نیست', 404);
+    const query: any = M().Cloth.find({ _id: { $in: ids.map((id) => oid(id)) }, isDeleted: false });
+    const rows = await query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).lean();
+    const byId = new Map((Array.isArray(rows) ? rows : []).map((row: any) => [String(row._id), row]));
+    ordered = ids.map((id) => byId.get(id)).filter(Boolean);
+  }
   const inStock = ordered.filter((row: any) => totalItems(packsFromCloth(row).packs) > 0);
+  const slug = String(share.slug || share.token || value);
   return ok(
     serialize({
-      token: value,
-      title: String(share.title || '').trim(),
+      token: String(share.token || slug),
+      slug,
+      title: String(share.title || '').trim() || (showAll ? 'همه محصولات' : ''),
+      showAll,
+      catalogSlug,
+      storeName: String((store as any)?.name || '').trim(),
       clothes: inStock,
     }),
   );
@@ -1295,7 +1414,7 @@ function storeIdOf(cloth: any) {
 async function shareCheckoutContext(shareToken?: string) {
   const token = String(shareToken || '').trim();
   if (!token) return null;
-  const share = await (M().ProductShare.findOne({ token, isDeleted: false }) as any).lean();
+  const share = await (findShareByKey(token) as any);
   if (!share) return { token, storeId: '', brandId: '', sellerId: '' };
   return {
     token,
