@@ -521,6 +521,16 @@ const TelegramInviteSchema = defineSchema(
   { collection: 'telegraminvites' },
 );
 
+const PlanCatalogSchema = defineSchema(
+  {
+    key: { type: String, required: true, unique: true, index: true },
+    annualDiscount: { type: Number, default: 0.2 },
+    plans: { type: Schema.Types.Mixed, default: [] },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'plancatalogs' },
+);
+
 const PaymentIntentSchema = defineSchema(
   {
     kind: { type: String, required: true, enum: ['storefront', 'subscription'] },
@@ -583,6 +593,7 @@ export const UserPermision = modelOf<any>('UserPermision', UserPermisionSchema);
 export const ImageTokenPurchase = modelOf<any>('ImageTokenPurchase', ImageTokenPurchaseSchema);
 export const ImageEdit = modelOf<any>('ImageEdit', ImageEditSchema);
 export const ProductShare = modelOf<any>('ProductShare', ProductShareSchema);
+export const PlanCatalog = modelOf<any>('PlanCatalog', PlanCatalogSchema);
 export const PaymentIntent = modelOf<any>('PaymentIntent', PaymentIntentSchema);
 export const TelegramPublish = modelOf<any>('TelegramPublish', TelegramPublishSchema);
 export const TelegramInvite = modelOf<any>('TelegramInvite', TelegramInviteSchema);

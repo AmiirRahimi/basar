@@ -3,13 +3,12 @@ import {
   addCalendarMonths,
   cycleDays,
   cycleFromLegacy,
-  planById,
   planFeatureFlags,
-  planFromLegacy,
   planPrice,
   type BillingCycle,
   type PlanId,
 } from '@/lib/plans';
+import { cachedPlanById, livePlanById, livePlanCatalog, planFromRow } from './plan-catalog';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
@@ -44,23 +43,25 @@ export type SubscriptionSnapshot = {
   notifyCustomersOnNewProduct: boolean;
 };
 
-const INACTIVE: SubscriptionSnapshot = {
-  active: false,
-  remainingDays: 0,
-  planId: 'starter',
-  planName: planById('starter').name,
-  billingCycle: 'month',
-  maxBrands: 0,
-  maxStores: 0,
-  allowPartners: false,
-  allowClothImages: false,
-  allowProductShare: false,
-  allowShareSms: false,
-  notifyCustomersOnNewProduct: false,
-};
+function inactiveSnapshot(): SubscriptionSnapshot {
+  return {
+    active: false,
+    remainingDays: 0,
+    planId: 'starter',
+    planName: cachedPlanById('starter').name,
+    billingCycle: 'month',
+    maxBrands: 0,
+    maxStores: 0,
+    allowPartners: false,
+    allowClothImages: false,
+    allowProductShare: false,
+    allowShareSms: false,
+    notifyCustomersOnNewProduct: false,
+  };
+}
 
 export function snapshotFromRow(row: any): SubscriptionSnapshot {
-  const plan = planFromLegacy(Number(row?.subscriptionType || 0), row?.planId);
+  const plan = planFromRow(row);
   const cycle = cycleFromLegacy(Number(row?.subscriptionType || 0), row?.billingCycle);
   const end = row?.endDate ? new Date(row.endDate) : null;
   const remainingDays = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
@@ -108,17 +109,18 @@ export async function remainingDays(userId: string) {
 }
 
 export async function activeSubscription(userId: string): Promise<SubscriptionSnapshot> {
+  await livePlanCatalog();
   const row = await M()
     .UserSubscription.findOne({ _userId: oid(userId), endDate: { $gte: new Date() } })
     .sort({ endDate: -1 })
     .lean();
-  if (!row) return { ...INACTIVE };
+  if (!row) return inactiveSnapshot();
   return snapshotFromRow(row);
 }
 
 export async function subscriptionForSession(session: Session): Promise<SubscriptionSnapshot> {
   if (session.isPlatformAdmin || (process.env.ADMIN_PHONENUMBER && session.phonenumber === process.env.ADMIN_PHONENUMBER)) {
-    const plan = planById('brands');
+    const plan = await livePlanById('brands');
     return {
       active: true,
       remainingDays: 3650,
@@ -139,6 +141,7 @@ export async function subscriptionForSession(session: Session): Promise<Subscrip
 }
 
 export async function listPurchases(userId: string) {
+  await livePlanCatalog();
   const rows = await M().UserSubscription.find({ _userId: oid(userId) }).sort({ startDate: -1 }).lean();
   return rows.map((row: any) => {
     const snap = snapshotFromRow(row);
@@ -162,9 +165,10 @@ export async function previewPlanDiscount(
   discountCode = '',
 ): Promise<ActionResult> {
   await db();
-  const plan = planById(planId);
+  const catalog = await livePlanCatalog();
+  const plan = catalog.plans.find((row) => row.id === planId);
   if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
-  const originalPrice = planPrice(plan, cycle);
+  const originalPrice = planPrice(plan, cycle, catalog.annualDiscount);
   const { consumeDiscountCode } = await import('./admin');
   const discounted = await consumeDiscountCode(discountCode, originalPrice, session._id);
   if (!discounted.ok) return fail(discounted.message);
@@ -190,14 +194,15 @@ export async function buyPlan(
   if (session.storeRole && session.storeRole !== 'owner' && !session.isPlatformAdmin) {
     return fail('فقط صاحب برند می‌تواند اشتراک بخرد', 403);
   }
-  const plan = planById(planId);
+  const catalog = await livePlanCatalog();
+  const plan = catalog.plans.find((row) => row.id === planId);
   if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
   const current = await activeSubscription(session._id);
   const now = Date.now();
   const startMs = current.active && current.endDate ? Math.max(now, new Date(current.endDate).getTime()) : now;
   const startDate = new Date(startMs);
   const endDate = new Date(startMs + cycleDays(cycle) * 24 * 60 * 60 * 1000);
-  const originalPrice = planPrice(plan, cycle);
+  const originalPrice = planPrice(plan, cycle, catalog.annualDiscount);
   const { consumeDiscountCode } = await import('./admin');
   const discounted = await consumeDiscountCode(discountCode, originalPrice, session._id);
   if (!discounted.ok) return fail(discounted.message);
@@ -261,7 +266,8 @@ export async function adminSetSubscription(
   if (addMonths > 120) return fail('تعداد ماه بیش از حد مجاز است');
 
   const planId = String(payload.planId || overlapping[0]?.planId || 'starter');
-  const plan = planById(planId);
+  const catalog = await livePlanCatalog();
+  const plan = catalog.plans.find((row) => row.id === planId);
   if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
   const cycle: BillingCycle =
     addMonths >= 12
@@ -269,7 +275,7 @@ export async function adminSetSubscription(
       : payload.billingCycle === 'year' || payload.billingCycle === 'month'
         ? payload.billingCycle
         : cycleFromLegacy(Number(overlapping[0]?.subscriptionType || 0), overlapping[0]?.billingCycle);
-  const originalPrice = addMonths > 0 ? plan.monthlyPrice * addMonths : planPrice(plan, cycle);
+  const originalPrice = addMonths > 0 ? plan.monthlyPrice * addMonths : planPrice(plan, cycle, catalog.annualDiscount);
   const hasPrice = payload.price !== undefined && payload.price !== null && String(payload.price).trim() !== '';
   const price = hasPrice ? Math.max(0, Number(payload.price)) : addMonths > 0 ? originalPrice : keepPrice(overlapping[0]);
   if (!Number.isFinite(price)) return fail('مبلغ نامعتبر است');

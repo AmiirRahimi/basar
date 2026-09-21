@@ -1,5 +1,6 @@
 import type { StoreRole, StoreStaffRole } from './constants';
 import type { ClothPack } from './packs';
+import type { SubscriptionPlan } from './plans';
 
 export type { StoreRole, StoreStaffRole, ClothPack };
 
@@ -149,6 +150,10 @@ export type Workspace = {
   };
   imageTokens?: number;
   imageTokensUnlimited?: boolean;
+  planCatalog?: {
+    annualDiscount: number;
+    plans: SubscriptionPlan[];
+  };
   purchases?: {
     _id: string;
     planName?: string;

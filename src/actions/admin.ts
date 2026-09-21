@@ -9,6 +9,11 @@ import {
   updateAdminUser as updateUser,
   updateDiscountCode as updateCode,
 } from '@/server/admin';
+import {
+  getPlanCatalog as loadPlanCatalog,
+  resetPlanCatalog as restorePlanCatalog,
+  savePlanCatalog as persistPlanCatalog,
+} from '@/server/plan-catalog';
 
 export async function getAdminOverview() {
   return overview();
@@ -36,4 +41,19 @@ export async function setAdminSubscription(userId: string, payload: Record<strin
 
 export async function saveAdminUser(id: string, payload: Record<string, unknown>) {
   return saveUser(id, payload);
+}
+
+export async function getPlanCatalog() {
+  return loadPlanCatalog();
+}
+
+export async function savePlanCatalog(payload: {
+  annualDiscount?: number;
+  plans?: Array<Record<string, unknown>>;
+}) {
+  return persistPlanCatalog(payload as Parameters<typeof persistPlanCatalog>[0]);
+}
+
+export async function resetPlanCatalog() {
+  return restorePlanCatalog();
 }

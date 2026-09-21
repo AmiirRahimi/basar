@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { CountingLanding } from '@/components/counting/CountingLanding';
 import { getSession } from '@/server/session';
+import { livePlanCatalog } from '@/server/plan-catalog';
 import { pageShare } from '@/lib/share-meta';
 import { absoluteUrl } from '@/lib/site';
 import { BRAND_LOGO } from '@/lib/brand-logo';
@@ -18,6 +19,6 @@ export const metadata: Metadata = pageShare({
 });
 
 export default async function CountingIndex() {
-  const session = await getSession();
-  return <CountingLanding signedIn={Boolean(session)} />;
+  const [session, catalog] = await Promise.all([getSession(), livePlanCatalog()]);
+  return <CountingLanding signedIn={Boolean(session)} catalog={catalog} />;
 }

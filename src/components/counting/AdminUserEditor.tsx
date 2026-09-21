@@ -8,12 +8,13 @@ import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import {
   ADMIN_ADD_MONTH_OPTIONS,
   SUBSCRIPTION_PLANS,
-  planById,
+  planFromList,
   type PlanId,
 } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, FormCard, Input, Modal, Select, toast } from '@/ui';
+import { useWorkspace } from './WorkspaceProvider';
 
 const selectLabels = {
   search: 'جستجو',
@@ -36,20 +37,14 @@ export type EditableAdminUser = {
   endDate?: string;
 };
 
-const PLAN_OPTIONS = SUBSCRIPTION_PLANS.map((plan) => ({ value: plan.id, label: plan.name }));
-
-function asPlanId(value?: string): PlanId {
-  return planById(value).id;
-}
-
-function emptyForm(user: EditableAdminUser) {
+function emptyForm(user: EditableAdminUser, planId: PlanId) {
   return {
     fullName: user.fullName || '',
     phonenumber: user.phonenumber || '',
     email: user.email || '',
     city: user.city || '',
     address: user.address || '',
-    planId: asPlanId(user.planId),
+    planId,
     addMonths: '0',
     price: '',
   };
@@ -57,14 +52,19 @@ function emptyForm(user: EditableAdminUser) {
 
 export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | null; onClose: () => void }) {
   const router = useRouter();
+  const workspace = useWorkspace();
+  const plans = workspace?.planCatalog?.plans?.length ? workspace.planCatalog.plans : SUBSCRIPTION_PLANS;
+  const planOptions = plans.map((plan) => ({ value: plan.id, label: plan.name }));
   const [pending, start] = useTransition();
-  const [form, setForm] = useState(() => (user ? emptyForm(user) : null));
+  const [form, setForm] = useState(() =>
+    user ? emptyForm(user, planFromList(plans, user.planId).id) : null,
+  );
 
   useEffect(() => {
-    setForm(user ? emptyForm(user) : null);
+    setForm(user ? emptyForm(user, planFromList(plans, user.planId).id) : null);
   }, [user]);
 
-  const plan = planById(form?.planId);
+  const plan = planFromList(plans, form?.planId);
   const addMonths = Math.max(0, Math.trunc(Number(form?.addMonths || 0)));
   const suggestedPrice = addMonths > 0 ? plan.monthlyPrice * addMonths : 0;
 
@@ -153,7 +153,7 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
               label="طرح"
               value={form.planId}
               onChange={(v) => set('planId', String(v || 'starter'))}
-              options={PLAN_OPTIONS}
+              options={planOptions}
               labels={selectLabels}
             />
             <Input

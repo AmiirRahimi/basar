@@ -7,10 +7,9 @@ import { Check, X } from 'lucide-react';
 import { activateSubscription, previewSubscriptionDiscount } from '@/actions/auth';
 import {
   ANNUAL_DISCOUNT,
-  MONTHLY_BASE_TOMAN,
   SUBSCRIPTION_PLANS,
   cycleLabel,
-  planById,
+  planFromList,
   planPrice,
   type BillingCycle,
   type PlanId,
@@ -21,6 +20,7 @@ import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Workspace } from '@/lib/types';
 import { Button, FormCard, Input, Modal, toast } from '@/ui';
 import { Price, PriceSection } from './Price';
+import { useWorkspace } from './WorkspaceProvider';
 
 type DiscountPreview = {
   price: number;
@@ -43,10 +43,14 @@ export function SubscriptionPanel({
   const [discountCode, setDiscountCode] = useState('');
   const [applied, setApplied] = useState<DiscountPreview | null>(null);
   const [pending, start] = useTransition();
+  const workspace = useWorkspace();
+  const plans = workspace?.planCatalog?.plans?.length ? workspace.planCatalog.plans : SUBSCRIPTION_PLANS;
+  const annualDiscount = workspace?.planCatalog?.annualDiscount ?? ANNUAL_DISCOUNT;
+  const lowestMonthly = Math.min(...plans.map((plan) => plan.monthlyPrice));
   const remainingDays = Number(subscription?.remainingDays || 0);
   const active = Boolean(subscription?.active ?? remainingDays > 0);
-  const selectedPlan = selectedPlanId ? planById(selectedPlanId) : null;
-  const catalogPrice = selectedPlan ? planPrice(selectedPlan, cycle) : 0;
+  const selectedPlan = selectedPlanId ? planFromList(plans, selectedPlanId) : null;
+  const catalogPrice = selectedPlan ? planPrice(selectedPlan, cycle, annualDiscount) : 0;
   const payable = applied?.price ?? catalogPrice;
 
   useEffect(() => {
@@ -201,7 +205,7 @@ export function SubscriptionPanel({
           <div>
             <h3 className="text-sm font-semibold text-gray-900">{active ? 'تمدید یا ارتقا' : 'خرید اشتراک'}</h3>
             <p className="text-xs text-gray-500">
-              ماهانه از {toman(MONTHLY_BASE_TOMAN)}. سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪ تخفیف دارد. یک طرح را
+              ماهانه از {toman(lowestMonthly)}. سالانه {faNumber(annualDiscount * 100)}٪ تخفیف دارد. یک طرح را
               انتخاب کنید و بعد ادامه دهید.
             </p>
           </div>
@@ -229,8 +233,8 @@ export function SubscriptionPanel({
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {SUBSCRIPTION_PLANS.map((plan) => {
-            const price = planPrice(plan, cycle);
+          {plans.map((plan) => {
+            const price = planPrice(plan, cycle, annualDiscount);
             const yearlyFull = plan.monthlyPrice * 12;
             const selected = selectedPlanId === plan.id;
             return (
@@ -268,7 +272,7 @@ export function SubscriptionPanel({
                   description={
                     cycle === 'year' ? (
                       <>
-                        به‌جای <Price value={yearlyFull} /> — {faNumber(ANNUAL_DISCOUNT * 100)}٪ تخفیف
+                        به‌جای <Price value={yearlyFull} /> — {faNumber(annualDiscount * 100)}٪ تخفیف
                       </>
                     ) : (
                       'برای هر ماه'

@@ -14,6 +14,7 @@ import { fileModels } from './file-db';
 import * as mongo from './models';
 import { fail, failAuth, failDb, ok, type ActionResult } from './result';
 import { requireSession, setAuthCookies, signTokens, type Session } from './session';
+import { livePlanCatalog } from './plan-catalog';
 import { listPurchases, subscriptionForSession } from './subscription';
 
 function M() {
@@ -360,8 +361,10 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
     storeRole: role || context.storeRole,
     isPlatformAdmin: isAdmin,
   });
-  const purchases =
-    role === 'owner' || isAdmin ? await listPurchases(String(user._id)) : [];
+  const [purchases, planCatalog] = await Promise.all([
+    role === 'owner' || isAdmin ? listPurchases(String(user._id)) : Promise.resolve([]),
+    livePlanCatalog(),
+  ]);
   const tokenOwnerId =
     brands.find((brand) => brand._id === context._brandId)?._userId || String(user._id);
   let imageTokens = Number(user.imageTokens || 0);
@@ -385,6 +388,7 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       isPlatformAdmin: isAdmin,
       subscriptionActive: subscription.active,
       subscription,
+      planCatalog,
       imageTokens,
       imageTokensUnlimited: isAdmin,
       purchases,

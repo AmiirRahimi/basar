@@ -189,9 +189,17 @@ function FeatureArticle({ feature }: { feature: FeatureCard }) {
   );
 }
 
-export function CountingLanding({ signedIn }: { signedIn: boolean }) {
+export function CountingLanding({
+  signedIn,
+  catalog,
+}: {
+  signedIn: boolean;
+  catalog?: { annualDiscount: number; plans: typeof SUBSCRIPTION_PLANS };
+}) {
   const primaryHref = signedIn ? '/counting/dashboard' : '/counting/login';
   const primaryLabel = signedIn ? 'ورود به پنل' : 'ورود';
+  const annualDiscount = catalog?.annualDiscount ?? ANNUAL_DISCOUNT;
+  const plans = catalog?.plans?.length ? catalog.plans : SUBSCRIPTION_PLANS;
 
   return (
     <div data-shop className="min-h-screen bg-shop-bone text-shop-ink" dir="rtl">
@@ -292,13 +300,13 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             <p className="text-[11px] tracking-[0.22em] text-shop-saffron">اشتراک</p>
             <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">هر حجره به اندازه خودش شروع می‌کنه</h2>
             <p className="mt-3 leading-8 text-shop-ink/65">
-              از یک فروشگاه ساده تا چند برند و ویترین لینک‌دار. قیمت‌ها ماهانه‌ان؛ سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪
+              از یک فروشگاه ساده تا چند برند و ویترین لینک‌دار. قیمت‌ها ماهانه‌ان؛ سالانه {faNumber(annualDiscount * 100)}٪
               کمتر می‌دی.
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {SUBSCRIPTION_PLANS.map((plan) => (
+            {plans.map((plan) => (
               <article
                 key={plan.id}
                 className={cn(

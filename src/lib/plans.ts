@@ -135,12 +135,12 @@ export function isHighestPlan(id?: string | null) {
   return planById(id).id === 'brands';
 }
 
-export function annualPrice(monthlyPrice: number) {
-  return Math.round(monthlyPrice * 12 * (1 - ANNUAL_DISCOUNT));
+export function annualPrice(monthlyPrice: number, discount = ANNUAL_DISCOUNT) {
+  return Math.round(monthlyPrice * 12 * (1 - discount));
 }
 
-export function planPrice(plan: SubscriptionPlan, cycle: BillingCycle) {
-  return cycle === 'year' ? annualPrice(plan.monthlyPrice) : plan.monthlyPrice;
+export function planPrice(plan: SubscriptionPlan, cycle: BillingCycle, discount = ANNUAL_DISCOUNT) {
+  return cycle === 'year' ? annualPrice(plan.monthlyPrice, discount) : plan.monthlyPrice;
 }
 
 export function cycleDays(cycle: BillingCycle) {
@@ -163,9 +163,54 @@ export function limitLabel(value: number) {
   return value >= 99 ? 'نامحدود' : String(value);
 }
 
-export function planFromLegacy(type?: number, planId?: string) {
-  if (planId && SUBSCRIPTION_PLANS.some((plan) => plan.id === planId)) return planById(planId);
-  return SUBSCRIPTION_PLANS[0];
+export function mergePlanCatalog(stored?: {
+  annualDiscount?: number;
+  plans?: Array<Partial<SubscriptionPlan> & { id?: string }>;
+} | null) {
+  const raw = Number(stored?.annualDiscount);
+  const asRate = raw >= 1 && raw <= 90 ? raw / 100 : raw;
+  const annualDiscount =
+    Number.isFinite(asRate) && asRate >= 0 && asRate < 1 ? asRate : ANNUAL_DISCOUNT;
+  const byId = new Map((stored?.plans || []).map((plan) => [String(plan.id || ''), plan]));
+  const plans = SUBSCRIPTION_PLANS.map((base) => {
+    const patch = byId.get(base.id);
+    if (!patch) return { ...base, features: base.features.map((row) => ({ ...row })) };
+    const features =
+      Array.isArray(patch.features) && patch.features.length
+        ? patch.features
+            .map((row) => ({
+              label: String(row?.label || '').trim().slice(0, 80),
+              included: Boolean(row?.included),
+            }))
+            .filter((row) => row.label)
+            .slice(0, 16)
+        : base.features.map((row) => ({ ...row }));
+    return {
+      ...base,
+      name: String(patch.name || base.name).trim().slice(0, 40) || base.name,
+      blurb: String(patch.blurb || base.blurb).trim().slice(0, 220) || base.blurb,
+      monthlyPrice: Math.max(0, Math.round(Number(patch.monthlyPrice ?? base.monthlyPrice) || 0)),
+      maxBrands: Math.min(99, Math.max(1, Math.round(Number(patch.maxBrands ?? base.maxBrands) || 1))),
+      maxStores: Math.min(99, Math.max(1, Math.round(Number(patch.maxStores ?? base.maxStores) || 1))),
+      allowPartners: Boolean(patch.allowPartners ?? base.allowPartners),
+      allowClothImages: Boolean(patch.allowClothImages ?? base.allowClothImages),
+      allowProductShare: Boolean(patch.allowProductShare ?? base.allowProductShare),
+      allowShareSms: Boolean(patch.allowShareSms ?? base.allowShareSms),
+      notifyCustomersOnNewProduct: Boolean(patch.notifyCustomersOnNewProduct ?? base.notifyCustomersOnNewProduct),
+      highlight: Boolean(patch.highlight ?? base.highlight),
+      features,
+    };
+  });
+  return { annualDiscount, plans };
+}
+
+export function planFromList(plans: SubscriptionPlan[], id?: string | null) {
+  return plans.find((plan) => plan.id === id) || plans[0] || SUBSCRIPTION_PLANS[0];
+}
+
+export function planFromLegacy(type?: number, planId?: string, plans: SubscriptionPlan[] = SUBSCRIPTION_PLANS) {
+  if (planId && plans.some((plan) => plan.id === planId)) return planFromList(plans, planId);
+  return plans[0] || SUBSCRIPTION_PLANS[0];
 }
 
 export function cycleFromLegacy(type?: number, cycle?: string): BillingCycle {

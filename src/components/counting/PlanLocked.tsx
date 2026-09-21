@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { isHighestPlan, planById } from '@/lib/plans';
+import { isHighestPlan } from '@/lib/plans';
 import { useWorkspace } from './WorkspaceProvider';
 
 export function PlanLocked({
@@ -33,12 +33,14 @@ export function PlanLocked({
 export function PlanCapacityBanner() {
   const workspace = useWorkspace();
   if (!workspace || workspace.isPlatformAdmin) return null;
-  const plan = planById(workspace.subscription?.planId);
-  if (isHighestPlan(plan.id)) return null;
+  const planId = workspace.subscription?.planId;
+  if (isHighestPlan(planId)) return null;
   const brands = workspace.brands?.length || 0;
   const stores = workspace.stores?.length || 0;
-  const brandFull = brands >= plan.maxBrands;
-  const storeFull = stores >= plan.maxStores;
+  const maxBrands = workspace.subscription?.maxBrands ?? 1;
+  const maxStores = workspace.subscription?.maxStores ?? 1;
+  const brandFull = brands >= maxBrands;
+  const storeFull = stores >= maxStores;
   const detail = brandFull && storeFull
     ? 'ظرفیت برند و فروشگاه این طرح پر است.'
     : brandFull
@@ -46,12 +48,13 @@ export function PlanCapacityBanner() {
       : storeFull
         ? 'ظرفیت فروشگاه این طرح پر است.'
         : 'در طرح بالاتر می‌توانید حجره یا برند دیگری بسازید.';
+  const planName = workspace.subscription?.planName || 'فعلی';
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-950">
       <p className="font-semibold">با ارتقای طرح، برند یا فروشگاه دیگری اضافه کنید</p>
       <p className="mt-1">
-        طرح فعلی «{plan.name}» است: {plan.maxBrands >= 99 ? 'برند نامحدود' : `${plan.maxBrands} برند`} و{' '}
-        {plan.maxStores >= 99 ? 'فروشگاه نامحدود' : `${plan.maxStores} فروشگاه`}. {detail}
+        طرح فعلی «{planName}» است: {maxBrands >= 99 ? 'برند نامحدود' : `${maxBrands} برند`} و{' '}
+        {maxStores >= 99 ? 'فروشگاه نامحدود' : `${maxStores} فروشگاه`}. {detail}
       </p>
       <Link
         href="/counting/profile?tab=subscription"
