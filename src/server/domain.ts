@@ -599,8 +599,10 @@ function applyClothShopFields(body: Record<string, unknown>): ActionResult<Recor
   return ok(body);
 }
 
-function restrictClothPublish(session: Session, body: Record<string, unknown>, isCreate: boolean) {
+async function restrictClothPublish(session: Session, body: Record<string, unknown>, isCreate: boolean) {
   if (session.isPlatformAdmin) return;
+  const sub = await subscriptionForSession(session);
+  if (sub.allowProductShare) return;
   delete body.published;
   if (isCreate) body.published = false;
 }
@@ -821,7 +823,7 @@ export async function createResource(resource: string, payload: unknown): Promis
     const inventoried = applyClothInventory(next);
     if (!inventoried.ok) return inventoried;
     next = inventoried.data || next;
-    restrictClothPublish(auth.session, next, true);
+    await restrictClothPublish(auth.session, next, true);
     next = await applyClothCost(auth.session, next);
   }
   if (resource === 'check') {
@@ -921,7 +923,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
     const inventoried = applyClothInventoryUpdate(body, previous as Record<string, unknown> | null);
     if (!inventoried.ok) return inventoried;
     body = inventoried.data || body;
-    restrictClothPublish(auth.session, body, false);
+    await restrictClothPublish(auth.session, body, false);
     body = await applyClothCost(auth.session, body);
   }
   if (resource === 'check') {
@@ -1216,6 +1218,9 @@ export async function deleteProductShare(id: string): Promise<ActionResult> {
   if ('error' in access) return access.error;
   const denied = denyWrite(access.session, 'product-share');
   if (denied) return denied;
+  const sub = await subscriptionForSession(access.session);
+  const blocked = denyPlanFeature(sub, 'share');
+  if (blocked) return blocked;
   await db();
   const row = await M().ProductShare.findOne({
     _id: oid(id),

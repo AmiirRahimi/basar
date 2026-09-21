@@ -286,6 +286,10 @@ export function BrandStoreWorkspace() {
   const isOwner = workspace?.storeRole === 'owner' || Boolean(workspace?.isPlatformAdmin);
   const brands = workspace?.brands || [];
   const stores = workspace?.stores || [];
+  const maxBrands = workspace?.isPlatformAdmin ? 99 : Number(workspace?.subscription?.maxBrands || 0);
+  const maxStores = workspace?.isPlatformAdmin ? 99 : Number(workspace?.subscription?.maxStores || 0);
+  const canAddBrand = Boolean(writable && isOwner && brands.length < maxBrands);
+  const canAddStore = Boolean(writable && isOwner && stores.length < maxStores);
   const [brandId, setBrandId] = useState(workspace?.activeBrandId || brands[0]?._id || '');
   const [storeId, setStoreId] = useState(workspace?.activeStoreId || '');
   const [brandModal, setBrandModal] = useState<'create' | 'edit' | null>(null);
@@ -307,6 +311,10 @@ export function BrandStoreWorkspace() {
   const selectedStore = brandStores.find((store) => store._id === storeId) || brandStores[0];
 
   function openStoreModal() {
+    if (!canAddStore) {
+      toast.error('طرح فعلی فروشگاه بیشتری نمی‌دهد. طرح را ارتقا دهید.');
+      return;
+    }
     setStoreForm(emptyStoreForm());
     setStoreModal(true);
   }
@@ -364,7 +372,7 @@ export function BrandStoreWorkspace() {
         <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
           <div className="mb-2 flex items-center justify-between px-1">
             <p className="text-xs font-medium text-gray-500">برندها</p>
-            {writable ? (
+            {canAddBrand ? (
               <IconButton
                 type="button"
                 variant="ghost"
@@ -447,9 +455,11 @@ export function BrandStoreWorkspace() {
                     >
                       ویرایش برند
                     </Button>
+                    {canAddStore ? (
                     <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={openStoreModal}>
                       فروشگاه
                     </Button>
+                    ) : null}
                     {brands.length > 1 ? (
                       <Button
                         variant="danger"
@@ -468,7 +478,7 @@ export function BrandStoreWorkspace() {
             <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
               <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-semibold text-gray-900">فروشگاه‌ها</p>
-                {writable ? (
+                {canAddStore ? (
                   <Button size="sm" variant="outline" icon={<Plus className="h-4 w-4" />} onClick={openStoreModal}>
                     فروشگاه
                   </Button>
@@ -513,7 +523,7 @@ export function BrandStoreWorkspace() {
               ) : (
                 <div className="p-6">
                   <EmptyState icon={<Store className="h-6 w-6" />} message="این برند هنوز فروشگاهی ندارد." />
-                  {writable ? (
+                  {canAddStore ? (
                     <div className="mt-3 flex justify-center">
                       <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={openStoreModal}>
                         فروشگاه

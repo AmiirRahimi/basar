@@ -2,15 +2,16 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Copy, Link2, MessageSquare, Trash2 } from 'lucide-react';
 import { createProductShare, deleteProductShare, sendProductShareSms } from '@/actions/share';
 import { displayName, faDate, faNumber } from '@/lib/format';
 import { parseImageList } from '@/lib/shop-cart';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { ProductShare } from '@/lib/types';
+import type { ReactNode } from 'react';
 import { Button, FormCard, Input, Modal, Textarea, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
+import { PlanLocked } from './PlanLocked';
 
 function sharePath(token: string) {
   return `/s/${token}`;
@@ -38,10 +39,12 @@ export function ShareLinksBoard({
   clothes,
   shares,
   customers = [],
+  extra,
 }: {
   clothes: Record<string, any>[];
   shares: ProductShare[];
   customers?: Record<string, any>[];
+  extra?: ReactNode;
 }) {
   const router = useRouter();
   const workspace = useWorkspace();
@@ -78,6 +81,16 @@ export function ShareLinksBoard({
     });
   }, [customers, customerQ]);
 
+  if (!allowShare) {
+    return (
+      <PlanLocked
+        title="لینک محصول"
+        what="اینجا برای مشتری یک لینک اختصاصی می‌سازی. مدل‌هایی که انتخاب کرده‌ای را می‌بیند، به سبد می‌گذارد و همان‌جا پرداخت می‌کند — مثل این که ویترین خودت را برایش فرستاده باشی."
+        planHint="ویترین"
+      />
+    );
+  }
+
   function shareUrlForToken(token: string) {
     if (typeof window === 'undefined') return sharePath(token);
     return `${window.location.origin}${sharePath(token)}`;
@@ -85,7 +98,7 @@ export function ShareLinksBoard({
 
   function openSmsModal(share: ProductShare) {
     if (!allowSms) {
-      toast.error('ارسال پیامک لینک در طرح فروشگاه‌ها و بالاتر است');
+      toast.error('ارسال لینک با پیامک فقط در طرح ویترین است');
       return;
     }
     const url = shareUrlForToken(share.token);
@@ -131,7 +144,7 @@ export function ShareLinksBoard({
 
   function create(withSms = false) {
     if (!allowShare) {
-      toast.error('ساخت لینک محصول در طرح اشتراک شما نیست');
+      toast.error('ساخت لینک محصول فقط در طرح ویترین است. از تنظیمات طرح را ارتقا دهید.');
       return;
     }
     if (!selected.length) {
@@ -222,15 +235,6 @@ export function ShareLinksBoard({
           </div>
           <p className="text-sm text-gray-500">{faNumber(selected.length)} انتخاب‌شده</p>
         </div>
-        {!allowShare ? (
-          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            ساخت لینک محصول (ویترین اختصاصی، مثل فروشگاه خودتان) فقط در طرح ویترین است.{' '}
-            <Link href="/counting/profile?tab=subscription" className="underline">
-              طرح ویترین را ببینید
-            </Link>
-            .
-          </p>
-        ) : null}
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <Input label="عنوان لینک (اختیاری)" value={title} onChange={(e) => setTitle(e.target.value)} />
           <Input
@@ -408,6 +412,7 @@ export function ShareLinksBoard({
           </div>
         </FormCard>
       </Modal>
+      {extra}
     </div>
   );
 }

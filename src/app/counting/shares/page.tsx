@@ -27,23 +27,27 @@ export default async function SharesPage() {
   return (
     <CountingShell
       title="لینک محصول"
-      description="در طرح ویترین لینک بسازید تا مشتری همان مدل‌ها را ببیند، به سبد اضافه کند و پرداخت کند. سفارش‌ها و مبلغ در راه از درگاه پایین همین صفحه است."
+      description="برای مشتری لینک اختصاصی بسازید تا مدل‌ها را ببیند و بخرد."
       error={errorMessage(clothesRes) || errorMessage(sharesRes) || errorMessage(peopleRes) || errorMessage(ordersRes)}
     >
-      <div className="space-y-6">
-        <ShareLinksBoard clothes={clothes} shares={shares} customers={customers} />
-        <SellerStorefrontOrders
-          shares={shares}
-          board={
-            board || {
-              orders: [],
-              totals: { total: 0, platformFee: 0, sellerPayout: 0, pendingPayout: 0, paidPayout: 0, count: 0 },
-              feePercent: GATEWAY_FEE_PERCENT,
-              isPlatformAdmin: false,
+      <ShareLinksBoard
+        clothes={clothes}
+        shares={shares}
+        customers={customers}
+        extra={
+          <SellerStorefrontOrders
+            shares={shares}
+            board={
+              board || {
+                orders: [],
+                totals: { total: 0, platformFee: 0, sellerPayout: 0, pendingPayout: 0, paidPayout: 0, count: 0 },
+                feePercent: GATEWAY_FEE_PERCENT,
+                isPlatformAdmin: false,
+              }
             }
-          }
-        />
-      </div>
+          />
+        }
+      />
     </CountingShell>
   );
 }

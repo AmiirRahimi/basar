@@ -12,6 +12,7 @@ import { Button, Input, Modal, MultiSelect, toast } from '@/ui';
 import { AddPlusButton } from './PageAction';
 import { useWorkspace } from './WorkspaceProvider';
 import { useWritable } from './useWritable';
+import { PlanLocked } from './PlanLocked';
 
 const selectLabels = {
   search: 'جستجو',
@@ -169,12 +170,14 @@ export function PartnersPanel({
         {canManage ? <AddPlusButton label="ثبت شریک" onClick={openCreate} /> : null}
       </div>
 
-      {!showPlanLock ? null : (
-        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          ثبت شریک درآمد در طرح فعلی نیست. از اشتراک طرح را ارتقا دهید.
-        </p>
-      )}
-
+      {showPlanLock ? (
+        <PlanLocked
+          title="شریک درآمد"
+          what="شریک را روی برند یا فروشگاه می‌گذاری و سهم سود هر نفر جدا دیده می‌شود؛ بدون قاطی شدن حساب حجره."
+          planHint="دارای شریک درآمد"
+        />
+      ) : (
+        <>
       {selectedStore ? (
         <p className="mb-4 rounded-2xl bg-teal-50 px-4 py-3 text-sm text-teal-900">
           در «{selectedStore.name}» {faNumber(usedPercent)}٪ سهم شرکاست و {faNumber(ownerPercent)}٪ برای صاحب فروشگاه
@@ -226,6 +229,8 @@ export function PartnersPanel({
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">هنوز شریکی ثبت نشده است.</p>
+      )}
+        </>
       )}
 
       <Modal isOpen={Boolean(modal)} onClose={() => setModal(null)} title={modal === 'create' ? 'شریک جدید' : 'ویرایش شریک'}>

@@ -303,7 +303,7 @@ export default async function ClothesPage() {
             group: 'وضعیت فروشگاه',
             row: true,
           },
-          ...(workspace.data?.isPlatformAdmin
+          ...(workspace.data?.isPlatformAdmin || workspace.data?.subscription?.allowProductShare
             ? [
                 {
                   name: 'published',
