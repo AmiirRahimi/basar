@@ -33,10 +33,11 @@ export default async function SharesPage() {
       <div className="space-y-6">
         <ShareLinksBoard clothes={clothes} shares={shares} customers={customers} />
         <SellerStorefrontOrders
+          shares={shares}
           board={
             board || {
               orders: [],
-              totals: { total: 0, platformFee: 0, sellerPayout: 0, count: 0 },
+              totals: { total: 0, platformFee: 0, sellerPayout: 0, pendingPayout: 0, paidPayout: 0, count: 0 },
               feePercent: GATEWAY_FEE_PERCENT,
               isPlatformAdmin: false,
             }

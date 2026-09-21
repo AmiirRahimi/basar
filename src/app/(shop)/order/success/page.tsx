@@ -5,16 +5,23 @@ import { faNumber, toman } from '@/lib/format';
 export default async function OrderSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ids?: string }>;
+  searchParams: Promise<{ ids?: string; paid?: string }>;
 }) {
-  const { ids = '' } = await searchParams;
+  const { ids = '', paid } = await searchParams;
   const invoices = await getPublicOrders(ids.split(',').map((id) => id.trim()).filter(Boolean));
+  const gatewayPaid = paid === '1';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 lg:px-6">
-      <p className="text-[11px] tracking-[0.28em] text-shop-saffron">ثبت شد</p>
-      <h1 className="mt-2 text-4xl font-semibold">سفارش بسته‌ها در شمارش ثبت شد</h1>
-      <p className="mt-3 text-shop-ink/65">فاکتور برای کارکنان انبار قابل مشاهده است. پرداخت را جدا هماهنگ کنید.</p>
+      <p className="text-[11px] tracking-[0.28em] text-shop-saffron">{gatewayPaid ? 'پرداخت شد' : 'ثبت شد'}</p>
+      <h1 className="mt-2 text-4xl font-semibold">
+        {gatewayPaid ? 'پرداخت انجام شد و سفارش ثبت شد' : 'سفارش بسته‌ها در شمارش ثبت شد'}
+      </h1>
+      <p className="mt-3 text-shop-ink/65">
+        {gatewayPaid
+          ? 'فاکتور پرداخت‌شده در پنل فروشنده دیده می‌شود. مبلغ در حساب درگاه باسار است.'
+          : 'فاکتور برای کارکنان انبار قابل مشاهده است. پرداخت و چک را جدا هماهنگ کنید.'}
+      </p>
       <div className="mt-8 space-y-6">
         {invoices.length ? (
           invoices.map((invoice) => (
@@ -37,7 +44,7 @@ export default async function OrderSuccessPage({
             </article>
           ))
         ) : (
-          <p className="text-shop-ink/60">شماره سفارش در دسترس نیست. اگر ثبت کرده‌اید با انبار هماهنگ کنید.</p>
+          <p className="text-shop-ink/60">شماره سفارش در دسترس نیست. اگر پرداخت کرده‌اید با فروشنده هماهنگ کنید.</p>
         )}
       </div>
       <div className="mt-8 flex gap-3">

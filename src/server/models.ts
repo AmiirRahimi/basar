@@ -19,9 +19,13 @@ const UserSchema = defineSchema(
     email: { type: String, default: null },
     city: { type: String, default: null },
     address: { type: String, default: null },
+    sheba: { type: String, default: '' },
+    bankName: { type: String, default: '' },
+    cardNumber: { type: String, default: '' },
     password: { type: String, default: null },
     refreshToken: { type: String, default: null },
     imageTokens: { type: Number, default: 0 },
+    timeStamp: { type: Date, default: Date.now },
   },
   { collection: 'users' },
 );
@@ -313,6 +317,9 @@ const InvoiceSchema = defineSchema(
     platformFeePercent: { type: Number, default: 0 },
     platformFee: { type: Number, default: 0 },
     sellerPayout: { type: Number, default: 0 },
+    payoutStatus: { type: String, default: 'pending', enum: ['pending', 'paid'] },
+    payoutPaidAt: { type: Date, default: null },
+    payoutNote: { type: String, default: '' },
     isSent: { type: Boolean, required: true, default: false },
     timeStamp: { type: Date, default: Date.now },
     isDeleted: { type: Boolean, default: false },
@@ -508,6 +515,24 @@ const TelegramInviteSchema = defineSchema(
   { collection: 'telegraminvites' },
 );
 
+const PaymentIntentSchema = defineSchema(
+  {
+    kind: { type: String, required: true, enum: ['storefront', 'subscription'] },
+    status: { type: String, required: true, default: 'pending', enum: ['pending', 'paid', 'failed', 'expired'] },
+    amount: { type: Number, required: true, default: 0 },
+    authority: { type: String, default: '', index: true },
+    driver: { type: String, default: 'mock' },
+    refId: { type: String, default: '' },
+    shareToken: { type: String, default: '' },
+    snapshot: { type: Schema.Types.Mixed, default: {} },
+    userId: { type: String, default: '' },
+    expiresAt: { type: Date, required: true },
+    paidAt: { type: Date, default: null },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'paymentintents' },
+);
+
 const AttachmentSchema = defineSchema(
   {
     size: Number,
@@ -552,6 +577,7 @@ export const UserPermision = modelOf<any>('UserPermision', UserPermisionSchema);
 export const ImageTokenPurchase = modelOf<any>('ImageTokenPurchase', ImageTokenPurchaseSchema);
 export const ImageEdit = modelOf<any>('ImageEdit', ImageEditSchema);
 export const ProductShare = modelOf<any>('ProductShare', ProductShareSchema);
+export const PaymentIntent = modelOf<any>('PaymentIntent', PaymentIntentSchema);
 export const TelegramPublish = modelOf<any>('TelegramPublish', TelegramPublishSchema);
 export const TelegramInvite = modelOf<any>('TelegramInvite', TelegramInviteSchema);
 export const Attachment = modelOf<any>('Attachment', AttachmentSchema);

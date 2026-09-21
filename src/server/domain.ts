@@ -1183,7 +1183,7 @@ export async function listProductShares(): Promise<ActionResult> {
   const rows = await M()
     .ProductShare.find({ _storeId: oid(access.session._storeId), isDeleted: false })
     .sort({ timeStamp: -1 })
-    .limit(50)
+    .limit(200)
     .lean();
   return ok(
     serialize(
@@ -1324,7 +1324,32 @@ async function findOrCreateWholesaleCustomer(storeId: string, input: { fullName:
   return created._id;
 }
 
-export async function placeWholesaleOrder(input: {
+function platformAdminPhone() {
+  return (process.env.ADMIN_PHONENUMBER || '').trim();
+}
+
+function isPlatformAdminPhone(phonenumber: string) {
+  const admin = platformAdminPhone();
+  return Boolean(admin) && phonenumber === admin;
+}
+
+async function restoreSoldPacks(soldItems: any[]) {
+  for (const line of soldItems || []) {
+    const clothId = String(line._cloth || '');
+    if (!clothId) continue;
+    const cloth = await (M().Cloth.findOne({ _id: oid(clothId), isDeleted: false }) as any).lean();
+    if (!cloth) continue;
+    await writeStock(clothId, addPacks(packsFromCloth(cloth).packs, line.packs || []));
+  }
+}
+
+export async function releaseStorefrontReservation(soldItems: any[]): Promise<ActionResult> {
+  await db();
+  await restoreSoldPacks(soldItems);
+  return ok(null);
+}
+
+export async function reserveStorefrontCheckout(input: {
   fullName: string;
   phone: string;
   address: string;
@@ -1343,13 +1368,177 @@ export async function placeWholesaleOrder(input: {
   }
   const items = Array.isArray(input.items) ? input.items.filter((item) => item?.productId).slice(0, 20) : [];
   if (!items.length) return fail('سبد خالی است');
-
   const share = await shareCheckoutContext(input.shareToken);
+  if (!share?.token || !share.storeId) return fail('لینک محصول برای پرداخت پیدا نشد. دوباره از همان لینک وارد شوید.');
+  const shareRow = await (M().ProductShare.findOne({ token: share.token, isDeleted: false }) as any).lean();
+  const allowed = new Set(shareClothIds(shareRow?._clothIds));
+  if (!allowed.size) return fail('محصولی در این لینک نیست');
+  for (const item of items) {
+    const productId = String(item.productId);
+    if (!allowed.has(productId)) {
+      return fail('سبد شامل مدل‌هایی است که در این لینک نیستند. مدل‌های اضافه را حذف کنید یا از خود لینک دوباره سفارش دهید.');
+    }
+    const cloth = await (M().Cloth.findOne({ _id: oid(productId), isDeleted: false }) as any).lean();
+    if (!cloth) return fail('لباس پیدا نشد');
+    if (storeIdOf(cloth) !== share.storeId) return fail('این مدل به فروشگاه همین لینک تعلق ندارد');
+  }
+  const sold = await sellPublicPacks(items.map((item) => ({ _cloth: item.productId, packs: item.packs, count: item.count })));
+  if (!sold.ok) return sold;
+  const soldItems = sold.data || [];
+  const total = soldItems.reduce((sum: number, item: any) => sum + Number(item.count || 0) * Number(item.price || 0), 0);
+  return ok(
+    serialize({
+      shareToken: share.token,
+      customer: { fullName, phone, address },
+      soldItems,
+      total,
+      sellerId: share.sellerId,
+      brandId: share.brandId,
+      storeId: share.storeId,
+    }),
+  );
+}
+
+async function invoicesFromSoldGroups(input: {
+  soldItems: any[];
+  customer: { fullName: string; phone: string; address: string };
+  shareToken?: string;
+  storefront?: boolean;
+  sellerId?: string;
+  brandId?: string;
+  paymentRef?: string;
+}): Promise<ActionResult<{ invoices: PublicOrderSummary[] }>> {
+  const grouped = new Map<string, any[]>();
+  for (const line of input.soldItems || []) {
+    const storeId = String(line._storeId || '');
+    if (!storeId) return fail('فروشگاه این لباس مشخص نیست');
+    const bucket = grouped.get(storeId) || [];
+    bucket.push(line);
+    grouped.set(storeId, bucket);
+  }
+  const invoices: PublicOrderSummary[] = [];
+  const { fullName, phone, address } = input.customer;
+  for (const [storeId, soldItems] of grouped) {
+    const store = await (M().Store.findOne({ _id: oid(storeId) }) as any).lean();
+    const clientId = await findOrCreateWholesaleCustomer(storeId, { fullName, phone, address });
+    let invoiceNumber = Math.floor(10000 + Math.random() * 9000);
+    while (await M().Invoice.exists({ invoiceNumber })) {
+      invoiceNumber = Math.floor(10000 + Math.random() * 9000);
+    }
+    const invoiceTotal = soldItems.reduce(
+      (sum: number, item: any) => sum + Number(item.count || 0) * Number(item.price || 0),
+      0,
+    );
+    const storefront = Boolean(input.storefront);
+    const split = storefront ? splitGatewayAmount(invoiceTotal) : null;
+    const sellerId = input.sellerId || idFromRef(store?._userId);
+    const brandId = input.brandId || idFromRef(store?._brandId);
+    const seller = sellerId ? await (M().User.findById(sellerId) as any).lean() : null;
+    const sellerIsAdmin = isPlatformAdminPhone(String(seller?.phonenumber || ''));
+    const created = await M().Invoice.create({
+      _storeId: oid(storeId),
+      _brandId: brandId ? oid(brandId) : undefined,
+      _client: oid(clientId),
+      receiverAddress: address,
+      invoiceNumber,
+      publicToken: publicOrderToken(),
+      channel: storefront ? STOREFRONT_CHANNEL : '',
+      shareToken: storefront ? input.shareToken || '' : '',
+      _sellerUserId: storefront && sellerId ? oid(sellerId) : undefined,
+      platformFeePercent: split ? split.feePercent : 0,
+      platformFee: split ? split.platformFee : 0,
+      sellerPayout: split ? split.sellerPayout : 0,
+      payoutStatus: storefront ? (sellerIsAdmin ? 'paid' : 'pending') : 'pending',
+      payoutPaidAt: storefront && sellerIsAdmin ? new Date() : null,
+      payoutNote: storefront && sellerIsAdmin ? 'دریافت مستقیم در حساب درگاه' : '',
+      isSent: false,
+      isDeleted: false,
+    });
+    if (soldItems.length) {
+      await M().CustomerCart.insertMany(
+        soldItems.map((item: any) => ({
+          _storeId: oid(storeId),
+          _invoice: created._id,
+          _cloth: oid(item._cloth),
+          count: item.count,
+          packs: item.packs,
+          price: item.price,
+          isDeleted: false,
+        })),
+      );
+    }
+    if (storefront && invoiceTotal > 0) {
+      await M().Payment.create({
+        _storeId: oid(storeId),
+        _invoice: created._id,
+        _person: oid(clientId),
+        cash: invoiceTotal,
+        cashAmount: invoiceTotal,
+        checkAmount: 0,
+        creditAmount: 0,
+        discount: 0,
+        description: input.paymentRef ? `پرداخت از درگاه باسار · ${input.paymentRef}` : 'پرداخت از درگاه باسار',
+        isDeleted: false,
+      });
+    }
+    const lines = await (M().CustomerCart.find({ _invoice: created._id, isDeleted: false }) as any)
+      .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
+      .lean();
+    invoices.push(summarizePublicInvoice(created, lines));
+  }
+  return ok({ invoices });
+}
+
+export async function fulfillStorefrontReservation(snapshot: {
+  soldItems: any[];
+  customer: { fullName: string; phone: string; address: string };
+  shareToken?: string;
+  sellerId?: string;
+  brandId?: string;
+  paymentRef?: string;
+}): Promise<ActionResult> {
+  await db();
+  try {
+    const created = await invoicesFromSoldGroups({ ...snapshot, storefront: true });
+    if (!created.ok || !created.data) {
+      await restoreSoldPacks(snapshot.soldItems);
+      return created;
+    }
+    return ok(serialize(created.data), 'پرداخت انجام شد و سفارش ثبت شد');
+  } catch {
+    await restoreSoldPacks(snapshot.soldItems);
+    return failDb();
+  }
+}
+
+export async function placeWholesaleOrder(input: {
+  fullName: string;
+  phone: string;
+  address: string;
+  items: Array<{ productId: string; packs?: ClothPack[]; count?: number; price?: number }>;
+  shareToken?: string;
+}): Promise<ActionResult> {
+  await db();
+  if (String(input.shareToken || '').trim()) {
+    return fail('پرداخت این سفارش باید از درگاه باسار انجام شود');
+  }
+  const fullName = String(input.fullName || '').trim();
+  const phone = String(input.phone || '').trim();
+  const address = String(input.address || '').trim();
+  if (!fullName || !phone || !address) return fail('نام، موبایل و آدرس را کامل کنید');
+  if (!PHONE_RE.test(phone)) return fail('شماره موبایل معتبر نیست');
+  const ip = await clientIp();
+  if (!rateLimit(`checkout:ip:${ip}`, 5, 10 * 60 * 1000) || !rateLimit(`checkout:phone:${phone}`, 5, 10 * 60 * 1000)) {
+    return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
+  }
+  const items = Array.isArray(input.items) ? input.items.filter((item) => item?.productId).slice(0, 20) : [];
+  if (!items.length) return fail('سبد خالی است');
+
   const grouped = new Map<string, any[]>();
   for (const item of items) {
     const cloth = await (M().Cloth.findOne({ _id: oid(item.productId), isDeleted: false }) as any).lean();
     if (!cloth) return fail('لباس پیدا نشد');
-    const storeId = share?.storeId || storeIdOf(cloth);
+    const storeId = storeIdOf(cloth);
     if (!storeId) return fail('فروشگاه این لباس مشخص نیست');
     const bucket = grouped.get(storeId) || [];
     bucket.push({
@@ -1363,7 +1552,7 @@ export async function placeWholesaleOrder(input: {
   const invoices: PublicOrderSummary[] = [];
   const written: Array<{ clothId: string; packs: ClothPack[] }> = [];
   try {
-    for (const [storeId, storeItems] of grouped) {
+    for (const [, storeItems] of grouped) {
       const sold = await sellPublicPacks(storeItems);
       if (!sold.ok) {
         for (const row of written) {
@@ -1375,67 +1564,16 @@ export async function placeWholesaleOrder(input: {
       }
       const soldItems = sold.data || [];
       for (const line of soldItems) written.push({ clothId: String(line._cloth), packs: line.packs });
-      const store = await (M().Store.findOne({ _id: oid(storeId) }) as any).lean();
-      const clientId = await findOrCreateWholesaleCustomer(storeId, { fullName, phone, address });
-      let invoiceNumber = Math.floor(10000 + Math.random() * 9000);
-      while (await M().Invoice.exists({ invoiceNumber })) {
-        invoiceNumber = Math.floor(10000 + Math.random() * 9000);
-      }
-      const invoiceTotal = soldItems.reduce(
-        (sum: number, item: any) => sum + Number(item.count || 0) * Number(item.price || 0),
-        0,
-      );
-      const storefront = Boolean(share?.token);
-      const split = storefront ? splitGatewayAmount(invoiceTotal) : null;
-      const sellerId = share?.sellerId || idFromRef(store?._userId);
-      const brandId = share?.brandId || idFromRef(store?._brandId);
-      const created = await M().Invoice.create({
-        _storeId: oid(storeId),
-        _brandId: brandId ? oid(brandId) : undefined,
-        _client: oid(clientId),
-        receiverAddress: address,
-        invoiceNumber,
-        publicToken: publicOrderToken(),
-        channel: storefront ? STOREFRONT_CHANNEL : '',
-        shareToken: storefront ? share?.token : '',
-        _sellerUserId: storefront && sellerId ? oid(sellerId) : undefined,
-        platformFeePercent: split ? split.feePercent : 0,
-        platformFee: split ? split.platformFee : 0,
-        sellerPayout: split ? split.sellerPayout : 0,
-        isSent: false,
-        isDeleted: false,
+      const created = await invoicesFromSoldGroups({
+        soldItems,
+        customer: { fullName, phone, address },
+        storefront: false,
       });
-      if (soldItems.length) {
-        await M().CustomerCart.insertMany(
-          soldItems.map((item: any) => ({
-            _storeId: oid(storeId),
-            _invoice: created._id,
-            _cloth: oid(item._cloth),
-            count: item.count,
-            packs: item.packs,
-            price: item.price,
-            isDeleted: false,
-          })),
-        );
+      if (!created.ok || !created.data) {
+        await restoreSoldPacks(soldItems);
+        return created;
       }
-      if (storefront && invoiceTotal > 0) {
-        await M().Payment.create({
-          _storeId: oid(storeId),
-          _invoice: created._id,
-          _person: oid(clientId),
-          cash: invoiceTotal,
-          cashAmount: invoiceTotal,
-          checkAmount: 0,
-          creditAmount: 0,
-          discount: 0,
-          description: 'پرداخت از درگاه باسار',
-          isDeleted: false,
-        });
-      }
-      const lines = await (M().CustomerCart.find({ _invoice: created._id, isDeleted: false }) as any)
-        .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
-        .lean();
-      invoices.push(summarizePublicInvoice(created, lines));
+      invoices.push(...created.data.invoices);
     }
   } catch {
     return failDb();
@@ -1540,6 +1678,7 @@ async function mapStorefrontInvoices(rows: any[]): Promise<StorefrontOrder[]> {
       };
     });
     const paid = platformFee + sellerPayout;
+    const payoutStatus = String(row.payoutStatus || 'pending') === 'paid' ? 'paid' : 'pending';
     return {
       _id: String(row._id),
       invoiceNumber: row.invoiceNumber,
@@ -1548,16 +1687,33 @@ async function mapStorefrontInvoices(rows: any[]): Promise<StorefrontOrder[]> {
       customerPhone: personPhone(customer),
       sellerName: personLabel(seller) || 'فروشنده',
       sellerPhone: personPhone(seller),
+      sellerSheba: String(seller?.sheba || ''),
+      sellerBankName: String(seller?.bankName || ''),
+      sellerCard: String(seller?.cardNumber || ''),
       storeName: store?.name || 'فروشگاه',
       brandName: brand?.name || '',
       shareToken: String(row.shareToken || ''),
+      shareTitle: '',
       total: paid || mapped.reduce((sum: number, line: { total: number }) => sum + line.total, 0),
       feePercent: Number(row.platformFeePercent || GATEWAY_FEE_PERCENT),
       platformFee,
       sellerPayout,
+      payoutStatus,
+      payoutPaidAt: row.payoutPaidAt || '',
+      payoutNote: String(row.payoutNote || ''),
       lines: mapped,
     };
   });
+}
+
+async function withShareTitles(orders: StorefrontOrder[]): Promise<StorefrontOrder[]> {
+  const tokens = [...new Set(orders.map((row) => row.shareToken).filter(Boolean))];
+  if (!tokens.length) return orders;
+  const shares = await (M().ProductShare.find({ token: { $in: tokens } }) as any).lean();
+  const titles = new Map(
+    (Array.isArray(shares) ? shares : []).map((row: any) => [String(row.token), String(row.title || '')]),
+  );
+  return orders.map((row) => ({ ...row, shareTitle: titles.get(row.shareToken || '') || '' }));
 }
 
 function storefrontTotals(orders: StorefrontOrder[]) {
@@ -1566,9 +1722,11 @@ function storefrontTotals(orders: StorefrontOrder[]) {
       total: sum.total + row.total,
       platformFee: sum.platformFee + row.platformFee,
       sellerPayout: sum.sellerPayout + row.sellerPayout,
+      pendingPayout: sum.pendingPayout + (row.payoutStatus === 'paid' ? 0 : row.sellerPayout),
+      paidPayout: sum.paidPayout + (row.payoutStatus === 'paid' ? row.sellerPayout : 0),
       count: sum.count + 1,
     }),
-    { total: 0, platformFee: 0, sellerPayout: 0, count: 0 },
+    { total: 0, platformFee: 0, sellerPayout: 0, pendingPayout: 0, paidPayout: 0, count: 0 },
   );
 }
 
@@ -1581,11 +1739,11 @@ export async function listStorefrontOrders(): Promise<ActionResult> {
     .populate('_client', 'fullName phoneNumber')
     .populate('_storeId', 'name _userId _brandId')
     .populate('_brandId', 'name')
-    .populate('_sellerUserId', 'fullName phonenumber')
+    .populate('_sellerUserId', 'fullName phonenumber sheba bankName cardNumber')
     .sort({ timeStamp: -1 })
-    .limit(200)
+    .limit(500)
     .lean();
-  const orders = await mapStorefrontInvoices(rows);
+  const orders = await withShareTitles(await mapStorefrontInvoices(rows));
   const board: StorefrontOrderBoard = {
     orders,
     totals: storefrontTotals(orders),
@@ -1593,6 +1751,30 @@ export async function listStorefrontOrders(): Promise<ActionResult> {
     isPlatformAdmin: true,
   };
   return ok(serialize(board));
+}
+
+export async function markStorefrontPayout(
+  invoiceId: string,
+  payload: { paid?: boolean; note?: string },
+): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  if (!access.session.isPlatformAdmin) return fail('فقط ادمین اصلی به این بخش دسترسی دارد', 403);
+  await db();
+  const row = await (
+    M().Invoice.findOne({ _id: oid(invoiceId), channel: STOREFRONT_CHANNEL, isDeleted: false }) as any
+  ).lean();
+  if (!row) return fail('سفارش پیدا نشد', 404);
+  const paid = payload.paid !== false;
+  await M().Invoice.updateOne(
+    { _id: oid(invoiceId) },
+    {
+      payoutStatus: paid ? 'paid' : 'pending',
+      payoutPaidAt: paid ? new Date() : null,
+      payoutNote: String(payload.note || '').trim(),
+    },
+  );
+  return ok(null, paid ? 'واریز به فروشنده ثبت شد' : 'وضعیت واریز به حالت در انتظار برگشت');
 }
 
 export async function listSellerStorefrontOrders(): Promise<ActionResult> {
@@ -1609,11 +1791,11 @@ export async function listSellerStorefrontOrders(): Promise<ActionResult> {
     .populate('_client', 'fullName phoneNumber')
     .populate('_storeId', 'name _userId _brandId')
     .populate('_brandId', 'name')
-    .populate('_sellerUserId', 'fullName phonenumber')
+    .populate('_sellerUserId', 'fullName phonenumber sheba bankName cardNumber')
     .sort({ timeStamp: -1 })
-    .limit(100)
+    .limit(300)
     .lean();
-  const orders = await mapStorefrontInvoices(rows);
+  const orders = await withShareTitles(await mapStorefrontInvoices(rows));
   const board: StorefrontOrderBoard = {
     orders,
     totals: storefrontTotals(orders),

@@ -3,10 +3,11 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createColumnHelper } from '@tanstack/react-table';
-import { BadgePercent, Ban, CircleCheck, LogIn, Receipt, Sparkles, Ticket, UserX, Users } from 'lucide-react';
+import { BadgePercent, Ban, CircleCheck, LogIn, Receipt, Sparkles, Ticket, UserPlus, UserX, Users } from 'lucide-react';
 import { createDiscountCode, deleteDiscountCode, updateDiscountCode } from '@/actions/admin';
 import { cycleLabel } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
+import { persianYearMonth } from '@/lib/checks';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { recordViewPath } from '@/lib/record-view';
 import { Button, Input, MultiSelect, toast } from '@/ui';
@@ -35,6 +36,7 @@ type AdminUser = EditableAdminUser & {
   totalMonths: number;
   remainingDays: number;
   active: boolean;
+  registeredAt?: string;
 };
 
 type AdminPurchase = {
@@ -67,12 +69,25 @@ type AdminCode = {
 export type AdminOverview = {
   users: AdminUser[];
   purchases: AdminPurchase[];
+  monthlyPurchases?: { label: string; amount: number; count: number }[];
   codes: AdminCode[];
-  stats: { users: number; loggedIn: number; active: number; purchases: number };
+  stats: {
+    users: number;
+    loggedIn: number;
+    active: number;
+    purchases: number;
+    newUsersThisMonth?: number;
+    newUsersLastMonth?: number;
+    purchasesThisMonth?: number;
+    purchasesThisMonthAmount?: number;
+    purchasesLastMonth?: number;
+    purchasesLastMonthAmount?: number;
+  };
 };
 
 const TABS = [
   { id: 'all', label: 'همه کاربران', icon: Users },
+  { id: 'new', label: 'ثبت‌نام جدید', icon: UserPlus },
   { id: 'logged', label: 'واردشده', icon: LogIn },
   { id: 'active', label: 'اشتراک فعال', icon: BadgePercent },
   { id: 'purchases', label: 'خریدها', icon: Receipt },
@@ -91,12 +106,14 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
   const months = Math.max(0, Number(minMonths || 0));
+  const thisMonthKey = persianYearMonth(new Date());
   const users = useMemo(() => {
     if (tab === 'logged') return overview.users.filter((row) => row.loggedIn);
     if (tab === 'active') return overview.users.filter((row) => row.active);
+    if (tab === 'new') return overview.users.filter((row) => persianYearMonth(row.registeredAt) === thisMonthKey);
     if (tab === 'lapsed') return overview.users.filter((row) => !row.active && row.totalMonths >= months);
     return overview.users;
-  }, [overview.users, tab, months]);
+  }, [overview.users, tab, months, thisMonthKey]);
 
   const userOptions = overview.users.map((user) => ({
     value: user._id,
@@ -132,9 +149,12 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="همه کاربران" value={overview.stats.users} />
-        <Stat label="الان وارد شده‌اند" value={overview.stats.loggedIn} />
+        <Stat label="ثبت‌نام این ماه" value={overview.stats.newUsersThisMonth || 0} hint={`ماه قبل ${faNumber(overview.stats.newUsersLastMonth || 0)}`} />
         <Stat label="اشتراک فعال" value={overview.stats.active} />
-        <Stat label="خرید اشتراک" value={overview.stats.purchases} />
+        <Stat label="الان وارد شده‌اند" value={overview.stats.loggedIn} />
+        <Stat label="خرید اشتراک این ماه" value={overview.stats.purchasesThisMonth || 0} hint={toman(overview.stats.purchasesThisMonthAmount || 0)} />
+        <Stat label="خرید ماه قبل" value={overview.stats.purchasesLastMonth || 0} hint={toman(overview.stats.purchasesLastMonthAmount || 0)} />
+        <Stat label="کل خرید اشتراک" value={overview.stats.purchases} />
       </div>
 
       <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
@@ -175,7 +195,10 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
       ) : null}
 
       {tab === 'purchases' ? (
-        <PurchaseTable rows={overview.purchases} />
+        <div className="space-y-4">
+          <MonthlyPurchaseBars months={overview.monthlyPurchases || []} />
+          <PurchaseTable rows={overview.purchases} />
+        </div>
       ) : tab === 'codes' ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
           <section className="h-fit rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -255,12 +278,41 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
       <p className="text-xs text-gray-500">{label}</p>
       <p className="mt-1 text-2xl font-semibold">{faNumber(value)}</p>
+      {hint ? <p className="mt-1 text-[11px] text-gray-400">{hint}</p> : null}
     </div>
+  );
+}
+
+function MonthlyPurchaseBars({ months }: { months: { label: string; amount: number; count: number }[] }) {
+  const max = Math.max(...months.map((row) => Number(row.amount || 0)), 1);
+  const current = Number(persianYearMonth().split('/')[1] || 0);
+  if (!months.length) return null;
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <h3 className="mb-3 text-sm font-semibold text-gray-900">خرید اشتراک در ماه‌های امسال</h3>
+      <div className="flex h-40 items-end gap-1.5">
+        {months.map((row, index) => {
+          const amount = Number(row.amount || 0);
+          const height = Math.max((amount / max) * 100, amount ? 6 : 0);
+          const isCurrent = index + 1 === current;
+          return (
+            <div key={row.label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+              <div className="flex h-32 w-full items-end rounded-md bg-gray-50" title={`${row.label}: ${toman(amount)}`}>
+                <span className={`w-full rounded-t-md ${isCurrent ? 'bg-teal-600' : 'bg-teal-300'}`} style={{ height: `${height}%` }} />
+              </div>
+              <span className={`text-[10px] ${isCurrent ? 'font-semibold text-teal-800' : 'text-gray-500'}`}>
+                {row.label.slice(0, 3)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -279,6 +331,7 @@ function UserTable({
       helper.accessor('fullName', { header: 'نام', cell: (info) => info.getValue() || '—' }),
       helper.accessor('phonenumber', { header: 'موبایل', cell: (info) => <span dir="ltr">{info.getValue()}</span> }),
       helper.accessor('loggedIn', { header: 'ورود', cell: (info) => (info.getValue() ? 'وارد شده' : 'خارج') }),
+      helper.accessor('registeredAt', { header: 'ثبت‌نام', cell: (info) => faDate(info.getValue()) }),
       helper.accessor((row) => (row.active ? row.planName || 'فعال' : 'ندارد'), {
         id: 'subscription',
         header: 'اشتراک',

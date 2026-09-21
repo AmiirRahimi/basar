@@ -29,6 +29,7 @@ import {
   updateResource as update,
   listStorefrontOrders,
   listSellerStorefrontOrders,
+  markStorefrontPayout,
 } from '@/server/domain';
 import { listUsers as usersDb } from '@/server/auth';
 
@@ -82,6 +83,10 @@ export async function loadStorefrontOrders() {
 
 export async function loadSellerStorefrontOrders() {
   return listSellerStorefrontOrders();
+}
+
+export async function setStorefrontPayout(invoiceId: string, payload: { paid?: boolean; note?: string }) {
+  return markStorefrontPayout(invoiceId, payload);
 }
 
 export async function listPeople(page = 1, skip = 200) {

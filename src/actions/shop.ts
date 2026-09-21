@@ -15,7 +15,9 @@ import {
   loadSellerStorefrontOrders,
   loadStorefrontOrders,
   placePublicWholesaleOrder,
+  setStorefrontPayout,
 } from './crud';
+import { startStorefrontPayment } from '@/server/pay';
 
 export async function getCatalog(): Promise<CatalogProduct[]> {
   const published = await listPublicCatalog();
@@ -163,27 +165,70 @@ export async function rememberShareToken(token: string) {
   return { ok: true as const };
 }
 
+export async function forgetShareToken() {
+  (await cookies()).set(SHARE_TOKEN_COOKIE, '', { path: '/', maxAge: 0 });
+  return { ok: true as const };
+}
+
+export async function clearShopCheckout() {
+  await saveCart([]);
+  await forgetShareToken();
+}
+
 export async function checkoutWholesale(input: { fullName: string; phone: string; address: string }) {
   const cart = await getCartItems();
-  if (!cart.length) return { ok: false, message: 'سبد خالی است', invoices: [] as PublicOrderSummary[] };
+  if (!cart.length) {
+    return { ok: false, message: 'سبد خالی است', invoices: [] as PublicOrderSummary[], redirectUrl: '' };
+  }
   const items = cart
     .map((line) => ({ productId: line.productId, packs: line.packs }))
     .filter((line) => line.productId);
   const shareToken = (await cookies()).get(SHARE_TOKEN_COOKIE)?.value || '';
+  if (shareToken) {
+    const result = await startStorefrontPayment({
+      fullName: input.fullName,
+      phone: input.phone,
+      address: input.address,
+      items,
+      shareToken,
+    });
+    if (!result.ok || !result.data) {
+      return {
+        ok: false,
+        message: result.message || 'پرداخت شروع نشد',
+        invoices: [] as PublicOrderSummary[],
+        redirectUrl: '',
+      };
+    }
+    if (result.data.redirectUrl) {
+      return {
+        ok: true,
+        message: result.message || 'انتقال به درگاه',
+        invoices: [] as PublicOrderSummary[],
+        redirectUrl: result.data.redirectUrl,
+      };
+    }
+    const invoices = result.data.invoices || [];
+    await clearShopCheckout();
+    return { ok: true, message: result.message || 'پرداخت انجام شد', invoices, redirectUrl: '' };
+  }
   const result = await placePublicWholesaleOrder({
     fullName: input.fullName,
     phone: input.phone,
     address: input.address,
     items,
-    shareToken,
   });
   if (!result.ok || !result.data) {
-    return { ok: false, message: result.message || 'ثبت سفارش ناموفق بود', invoices: [] as PublicOrderSummary[] };
+    return {
+      ok: false,
+      message: result.message || 'ثبت سفارش ناموفق بود',
+      invoices: [] as PublicOrderSummary[],
+      redirectUrl: '',
+    };
   }
   await saveCart([]);
-  (await cookies()).set(SHARE_TOKEN_COOKIE, '', { path: '/', maxAge: 0 });
   const invoices = (result.data as { invoices?: PublicOrderSummary[] }).invoices || [];
-  return { ok: true, message: result.message || 'سفارش عمده ثبت شد', invoices };
+  return { ok: true, message: result.message || 'سفارش عمده ثبت شد', invoices, redirectUrl: '' };
 }
 
 export async function getPublicOrders(ids: string[]) {
@@ -198,4 +243,8 @@ export async function getStorefrontOrderBoard() {
 
 export async function getSellerStorefrontOrders() {
   return loadSellerStorefrontOrders();
+}
+
+export async function markStorefrontOrderPaid(invoiceId: string, payload: { paid?: boolean; note?: string }) {
+  return setStorefrontPayout(invoiceId, payload);
 }

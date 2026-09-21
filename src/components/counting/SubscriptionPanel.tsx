@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
@@ -48,6 +48,14 @@ export function SubscriptionPanel({
   const selectedPlan = selectedPlanId ? planById(selectedPlanId) : null;
   const catalogPrice = selectedPlan ? planPrice(selectedPlan, cycle) : 0;
   const payable = applied?.price ?? catalogPrice;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('paid') !== '1') return;
+    toast.success('پرداخت انجام شد و اشتراک فعال شد');
+    router.replace('/counting/profile?tab=subscription', { scroll: false });
+  }, [router]);
 
   const history = useMemo(() => purchases || [], [purchases]);
 
@@ -105,6 +113,11 @@ export function SubscriptionPanel({
       });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
+        const data = res.data as { redirectUrl?: string } | null;
+        if (data?.redirectUrl) {
+          window.location.href = data.redirectUrl;
+          return;
+        }
         toast.success(res.message || 'اشتراک فعال شد');
         setCheckoutOpen(false);
         setDiscountCode('');
@@ -329,7 +342,7 @@ export function SubscriptionPanel({
                 انصراف
               </Button>
               <Button disabled={pending || !selectedPlan} onClick={buy}>
-                {active ? 'تأیید تمدید' : 'تأیید خرید'}
+                {active ? 'پرداخت و تمدید' : 'پرداخت و فعال‌سازی'}
               </Button>
             </div>
           </div>

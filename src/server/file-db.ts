@@ -67,10 +67,12 @@ function matchField(doc: Doc, key: string, value: unknown) {
       const n = Array.isArray(doc[key]) ? doc[key].length : 0;
       return n === Number(op.$size);
     }
-    if ('$gte' in op || '$gt' in op) {
+    if ('$gte' in op || '$gt' in op || '$lte' in op || '$lt' in op) {
       const t = new Date(doc[key]).getTime();
       if (op.$gte && t < new Date(op.$gte as string | Date).getTime()) return false;
       if (op.$gt && t <= new Date(op.$gt as string | Date).getTime()) return false;
+      if (op.$lte && t > new Date(op.$lte as string | Date).getTime()) return false;
+      if (op.$lt && t >= new Date(op.$lt as string | Date).getTime()) return false;
       return true;
     }
   }
@@ -367,6 +369,7 @@ export const fileModels = {
   ImageTokenPurchase: new FileModel('imagetokenpurchases'),
   ImageEdit: new FileModel('imageedits'),
   ProductShare: new FileModel('productshares'),
+  PaymentIntent: new FileModel('paymentintents'),
   TelegramPublish: new FileModel('telegrampublishes'),
   TelegramInvite: new FileModel('telegraminvites'),
 };

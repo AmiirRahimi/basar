@@ -322,19 +322,33 @@ export type StorefrontOrder = {
   customerPhone: string;
   sellerName: string;
   sellerPhone: string;
+  sellerSheba?: string;
+  sellerBankName?: string;
+  sellerCard?: string;
   storeName: string;
   brandName: string;
   shareToken?: string;
+  shareTitle?: string;
   total: number;
   feePercent: number;
   platformFee: number;
   sellerPayout: number;
+  payoutStatus?: 'pending' | 'paid';
+  payoutPaidAt?: string;
+  payoutNote?: string;
   lines: PublicOrderLine[];
 };
 
 export type StorefrontOrderBoard = {
   orders: StorefrontOrder[];
-  totals: { total: number; platformFee: number; sellerPayout: number; count: number };
+  totals: {
+    total: number;
+    platformFee: number;
+    sellerPayout: number;
+    pendingPayout: number;
+    paidPayout: number;
+    count: number;
+  };
   feePercent: number;
   isPlatformAdmin: boolean;
 };

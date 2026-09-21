@@ -23,9 +23,13 @@ export function CheckoutForm({ storefront = false }: { storefront?: boolean }) {
         start(async () => {
           const res = await checkoutWholesale({ fullName, phone, address });
           setMessage(res.message);
+          if (res.ok && res.redirectUrl) {
+            window.location.href = res.redirectUrl;
+            return;
+          }
           if (res.ok && res.invoices.length) {
             const ids = res.invoices.map((invoice) => invoice.id).join(',');
-            router.push(`/order/success?ids=${encodeURIComponent(ids)}`);
+            router.push(`/order/success?ids=${encodeURIComponent(ids)}${storefront ? '&paid=1' : ''}`);
           }
         });
       }}
@@ -42,12 +46,12 @@ export function CheckoutForm({ storefront = false }: { storefront?: boolean }) {
       </ShopField>
       <p className="text-sm text-shop-ink/60">
         {storefront
-          ? 'پرداخت از درگاه باسار انجام می‌شود و سفارش برای فروشندهٔ لینک در پنل ثبت می‌گردد.'
+          ? 'پس از ثبت مشخصات به درگاه باسار می‌روید. مبلغ به حساب پلتفرم واریز می‌شود و سفارش برای فروشندهٔ همین لینک ثبت می‌گردد.'
           : 'فاکتور در شمارش ثبت می‌شود. پرداخت و چک را کارکنان بعد از هماهنگی وارد می‌کنند.'}
       </p>
       {message ? <p className="text-sm text-shop-madder">{message}</p> : null}
       <ShopButton type="submit" disabled={pending || totals.packs < 1} className="w-full">
-        {pending ? 'در حال ثبت...' : storefront ? 'پرداخت و ثبت سفارش' : 'ثبت سفارش بسته‌ها'}
+        {pending ? 'در حال ثبت...' : storefront ? 'پرداخت از درگاه' : 'ثبت سفارش بسته‌ها'}
       </ShopButton>
     </form>
   );

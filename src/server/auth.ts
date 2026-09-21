@@ -12,7 +12,9 @@ import {
   ensureOwnerWorkspace,
   resolveLoginContext,
 } from './workspace';
-import { buyPlan, previewPlanDiscount, remainingDays } from './subscription';
+import { previewPlanDiscount, remainingDays } from './subscription';
+import { startSubscriptionPayment } from './pay';
+import { normalizeCardNumber, normalizeSheba, shebaIsValid } from '@/lib/iran-bank';
 import { clampPage } from './paging';
 import { clientIp, rateLimit } from './rate-limit';
 
@@ -182,12 +184,19 @@ export async function updateProfile(payload: Record<string, unknown>): Promise<A
   await db();
   const auth = await requireSession();
   if ('error' in auth) return auth.error;
+  if (payload.sheba != null) {
+    const sheba = normalizeSheba(payload.sheba);
+    if (sheba && !shebaIsValid(sheba)) return fail('شماره شبا باید با IR و ۲۴ رقم باشد');
+  }
   const updated = await M().User.findByIdAndUpdate(
     auth.session._id,
     {
       ...(payload.fullName != null ? { fullName: String(payload.fullName).trim() } : {}),
       ...(payload.address != null ? { address: String(payload.address).trim() } : {}),
       ...(payload.city != null ? { city: String(payload.city).trim() } : {}),
+      ...(payload.bankName != null ? { bankName: String(payload.bankName).trim() } : {}),
+      ...(payload.sheba != null ? { sheba: normalizeSheba(payload.sheba) } : {}),
+      ...(payload.cardNumber != null ? { cardNumber: normalizeCardNumber(payload.cardNumber) } : {}),
     },
     { new: true },
   )
@@ -202,7 +211,7 @@ export async function activateSubscription(payload: Record<string, unknown>): Pr
   if ('error' in access) return access.error || fail('وارد شوید', 401);
   const planId = String(payload.planId || 'starter');
   const cycle = payload.billingCycle === 'year' ? 'year' : 'month';
-  return buyPlan(access.session, planId, cycle, String(payload.discountCode || ''));
+  return startSubscriptionPayment(access.session, planId, cycle, String(payload.discountCode || ''));
 }
 
 export async function previewSubscriptionDiscount(payload: Record<string, unknown>): Promise<ActionResult> {

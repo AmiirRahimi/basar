@@ -1,7 +1,9 @@
 import { PHONE_RE } from '@/lib/constants';
+import { PERSIAN_MONTHS, persianYearMonth } from '@/lib/checks';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
+import mongoose from 'mongoose';
 import { fail, ok, type ActionResult } from './result';
 import { adminSetSubscription, snapshotFromRow } from './subscription';
 import type { Session } from './session';
@@ -37,6 +39,26 @@ export async function requirePlatformAdmin(): Promise<{ session: Session } | { e
     return { error: fail('فقط ادمین اصلی به این بخش دسترسی دارد', 403) };
   }
   return { session: access.session };
+}
+
+function registeredAt(user: { _id?: unknown; timeStamp?: unknown }) {
+  if (user.timeStamp) return user.timeStamp;
+  try {
+    return new mongoose.Types.ObjectId(String(user._id)).getTimestamp();
+  } catch {
+    return '';
+  }
+}
+
+function shiftPersianMonth(key: string, delta: number) {
+  const [yearRaw, monthRaw] = key.split('/');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  if (!year || !month) return '';
+  const idx = year * 12 + (month - 1) + delta;
+  const nextYear = Math.floor(idx / 12);
+  const nextMonth = (idx % 12) + 1;
+  return `${nextYear}/${String(nextMonth).padStart(2, '0')}`;
 }
 
 export async function getAdminOverview(): Promise<ActionResult> {
@@ -77,6 +99,9 @@ export async function getAdminOverview(): Promise<ActionResult> {
       planName: active?.planName || '',
       billingCycle: active?.billingCycle || '',
       endDate: active?.endDate || '',
+      registeredAt: registeredAt(user),
+      sheba: user.sheba || '',
+      bankName: user.bankName || '',
     };
   });
   const purchases = subscriptions.map((row: any) => {
@@ -97,10 +122,28 @@ export async function getAdminOverview(): Promise<ActionResult> {
       active: snap.active,
     };
   });
+  const nowKey = persianYearMonth(new Date());
+  const lastKey = shiftPersianMonth(nowKey, -1);
+  const yearKey = nowKey.slice(0, 4);
+  const monthlyPurchases = PERSIAN_MONTHS.map((label) => ({ label, amount: 0, count: 0 }));
+  for (const row of purchases) {
+    const key = persianYearMonth(row.startDate);
+    const [year, month] = key.split('/');
+    if (year !== yearKey) continue;
+    const index = Number(month) - 1;
+    if (index < 0 || index > 11) continue;
+    monthlyPurchases[index].amount += Number(row.price || 0);
+    monthlyPurchases[index].count += 1;
+  }
+  const thisMonthPurchases = purchases.filter((row) => persianYearMonth(row.startDate) === nowKey);
+  const lastMonthPurchases = purchases.filter((row) => persianYearMonth(row.startDate) === lastKey);
+  const thisMonthUsers = userRows.filter((row) => persianYearMonth(row.registeredAt) === nowKey);
+  const lastMonthUsers = userRows.filter((row) => persianYearMonth(row.registeredAt) === lastKey);
   return ok(
     serialize({
       users: userRows,
       purchases,
+      monthlyPurchases,
       codes: codes.map((row: any) => {
         const userIds = parseUserIds(row._userIds);
         return {
@@ -126,6 +169,12 @@ export async function getAdminOverview(): Promise<ActionResult> {
         loggedIn: userRows.filter((row) => row.loggedIn).length,
         active: userRows.filter((row) => row.active).length,
         purchases: purchases.length,
+        newUsersThisMonth: thisMonthUsers.length,
+        newUsersLastMonth: lastMonthUsers.length,
+        purchasesThisMonth: thisMonthPurchases.length,
+        purchasesThisMonthAmount: thisMonthPurchases.reduce((sum, row) => sum + Number(row.price || 0), 0),
+        purchasesLastMonth: lastMonthPurchases.length,
+        purchasesLastMonthAmount: lastMonthPurchases.reduce((sum, row) => sum + Number(row.price || 0), 0),
       },
     }),
   );

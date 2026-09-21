@@ -43,6 +43,9 @@ export function ProfileSettings({
     phonenumber?: string;
     phoneNumber?: string;
     remainingDaysOfSubscription?: number;
+    sheba?: string;
+    bankName?: string;
+    cardNumber?: string;
   };
   initialTab?: string;
 }) {
@@ -119,12 +122,18 @@ function AccountSection({
     city?: string;
     phonenumber?: string;
     phoneNumber?: string;
+    sheba?: string;
+    bankName?: string;
+    cardNumber?: string;
   };
 }) {
   const workspace = useWorkspace();
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [address, setAddress] = useState(user?.address || '');
   const [city, setCity] = useState(String(user?.city || ''));
+  const [bankName, setBankName] = useState(user?.bankName || '');
+  const [sheba, setSheba] = useState(user?.sheba || '');
+  const [cardNumber, setCardNumber] = useState(user?.cardNumber || '');
   const [pending, start] = useTransition();
   const phone = String(user?.phonenumber || user?.phoneNumber || workspace?.user.phonenumber || '');
   const roleLabel = useMemo(() => {
@@ -160,13 +169,31 @@ function AccountSection({
             labels={selectLabels}
           />
           <Input label="آدرس" value={address} onChange={(e) => setAddress(e.target.value)} />
+          <Input label="نام بانک" value={bankName} onChange={(e) => setBankName(e.target.value)} />
+          <Input
+            label="شبا"
+            dir="ltr"
+            value={sheba}
+            onChange={(e) => setSheba(e.target.value)}
+            placeholder="IRxxxxxxxxxxxxxxxxxxxxxxxx"
+          />
+          <Input
+            label="شماره کارت (اختیاری)"
+            dir="ltr"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(e.target.value)}
+          />
         </div>
+        <p className="mt-2 text-xs text-gray-500">
+          شبا برای واریز سهم فروش از لینک محصول لازم است. پرداخت مشتری به حساب درگاه باسار می‌رود و ادمین بر اساس شبا به
+          شما واریز می‌کند.
+        </p>
         <div className="mt-4">
           <Button
             disabled={pending}
             onClick={() =>
               start(async () => {
-                const res = await updateProfile({ fullName, address, city });
+                const res = await updateProfile({ fullName, address, city, bankName, sheba, cardNumber });
                 if (redirectIfUnauthorized(res)) return;
                 if (res.ok) toast.success(res.message || 'ذخیره شد');
                 else toast.error(res.message || 'ذخیره نشد');
