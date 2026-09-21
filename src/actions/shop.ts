@@ -11,6 +11,7 @@ import {
   getPublicCatalogProduct,
   getShopCartProduct,
   listPublicCatalog,
+  listPublicKinds,
   loadPublicOrders,
   loadSellerStorefrontOrders,
   loadStorefrontOrders,
@@ -23,6 +24,16 @@ export async function getCatalog(): Promise<CatalogProduct[]> {
   const published = await listPublicCatalog();
   if (published.ok && Array.isArray(published.data) && published.data.length) {
     return published.data.map((cloth) => clothToProduct(cloth as Cloth));
+  }
+  return [];
+}
+
+export async function getPublicKinds(): Promise<{ id: string; name: string }[]> {
+  const res = await listPublicKinds();
+  if (res.ok && Array.isArray(res.data)) {
+    return res.data
+      .map((row: { id?: string; name?: string }) => ({ id: String(row.id || ''), name: String(row.name || '').trim() }))
+      .filter((row) => row.id && row.name);
   }
   return [];
 }

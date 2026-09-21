@@ -1,7 +1,20 @@
-import { getCatalog } from '@/actions/shop';
+import type { Metadata } from 'next';
+import { getCatalog, getPublicKinds } from '@/actions/shop';
 import { HomeLanding } from '@/components/shop/HomeLanding';
+import { absoluteUrl } from '@/lib/site';
+
+const title = 'جین پوش | شلوار جین و پوشاک عمده از بازار بزرگ تهران';
+const description =
+  'فروش عمده شلوار جین، کتان و پوشاک از حجره جین پوش در بازار آهنگران. سفارش با بسته، موجودی روز حجره خانواده رحیمی.';
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: absoluteUrl('/') },
+  openGraph: { title, description, url: absoluteUrl('/'), locale: 'fa_IR', type: 'website' },
+};
 
 export default async function HomePage() {
-  const products = await getCatalog();
-  return <HomeLanding products={products} />;
+  const [products, kinds] = await Promise.all([getCatalog(), getPublicKinds()]);
+  return <HomeLanding products={products} kinds={kinds} />;
 }

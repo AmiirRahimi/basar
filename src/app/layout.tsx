@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { Toaster } from '@/ui/components/Toast';
+import { siteOrigin } from '@/lib/site';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'جین پوش | خانواده رحیمی',
-  description: 'برند پوشاک خانواده رحیمی با بیش از ۴۵ سال فعالیت در بازار بزرگ تهران',
+  metadataBase: new URL(siteOrigin()),
+  title: 'جین پوش | شلوار جین و پوشاک عمده از بازار بزرگ تهران',
+  description: 'فروش عمده شلوار جین و پوشاک از حجره جین پوش در بازار بزرگ تهران',
   icons: {
     icon: [
       { url: '/brand/favicon.png', sizes: '32x32', type: 'image/png' },

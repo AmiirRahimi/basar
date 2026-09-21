@@ -16,9 +16,11 @@ import {
   Store,
   X,
 } from 'lucide-react';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { BRAND } from '@/lib/brand';
 import { faNumber, toman } from '@/lib/format';
+import { countingSoftwareLd } from '@/lib/json-ld';
 import { ANNUAL_DISCOUNT, SUBSCRIPTION_PLANS } from '@/lib/plans';
 import { ShopButton } from '@/components/shop/ShopUi';
 import { cn } from '@/ui';
@@ -188,6 +190,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
 
   return (
     <div data-shop className="min-h-screen bg-shop-bone text-shop-ink" dir="rtl">
+      <JsonLd data={countingSoftwareLd()} />
       <header className="sticky top-0 z-40 border-b border-white/10 bg-sidebar-gradient/95 text-shop-bone backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
           <Link href="/counting" className="flex items-center gap-2.5">

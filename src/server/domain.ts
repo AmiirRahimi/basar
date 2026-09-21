@@ -1012,6 +1012,18 @@ export async function listPublicClothes(): Promise<ActionResult> {
   return ok(serialize(inStock));
 }
 
+export async function listPublicClothKinds(): Promise<ActionResult> {
+  await db();
+  const rows = await M().ClothKind.find().sort({ name: 1 }).lean();
+  const kinds = (Array.isArray(rows) ? rows : [])
+    .map((row: { _id?: unknown; name?: unknown }) => ({
+      id: String(row._id || ''),
+      name: String(row.name || '').trim(),
+    }))
+    .filter((row) => row.id && row.name);
+  return ok(serialize(kinds));
+}
+
 export async function getPublicClothById(id: string): Promise<ActionResult> {
   const row = await loadPublicCloth({ _id: oid(id), isDeleted: false, published: true });
   if (!row) return fail('لباس پیدا نشد', 404);

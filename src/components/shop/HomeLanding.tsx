@@ -1,6 +1,9 @@
+import { JsonLd } from '@/components/seo/JsonLd';
 import { BRAND, BRAND_ADDRESSES, BRAND_PHONES, colorSwatch } from '@/lib/brand';
-import { collectionsFromCatalog, colorsFromCatalog, newFromCatalog, saleFromCatalog } from '@/lib/catalog';
+import { collectionsForSeo, colorsFromCatalog, newFromCatalog, saleFromCatalog } from '@/lib/catalog';
+import { collectionPath } from '@/lib/collection-slug';
 import { faNumber } from '@/lib/format';
+import { shopOrganizationLd } from '@/lib/json-ld';
 import type { CatalogProduct } from '@/lib/types';
 import Link from 'next/link';
 import { ProductGrid, ProductRail } from './ProductRail';
@@ -35,26 +38,33 @@ function SectionHead({
   );
 }
 
-export function HomeLanding({ products }: { products: CatalogProduct[] }) {
+export function HomeLanding({
+  products,
+  kinds = [],
+}: {
+  products: CatalogProduct[];
+  kinds?: { id: string; name: string }[];
+}) {
   const newest = newFromCatalog(products);
   const sale = saleFromCatalog(products);
-  const collections = collectionsFromCatalog(products);
+  const collections = collectionsForSeo(products, kinds);
   const colors = colorsFromCatalog(products);
   const ready = products.slice(0, 12);
 
   return (
     <div>
+      <JsonLd data={shopOrganizationLd()} />
       <section data-shop-hero data-shop-dark className="relative isolate min-h-[100dvh] w-full overflow-hidden bg-shop-ink text-shop-bone">
         <div className="absolute inset-0 animate-shop-kenburns bg-cover bg-center opacity-50" style={{ backgroundImage: `url(${HERO})` }} />
         <div className="shop-grain absolute inset-0 bg-gradient-to-l from-shop-ink via-shop-ink/82 to-shop-ink/35" />
         <div className="relative mx-auto flex min-h-[100dvh] max-w-7xl flex-col justify-end gap-5 px-4 py-12 sm:gap-8 sm:py-16 lg:px-6 lg:py-24">
           <p className="max-w-[18rem] text-[10px] tracking-[0.18em] text-shop-saffron sm:max-w-none sm:text-xs sm:tracking-[0.38em]">{BRAND.tagline}</p>
           <h1 className="max-w-4xl text-[2.15rem] font-semibold leading-[1.15] text-shop-bone sm:text-5xl md:text-7xl">
-            {BRAND.name}
-            <span className="mt-2 block text-shop-saffron">جین از بازار بزرگ تهران</span>
+            پوشاک جین عمده
+            <span className="mt-2 block text-shop-saffron">از بازار بزرگ تهران</span>
           </h1>
           <p className="max-w-xl text-base leading-7 text-shop-bone/75 sm:text-lg sm:leading-8">
-            بیش از {faNumber(BRAND.years)} سال پوشاک خانواده رحیمی در بازار آهنگران. کالکشن جدید، حراج‌های روز و موجودی عمده با بسته.
+            جین پوش حجره خانواده رحیمی است. شلوار جین، کتان و پوشاک دیگر را عمده، با بسته، از بازار آهنگران می‌فرستیم — نه عدد تکی.
           </p>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <ShopButton href="/catalog" className="px-5 py-2.5 text-sm sm:px-7 sm:py-3 sm:text-base">
@@ -125,12 +135,12 @@ export function HomeLanding({ products }: { products: CatalogProduct[] }) {
 
       {collections.length ? (
         <section className="mx-auto max-w-7xl px-4 py-8 lg:px-6">
-          <SectionHead eyebrow="دسته‌بندی" title="مجموعه‌ها" href="/catalog" linkLabel="همه محصولات" />
+          <SectionHead eyebrow="دسته‌بندی" title="شلوار جین و بقیه انواع" href="/catalog" linkLabel="همه محصولات" />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {collections.map((collection) => (
               <Link
                 key={collection.id}
-                href={`/catalog?type=${encodeURIComponent(collection.id)}`}
+                href={collectionPath(collection.name, collection.id, collections)}
                 className="group relative h-44 overflow-hidden rounded-2xl sm:h-56"
               >
                 <div
@@ -212,9 +222,9 @@ export function HomeLanding({ products }: { products: CatalogProduct[] }) {
       <section className="mx-auto max-w-7xl px-4 pb-8 lg:px-6">
         <div data-shop-dark className="overflow-hidden rounded-2xl bg-shop-ink px-5 py-10 text-shop-bone sm:px-6 sm:py-14 md:px-12">
           <p className="text-[11px] tracking-[0.28em] text-shop-saffron">{BRAND.latin}</p>
-          <h2 className="mt-3 max-w-2xl text-2xl font-semibold text-shop-bone sm:text-3xl md:text-5xl">موجودی کامل جین پوش را ببینید</h2>
+          <h2 className="mt-3 max-w-2xl text-2xl font-semibold text-shop-bone sm:text-3xl md:text-5xl">موجودی عمده حجره را ببینید</h2>
           <p className="mt-4 max-w-xl leading-8 text-shop-bone/70">
-            فیلتر بر اساس قیمت، نوع و رنگ. سفارش عمده با بسته از همین سایت ثبت می‌شود.
+            نوع لباس را از مجموعه‌ها باز کن — مثلاً شلوار جین عمده — یا همه مدل‌ها را یک‌جا ببین.
           </p>
           <ShopButton href="/catalog" className="mt-8">
             ورود به محصولات

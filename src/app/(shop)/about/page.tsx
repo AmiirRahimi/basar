@@ -1,6 +1,14 @@
+import type { Metadata } from 'next';
 import { BRAND, BRAND_ADDRESSES } from '@/lib/brand';
 import { faNumber } from '@/lib/format';
 import { ShopButton } from '@/components/shop/ShopUi';
+import { absoluteUrl } from '@/lib/site';
+
+export const metadata: Metadata = {
+  title: 'درباره جین پوش | عمده‌فروشی پوشاک بازار بزرگ',
+  description: 'جین پوش حجره خانواده رحیمی در بازار آهنگران است. فروش عمده شلوار جین و پوشاک با بسته.',
+  alternates: { canonical: absoluteUrl('/about') },
+};
 
 const STORY = 'https://images.unsplash.com/photo-1565084888279-aca607ecce0c?auto=format&fit=crop&w=1600&q=80';
 

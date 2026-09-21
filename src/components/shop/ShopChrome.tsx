@@ -107,7 +107,9 @@ export function ShopFooter() {
         <div>
           <BrandLogo variant="full" className="h-10 w-auto" />
           <p className="mt-2 text-xs tracking-[0.16em] text-shop-saffron">{BRAND.latin}</p>
-          <p className="mt-3 max-w-sm text-sm leading-7 text-shop-bone/65">{BRAND.description}. فروش عمده با بسته از حجره‌های بازار آهنگران.</p>
+          <p className="mt-3 max-w-sm text-sm leading-7 text-shop-bone/65">
+            فروش عمده شلوار جین و پوشاک از حجره‌های بازار آهنگران. سفارش با بسته.
+          </p>
         </div>
         <div className="grid gap-2 text-sm text-shop-bone/75">
           <p className="mb-1 text-xs tracking-[0.18em] text-shop-saffron">صفحات</p>
@@ -116,6 +118,9 @@ export function ShopFooter() {
               {link.label}
             </Link>
           ))}
+          <Link href="/counting" className="hover:text-shop-bone">
+            حسابداری عمده‌فروشی باسار
+          </Link>
         </div>
         <div className="grid gap-2 text-sm">
           <p className="mb-1 text-xs tracking-[0.18em] text-shop-saffron">تلفن</p>

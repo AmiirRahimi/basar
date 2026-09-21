@@ -129,3 +129,18 @@ export function collectionsFromCatalog(products: CatalogProduct[]) {
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
 }
+
+export function collectionsForSeo(
+  products: CatalogProduct[],
+  kinds: { id: string; name: string }[] = [],
+) {
+  const map = new Map<string, { id: string; name: string; image: string; count: number }>();
+  for (const collection of collectionsFromCatalog(products)) {
+    map.set(collection.id, collection);
+  }
+  for (const kind of kinds) {
+    if (!kind.id || map.has(kind.id)) continue;
+    map.set(kind.id, { id: kind.id, name: kind.name, image: FALLBACK_IMAGE, count: 0 });
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+}

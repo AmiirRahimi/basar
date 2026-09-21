@@ -38,7 +38,9 @@ export function ProductCard({
           </span>
         ) : null}
       </div>
-      <span className="absolute right-3 top-3 rounded-full bg-shop-bone/92 px-2.5 py-1 text-[11px] text-shop-ink">{product.category}</span>
+      <span className="absolute right-3 top-3 rounded-full bg-shop-bone/92 px-2.5 py-1 text-[11px] text-shop-ink">
+        {product.category}
+      </span>
       {product.saleEndsAt ? (
         <div className="absolute bottom-3 left-3">
           <SaleCountdown endsAt={product.saleEndsAt} />

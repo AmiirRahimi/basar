@@ -19,6 +19,7 @@ import {
   listAttachments,
   listPayments as payments,
   listPublicClothes,
+  listPublicClothKinds,
   listResource as listByName,
   listUserPermisions,
   personAccount,
@@ -59,6 +60,10 @@ export async function listClothes(page = 1, skip = 200) {
 
 export async function listPublicCatalog() {
   return listPublicClothes();
+}
+
+export async function listPublicKinds() {
+  return listPublicClothKinds();
 }
 
 export async function getPublicCatalogProduct(id: string) {

@@ -1,10 +1,18 @@
+import type { Metadata } from 'next';
 import { getCatalog } from '@/actions/shop';
 import { filterCatalog } from '@/lib/catalog';
 import { CatalogFilters } from '@/components/shop/CatalogFilters';
 import { ProductCard } from '@/components/shop/ProductCard';
 import { faNumber } from '@/lib/format';
+import { absoluteUrl } from '@/lib/site';
 import type { CatalogFilters as Filters } from '@/lib/types';
 import { Suspense } from 'react';
+
+export const metadata: Metadata = {
+  title: 'کاتالوگ عمده جین پوش',
+  description: 'همه مدل‌های عمده جین پوش: شلوار جین، کتان و پوشاک حجره بازار بزرگ تهران.',
+  alternates: { canonical: absoluteUrl('/catalog') },
+};
 
 export default async function CatalogPage({
   searchParams,
@@ -20,8 +28,8 @@ export default async function CatalogPage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:py-10 lg:px-6 lg:py-12">
-      <p className="text-[11px] tracking-[0.28em] text-shop-saffron">کاتالوگ جین پوش</p>
-      <h1 className="mt-2 text-2xl font-semibold text-shop-ink sm:text-3xl md:text-4xl">همه محصولات</h1>
+      <p className="text-[11px] tracking-[0.28em] text-shop-saffron">کاتالوگ عمده</p>
+      <h1 className="mt-2 text-2xl font-semibold text-shop-ink sm:text-3xl md:text-4xl">همه محصولات عمده جین پوش</h1>
       <p className="mt-3 max-w-2xl text-sm text-shop-ink/65 sm:text-base">
         {faNumber(filtered.length)} از {faNumber(products.length)} مدل
         {hasFilters ? ' با فیلترهای انتخاب‌شده' : ' — با فیلتر قیمت، نوع و رنگ محدود کنید'}

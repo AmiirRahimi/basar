@@ -1,6 +1,14 @@
+import type { Metadata } from 'next';
 import { BRAND, BRAND_ADDRESSES, BRAND_PHONES } from '@/lib/brand';
 import { ShopButton } from '@/components/shop/ShopUi';
 import { MapPin, Phone } from 'lucide-react';
+import { absoluteUrl } from '@/lib/site';
+
+export const metadata: Metadata = {
+  title: 'تماس با جین پوش | حجره بازار آهنگران',
+  description: 'تلفن و نشانی حجره‌های جین پوش در بازار آهنگران، خیابان ۱۵ خرداد، برای خرید عمده پوشاک.',
+  alternates: { canonical: absoluteUrl('/contact') },
+};
 
 export default function ContactPage() {
   return (
