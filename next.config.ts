@@ -2,6 +2,12 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  experimental: {
+    serverActions: {
+      // Cloth image uploads (up to 8 MB each) go through Server Actions on the same page.
+      bodySizeLimit: '32mb',
+    },
+  },
   // No ESLint config in this repo; don't block the production build on a lint pass.
   eslint: { ignoreDuringBuilds: true },
   // Full `tsc` OOMs on Vercel (mongoose + large TS graph). Typecheck locally with `npm run typecheck`.
