@@ -146,27 +146,32 @@ function FeatureArticle({ feature }: { feature: FeatureCard }) {
     ink: {
       card: 'border-white/10 bg-shop-ink text-shop-bone',
       icon: 'bg-white/10 text-shop-saffron',
-      copy: 'text-shop-bone/75',
+      copy: 'text-shop-bone/80',
+      title: 'text-shop-bone',
     },
     saffron: {
       card: 'border-shop-saffron/35 bg-shop-saffron text-shop-ink',
       icon: 'bg-shop-ink/10 text-shop-ink',
       copy: 'text-shop-ink/80',
+      title: 'text-shop-ink',
     },
     paper: {
       card: 'border-shop-ink/10 bg-shop-paper text-shop-ink',
       icon: 'bg-shop-ink/5 text-shop-ink',
       copy: 'text-shop-ink/70',
+      title: 'text-shop-ink',
     },
     wash: {
       card: 'border-teal-800/10 bg-teal-50 text-teal-950',
       icon: 'bg-teal-900/10 text-teal-900',
       copy: 'text-teal-950/75',
+      title: 'text-teal-950',
     },
   }[feature.tone];
 
   return (
     <article
+      {...(feature.tone === 'ink' ? { 'data-shop-dark': true } : {})}
       className={cn(
         'col-span-2 flex flex-col justify-between overflow-hidden border p-5 shadow-[0_16px_36px_-28px_rgb(16_28_48_/_0.55)] transition duration-300 hover:z-10 hover:rotate-0 sm:p-6',
         tone.card,
@@ -177,7 +182,7 @@ function FeatureArticle({ feature }: { feature: FeatureCard }) {
         <span className={cn('mb-4 flex h-11 w-11 items-center justify-center rounded-2xl', tone.icon)}>
           <Icon className="h-5 w-5" />
         </span>
-        <h3 className="text-xl font-semibold tracking-tight sm:text-[1.35rem]">{feature.title}</h3>
+        <h3 className={cn('text-xl font-semibold tracking-tight sm:text-[1.35rem]', tone.title)}>{feature.title}</h3>
       </div>
       <p className={cn('mt-3 text-sm leading-7 sm:text-[15px]', tone.copy)}>{feature.copy}</p>
     </article>
@@ -191,13 +196,13 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
   return (
     <div data-shop className="min-h-screen bg-shop-bone text-shop-ink" dir="rtl">
       <JsonLd data={countingSoftwareLd()} />
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-sidebar-gradient/95 text-shop-bone backdrop-blur-md">
+      <header data-shop-dark className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
           <Link href="/counting" className="flex items-center gap-2.5">
             <BrandLogo variant="mark" className="h-9 w-9 shrink-0" />
             <span className="min-w-0">
               <span className="block truncate text-[15px] font-semibold leading-5">باسار</span>
-              <span className="block max-w-[11rem] text-[10px] leading-4 text-white/45">
+              <span className="block max-w-[11rem] text-[10px] leading-4 text-shop-bone/70">
                 نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی
               </span>
             </span>
@@ -209,8 +214,8 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
           <div className="flex items-center gap-2">
             <ShopButton
               href="/"
-              variant="ghost"
-              className="hidden px-3 py-2 text-shop-bone/70 hover:bg-white/10 hover:text-shop-bone sm:inline-flex"
+              variant="ghostDark"
+              className="hidden px-3 py-2 sm:inline-flex"
             >
               فروشگاه
             </ShopButton>
@@ -221,7 +226,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
         </div>
       </header>
 
-      <section className="relative isolate overflow-hidden bg-shop-ink text-shop-bone">
+      <section data-shop-dark className="relative isolate overflow-hidden bg-shop-ink text-shop-bone">
         <div className="shop-grain absolute inset-0 bg-gradient-to-bl from-shop-ink via-shop-mill/90 to-shop-ink" />
         <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-shop-saffron/20 blur-3xl" />
         <div className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-teal-500/10 blur-3xl" />
@@ -229,7 +234,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
           <p className="text-[11px] leading-6 text-shop-saffron sm:text-sm">
             نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی
           </p>
-          <h1 className="mt-4 max-w-3xl text-[2.15rem] font-semibold leading-[1.25] sm:text-5xl md:text-[3.4rem]">
+          <h1 className="mt-4 max-w-3xl text-[2.15rem] font-semibold leading-[1.25] text-shop-bone sm:text-5xl md:text-[3.4rem]">
             حجره لباس را از روی دفتر پاره اداره نکن
             <span className="mt-2 block text-shop-saffron">از پارچه تا فروش، همه‌ش اینجاست</span>
           </h1>
@@ -243,8 +248,8 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             </ShopButton>
             <ShopButton
               href="#features"
-              variant="outline"
-              className="border-white/20 bg-transparent px-6 py-3 text-base text-shop-bone hover:bg-white/5"
+              variant="outlineDark"
+              className="px-6 py-3 text-base"
             >
               ببین چی داخلش هست
             </ShopButton>
@@ -334,11 +339,11 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-shop-ink text-shop-bone">
+      <section data-shop-dark className="relative overflow-hidden bg-shop-ink text-shop-bone">
         <div className="shop-grain absolute inset-0 opacity-80" />
         <div className="relative mx-auto flex max-w-7xl flex-col items-start gap-6 px-4 py-16 sm:items-center sm:text-center lg:px-6 lg:py-24">
           <p className="text-[11px] tracking-[0.22em] text-shop-saffron">شروع</p>
-          <h2 className="max-w-3xl text-3xl font-semibold sm:text-4xl md:text-5xl">یک هفته باهاش کار کن؛ دفتر را کنار می‌گذاری</h2>
+          <h2 className="max-w-3xl text-3xl font-semibold text-shop-bone sm:text-4xl md:text-5xl">یک هفته باهاش کار کن؛ دفتر را کنار می‌گذاری</h2>
           <p className="max-w-xl leading-8 text-shop-bone/70">
             وارد شو، برند و فروشگاه را بساز، لباس‌ها را بگذار. حسابداری عمده‌فروشی‌ات روی وب می‌ماند؛ دفتر را کنار می‌گذاری.
           </p>
@@ -349,8 +354,8 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             </ShopButton>
             <ShopButton
               href="/"
-              variant="outline"
-              className="border-white/20 bg-transparent px-6 py-3 text-base text-shop-bone hover:bg-white/5"
+              variant="outlineDark"
+              className="px-6 py-3 text-base"
             >
               فروشگاه جین پوش
             </ShopButton>

@@ -17,7 +17,8 @@ export default function AboutPage() {
   return (
     <div>
       <section data-shop-dark className="relative overflow-hidden bg-shop-ink text-shop-bone">
-        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: `url(${STORY})` }} />
+        <div className="absolute inset-0 bg-cover bg-center opacity-25" style={{ backgroundImage: `url(${STORY})` }} />
+        <div className="absolute inset-0 bg-gradient-to-l from-shop-ink via-shop-ink/88 to-shop-ink/70" />
         <div className="relative mx-auto max-w-4xl px-4 py-14 sm:py-20 lg:px-6 lg:py-28">
           <p className="text-[11px] tracking-[0.28em] text-shop-saffron">{BRAND.latin}</p>
           <h1 className="mt-3 text-3xl font-semibold text-shop-bone sm:text-4xl md:text-6xl">{BRAND.name}</h1>

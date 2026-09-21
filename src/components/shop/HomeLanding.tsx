@@ -55,8 +55,8 @@ export function HomeLanding({
     <div>
       <JsonLd data={shopOrganizationLd()} />
       <section data-shop-hero data-shop-dark className="relative isolate min-h-[100dvh] w-full overflow-hidden bg-shop-ink text-shop-bone">
-        <div className="absolute inset-0 animate-shop-kenburns bg-cover bg-center opacity-50" style={{ backgroundImage: `url(${HERO})` }} />
-        <div className="shop-grain absolute inset-0 bg-gradient-to-l from-shop-ink via-shop-ink/82 to-shop-ink/35" />
+        <div className="absolute inset-0 animate-shop-kenburns bg-cover bg-center opacity-40" style={{ backgroundImage: `url(${HERO})` }} />
+        <div className="shop-grain absolute inset-0 bg-gradient-to-l from-shop-ink via-shop-ink/90 to-shop-ink/70" />
         <div className="relative mx-auto flex min-h-[100dvh] max-w-7xl flex-col justify-end gap-5 px-4 py-12 sm:gap-8 sm:py-16 lg:px-6 lg:py-24">
           <p className="max-w-[18rem] text-[10px] tracking-[0.18em] text-shop-saffron sm:max-w-none sm:text-xs sm:tracking-[0.38em]">{BRAND.tagline}</p>
           <h1 className="max-w-4xl text-[2.15rem] font-semibold leading-[1.15] text-shop-bone sm:text-5xl md:text-7xl">
@@ -70,10 +70,10 @@ export function HomeLanding({
             <ShopButton href="/catalog" className="px-5 py-2.5 text-sm sm:px-7 sm:py-3 sm:text-base">
               همه محصولات
             </ShopButton>
-            <ShopButton href="#sale" variant="outline" className="border-white/20 bg-transparent px-5 py-2.5 text-sm text-shop-bone hover:bg-white/5 sm:px-5 sm:py-2.5 sm:text-sm">
+            <ShopButton href="#sale" variant="outlineDark" className="px-5 py-2.5 text-sm sm:px-5 sm:py-2.5 sm:text-sm">
               محصولات تخفیف‌دار
             </ShopButton>
-            <ShopButton href="#new" variant="ghost" className="px-5 py-2.5 text-sm text-shop-bone hover:bg-white/5">
+            <ShopButton href="#new" variant="ghostDark" className="px-5 py-2.5 text-sm">
               کالکشن جدید
             </ShopButton>
           </div>
@@ -118,7 +118,7 @@ export function HomeLanding({
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <ShopButton href="/about">داستان برند</ShopButton>
-              <ShopButton href="/contact" variant="outline" className="border-white/20 bg-transparent text-shop-bone hover:bg-white/5">
+              <ShopButton href="/contact" variant="outlineDark">
                 نشانی حجره‌ها
               </ShopButton>
             </div>
@@ -141,16 +141,17 @@ export function HomeLanding({
               <Link
                 key={collection.id}
                 href={collectionPath(collection.name, collection.id, collections)}
-                className="group relative h-44 overflow-hidden rounded-2xl sm:h-56"
+                data-shop-dark
+                className="group relative h-44 overflow-hidden rounded-2xl sm:h-56 text-shop-bone"
               >
                 <div
                   className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-105"
                   style={{ backgroundImage: `url(${collection.image})` }}
                 />
-                <div className="absolute inset-0 bg-shop-ink/50" />
-                <div className="relative flex h-full flex-col justify-end p-6 text-shop-bone">
-                  <p className="text-2xl font-medium">{collection.name}</p>
-                  <p className="text-sm text-shop-bone/70">{faNumber(collection.count)} مدل</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-shop-ink via-shop-ink/75 to-shop-ink/35" />
+                <div className="relative flex h-full flex-col justify-end p-6 text-shop-bone [text-shadow:0_1px_12px_rgb(16_28_48_/_0.85)]">
+                  <p className="text-2xl font-medium text-shop-bone">{collection.name}</p>
+                  <p className="text-sm text-shop-bone/80">{faNumber(collection.count)} مدل</p>
                 </div>
               </Link>
             ))}

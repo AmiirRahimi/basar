@@ -8,6 +8,9 @@ const variants = {
   outline:
     'border border-shop-ink/15 bg-shop-paper/80 text-shop-ink hover:border-shop-saffron/50 hover:bg-shop-paper',
   ghost: 'text-shop-ink/80 hover:bg-shop-ink/5 hover:text-shop-ink',
+  outlineDark:
+    'border border-white/30 bg-transparent text-shop-bone hover:bg-white/10 hover:text-shop-bone',
+  ghostDark: 'bg-transparent text-shop-bone hover:bg-white/10 hover:text-shop-bone',
 };
 
 export function ShopButton({

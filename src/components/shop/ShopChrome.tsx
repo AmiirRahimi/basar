@@ -27,7 +27,7 @@ export function ShopHeader() {
 
   if (sharePage) {
     return (
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
+      <header data-shop-dark className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
           <BrandLogo variant="full" className="h-8 w-auto sm:h-9" priority />
           <Link
@@ -42,7 +42,7 @@ export function ShopHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
+    <header data-shop-dark className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
         <Link href="/" className="flex min-w-0 items-center gap-3 leading-none">
           <BrandLogo variant="full" className="h-8 w-auto sm:h-10" priority />
@@ -74,7 +74,7 @@ export function ShopHeader() {
             <Phone className="h-3.5 w-3.5 text-shop-saffron" />
             <span dir="ltr">{BRAND_PHONES[0].display}</span>
           </Link>
-          <button type="button" className="rounded-full p-2 md:hidden" onClick={() => setOpen((v) => !v)} aria-label="منو">
+          <button type="button" className="rounded-full p-2 text-shop-bone md:hidden" onClick={() => setOpen((v) => !v)} aria-label="منو">
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
@@ -83,7 +83,12 @@ export function ShopHeader() {
         <div className="border-t border-white/10 bg-shop-ink px-4 py-4 md:hidden">
           <div className="grid gap-3 text-sm">
             {LINKS.map((link) => (
-              <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className={activePath(pathname, link.href) ? 'text-shop-saffron' : ''}>
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className={activePath(pathname, link.href) ? 'text-shop-saffron' : 'text-shop-bone'}
+              >
                 {link.label}
               </Link>
             ))}

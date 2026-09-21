@@ -27,7 +27,7 @@ export function ProductCard({
         className={cn('bg-cover bg-center transition duration-700 group-hover:scale-105', featured ? 'h-64 sm:h-80 md:h-[22rem]' : 'h-56 sm:h-72 md:h-80')}
         style={{ backgroundImage: `url(${product.image})` }}
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-shop-ink/70 via-shop-ink/10 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-shop-ink/85 via-shop-ink/25 to-transparent" />
       <div className="absolute left-3 top-3 flex max-w-[72%] flex-col items-start gap-1.5">
         {product.newCollection ? (
           <span className="rounded-full bg-shop-saffron px-2.5 py-1 text-[11px] font-medium text-shop-ink shadow-sm">کالکشن جدید</span>

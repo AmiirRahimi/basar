@@ -33,6 +33,29 @@ body {
   min-height: 100vh;
 }
 
+/* TelC global h1–h6 are gray-900; force light type on shop dark chrome. */
+[data-shop] [data-shop-dark] {
+  color: rgb(var(--shop-bone));
+}
+
+[data-shop] [data-shop-dark] :is(h1, h2, h3, h4, h5, h6) {
+  color: rgb(var(--shop-bone));
+}
+
+[data-shop] [data-shop-dark] :is(a, button) {
+  color: inherit;
+}
+
+[data-shop] [data-shop-dark] .text-shop-saffron,
+[data-shop] [data-shop-dark] .hover\:text-shop-saffron:hover {
+  color: rgb(var(--shop-saffron));
+}
+
+[data-shop] [data-shop-dark] .text-shop-ink,
+[data-shop] [data-shop-dark] .hover\:text-shop-ink:hover {
+  color: rgb(var(--shop-ink));
+}
+
 [data-shop] .shop-grain {
   position: relative;
 }
