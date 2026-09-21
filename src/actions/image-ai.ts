@@ -3,6 +3,7 @@
 import {
   buyImageTokens as buyTokens,
   editProductImage as editImage,
+  generateClothOnModel as generateModel,
   listImageStudio as studio,
   previewImageTokenDiscount as previewTokens,
 } from '@/server/image-ai';
@@ -21,4 +22,15 @@ export async function buyImageTokens(packId: string, discountCode = '') {
 
 export async function editProductImage(payload: { clothId: string; imageUrl: string; styleId: string }) {
   return editImage(payload);
+}
+
+export async function generateClothOnModel(payload: {
+  clothId?: string;
+  imageUrls: string[];
+  model?: string;
+  scene?: string;
+  pose?: string;
+  prompt?: string;
+}) {
+  return generateModel(payload);
 }

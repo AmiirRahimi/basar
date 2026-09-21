@@ -1,5 +1,5 @@
 import Jimp from 'jimp';
-import { imageEditStyleById, type ImageEditStyleId } from '@/lib/image-tokens';
+import { photoroomStudioEdit } from './photoroom';
 
 const OUT_SIZE = 1024;
 const THRESHOLD = 92;
@@ -139,6 +139,16 @@ async function editWithOpenAI(png: Buffer, prompt: string) {
 export async function renderProductEdit(source: Buffer, styleId: ImageEditStyleId) {
   const style = imageEditStyleById(styleId);
   if (!style) throw new Error('جلوه نامعتبر است');
+  try {
+    const viaPhotoroom = await photoroomStudioEdit(source, styleId);
+    if (viaPhotoroom) {
+      const out = await Jimp.read(viaPhotoroom.buffer);
+      out.cover(OUT_SIZE, OUT_SIZE);
+      return out.quality(90).getBufferAsync(Jimp.MIME_JPEG);
+    }
+  } catch {
+    /* local studio fallback */
+  }
   const image = await Jimp.read(source);
   image.background(0x00000000);
   const png = await image.getBufferAsync(Jimp.MIME_PNG);

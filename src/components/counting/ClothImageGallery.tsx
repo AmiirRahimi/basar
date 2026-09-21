@@ -44,7 +44,7 @@ export function ClothImageGallery({
               clothId={clothId}
               images={list}
               imageUrl={current}
-              label="ویرایش این تصویر"
+              label="ساخت با مدل"
               className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-sm text-gray-800 shadow-sm ring-1 ring-gray-200 hover:bg-white"
             />
           </div>
@@ -65,7 +65,7 @@ export function ClothImageGallery({
                   clothId={clothId}
                   images={list}
                   imageUrl={src}
-                  label="ویرایش"
+                  label="مدل"
                   compact
                   className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-1.5 py-1 text-[11px] font-medium text-gray-700 hover:border-gray-300"
                 />

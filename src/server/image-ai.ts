@@ -1,11 +1,13 @@
 import mongoose from 'mongoose';
 import { canWriteResource } from '@/lib/roles';
 import { IMAGE_EDIT_TOKEN_COST, imageEditStyleById, imageTokenPackById, type ImageEditStyleId } from '@/lib/image-tokens';
+import { MAX_VIRTUAL_MODEL_IMAGES, replaceSelectedImages } from '@/lib/photoroom';
 import { MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
 import { renderProductEdit } from './image-process';
+import { photoroomApiKey, photoroomVirtualModel } from './photoroom';
 import { readSourceImage, saveProductImage } from './image-store';
 import { clientIp, rateLimit } from './rate-limit';
 import { fail, ok, type ActionResult } from './result';
@@ -49,6 +51,7 @@ export async function listImageStudio(): Promise<ActionResult> {
     serialize({
       imageTokens: Number(owner?.imageTokens || 0),
       unlimited: Boolean(access.session.isPlatformAdmin),
+      photoroomReady: Boolean(photoroomApiKey()),
       canBuy: access.session.storeRole === 'owner' || Boolean(access.session.isPlatformAdmin),
       canEdit: canWriteResource(
         access.session.storeRole,
@@ -210,7 +213,101 @@ export async function editProductImage(payload: {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    if (message && /آدرس|حجم|دانلود|جلوه/.test(message)) return fail(message);
+    if (message && /آدرس|حجم|دانلود|جلوه|Photoroom|کلید/.test(message)) return fail(message);
     return fail('ساخت تصویر ناموفق بود');
+  }
+}
+
+export async function generateClothOnModel(payload: {
+  clothId?: string;
+  imageUrls: string[];
+  model?: string;
+  scene?: string;
+  pose?: string;
+  prompt?: string;
+}): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const canEdit = canWriteResource(
+    access.session.storeRole,
+    'cloth',
+    Boolean(access.session.isPlatformAdmin),
+    access.session.subscriptionActive !== false,
+  );
+  if (!canEdit) return fail('اجازه ساخت تصویر این لباس را ندارید', 403);
+  const imagePlan = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');
+  if (imagePlan) return imagePlan;
+  if (!photoroomApiKey()) return fail('کلید Photoroom تنظیم نشده است');
+  const urls = [...new Set((payload.imageUrls || []).map((item) => String(item || '').trim()).filter(Boolean))];
+  if (!urls.length) return fail('حداقل یک تصویر انتخاب کنید');
+  if (urls.length > MAX_VIRTUAL_MODEL_IMAGES) return fail(`حداکثر ${MAX_VIRTUAL_MODEL_IMAGES} زاویه برای هر ساخت مجاز است`);
+  const ip = await clientIp();
+  if (!rateLimit(`image-model:${access.session._id}`, 8, 10 * 60 * 1000) || !rateLimit(`image-model:ip:${ip}`, 20, 10 * 60 * 1000)) {
+    return fail('تعداد ساخت مدل زیاد است. کمی بعد دوباره تلاش کنید', 429);
+  }
+
+  await db();
+  const clothId = String(payload.clothId || '').trim();
+  let cloth: any = null;
+  let images = urls;
+  if (clothId) {
+    cloth = await M().Cloth.findById(clothId).lean();
+    if (!cloth || cloth.isDeleted) return fail('لباس پیدا نشد', 404);
+    if (!access.session.isPlatformAdmin) {
+      const { stores } = await accessibleStores(access.session._id, access.session.phonenumber);
+      const allowed = new Set((stores as any[]).map((store) => String(store._id)));
+      const storeId = String(cloth._storeId?._id || cloth._storeId || '');
+      if (!allowed.has(storeId)) return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
+    }
+    images = parseImageList(cloth.images);
+    if (urls.some((url) => !images.includes(url))) return fail('یکی از تصاویر انتخاب‌شده برای این لباس ثبت نشده');
+  }
+
+  const ownerId = await tokenOwnerId(access.session, cloth);
+  const owner = await M().User.findById(ownerId).lean();
+  if (!owner) return fail('حساب توکن پیدا نشد', 404);
+  const balance = Number(owner.imageTokens || 0);
+  const spent = IMAGE_EDIT_TOKEN_COST;
+  if (!access.session.isPlatformAdmin && balance < spent) {
+    return fail('توکن کافی نیست. هر ساخت مدل یک توکن می‌خواهد.');
+  }
+
+  try {
+    const buffers = await Promise.all(urls.map((url) => readSourceImage(url)));
+    const rendered = await photoroomVirtualModel(buffers[0], buffers.slice(1), {
+      model: payload.model,
+      scene: payload.scene,
+      pose: payload.pose,
+      prompt: payload.prompt,
+    });
+    const resultUrl = await saveProductImage(rendered.buffer, rendered.ext);
+    const nextImages = replaceSelectedImages(images, urls, resultUrl).slice(0, MAX_CLOTH_IMAGES);
+    if (clothId) {
+      await M().Cloth.findByIdAndUpdate(clothId, { images: nextImages });
+    }
+    if (!access.session.isPlatformAdmin) {
+      await M().User.findByIdAndUpdate(ownerId, { imageTokens: Math.max(0, balance - spent) });
+    }
+    await M().ImageEdit.create({
+      _userId: oid(ownerId),
+      _clothId: clothId ? oid(clothId) : undefined,
+      styleId: 'virtual-model',
+      sourceUrl: urls[0],
+      resultUrl,
+      timeStamp: new Date(),
+    });
+    return ok(
+      serialize({
+        resultUrl,
+        images: nextImages,
+        imageTokens: access.session.isPlatformAdmin ? balance : Math.max(0, balance - spent),
+        spent,
+      }),
+      'عکس مدل ساخته شد و جایگزین تصاویر انتخاب‌شده شد',
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message) return fail(message);
+    return fail('ساخت عکس مدل ناموفق بود');
   }
 }

@@ -7,11 +7,13 @@ import { faNumber } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { encodeImageList, MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { Button, FieldGroup, IconButton, toast } from '@/ui';
+import { ClothImageStudio } from './ImageStudio';
 
 export function ClothImagesEditor({
   label,
   value,
   onChange,
+  clothId,
   error,
   locked = false,
 }: {
@@ -95,7 +97,7 @@ export function ClothImagesEditor({
       description={
         locked
           ? 'ثبت تصویر فقط در طرح ویترین است. طرح را از تنظیمات اشتراک ارتقا دهید.'
-          : `فایل تصویر را از دستگاه وارد کنید. حداکثر ${faNumber(MAX_CLOTH_IMAGES)} تصویر (JPG، PNG، WEBP، GIF).`
+          : `فایل تصویر را از دستگاه وارد کنید. از جلو، پشت و بغل عکس بگیرید تا با مدل ساخته شود. حداکثر ${faNumber(MAX_CLOTH_IMAGES)} تصویر.`
       }
       headerAction={
         <p className="shrink-0 text-xs text-gray-500">
@@ -193,6 +195,17 @@ export function ClothImagesEditor({
       </button>
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
+
+      {!locked && images.length ? (
+        <div className="flex justify-end">
+          <ClothImageStudio
+            clothId={clothId}
+            images={images}
+            label="ساخت عکس با مدل"
+            onSuccess={(next) => emit(next)}
+          />
+        </div>
+      ) : null}
     </FieldGroup>
   );
 }

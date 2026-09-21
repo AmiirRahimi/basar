@@ -463,7 +463,7 @@ const ImageTokenPurchaseSchema = defineSchema(
 const ImageEditSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    _clothId: { type: Schema.Types.ObjectId, ref: 'Cloth', required: true, index: true },
+    _clothId: { type: Schema.Types.ObjectId, ref: 'Cloth', index: true },
     styleId: { type: String, required: true },
     sourceUrl: { type: String, required: true },
     resultUrl: { type: String, required: true },

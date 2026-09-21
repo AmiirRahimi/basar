@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Check, Sparkles } from 'lucide-react';
-import { buyImageTokens, editProductImage, previewImageTokenDiscount } from '@/actions/image-ai';
+import { buyImageTokens, editProductImage, generateClothOnModel, previewImageTokenDiscount } from '@/actions/image-ai';
 import {
   IMAGE_EDIT_STYLES,
   IMAGE_EDIT_TOKEN_COST,
@@ -16,8 +16,9 @@ import {
 } from '@/lib/image-tokens';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { parseImageList } from '@/lib/shop-cart';
+import { MAX_VIRTUAL_MODEL_IMAGES, PHOTOROOM_MODELS, PHOTOROOM_POSES, PHOTOROOM_SCENES } from '@/lib/photoroom';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { Button, FormCard, Input, Modal, toast } from '@/ui';
+import { Button, FormCard, Input, Modal, Select, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 import { PlanLocked } from './PlanLocked';
 import { Price, PriceSection } from './Price';
@@ -230,7 +231,7 @@ export function ImageEditModal({
   onClose,
   onSuccess,
 }: {
-  clothId: string;
+  clothId?: string;
   images: string[];
   initialImageUrl?: string;
   onClose: () => void;
@@ -239,18 +240,38 @@ export function ImageEditModal({
   const router = useRouter();
   const workspace = useWorkspace();
   const [pending, start] = useTransition();
+  const [mode, setMode] = useState<'model' | 'studio'>('model');
   const [imageUrl, setImageUrl] = useState(initialImageUrl && images.includes(initialImageUrl) ? initialImageUrl : images[0] || '');
+  const [selected, setSelected] = useState<string[]>(() => images.slice(0, MAX_VIRTUAL_MODEL_IMAGES));
   const [styleId, setStyleId] = useState(IMAGE_EDIT_STYLES[0].id);
+  const [model, setModel] = useState('avery');
+  const [scene, setScene] = useState('studio');
+  const [pose, setPose] = useState('standing');
   const tokens = Number(workspace?.imageTokens || 0);
   const unlimited = Boolean(workspace?.imageTokensUnlimited);
 
-  function run() {
+  function toggleSelected(src: string) {
+    setSelected((current) => {
+      if (current.includes(src)) return current.filter((item) => item !== src);
+      if (current.length >= MAX_VIRTUAL_MODEL_IMAGES) {
+        toast.error(`حداکثر ${faNumber(MAX_VIRTUAL_MODEL_IMAGES)} تصویر از زوایای مختلف`);
+        return current;
+      }
+      return [...current, src];
+    });
+  }
+
+  function runStudio() {
+    if (!clothId) {
+      toast.error('برای جلوه استودیو ابتدا لباس را ذخیره کنید');
+      return;
+    }
     start(async () => {
       const res = await editProductImage({ clothId, imageUrl, styleId });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
         const nextImages = Array.isArray((res.data as { images?: string[] } | null)?.images)
-          ? ((res.data as { images: string[] }).images)
+          ? (res.data as { images: string[] }).images
           : [];
         toast.success(res.message || 'تصویر آماده شد');
         onSuccess?.(nextImages);
@@ -262,45 +283,111 @@ export function ImageEditModal({
     });
   }
 
+  function runModel() {
+    if (!selected.length) {
+      toast.error('حداقل یک تصویر از لباس انتخاب کنید');
+      return;
+    }
+    start(async () => {
+      const res = await generateClothOnModel({
+        clothId,
+        imageUrls: selected,
+        model,
+        scene,
+        pose,
+      });
+      if (redirectIfUnauthorized(res)) return;
+      if (res.ok) {
+        const nextImages = Array.isArray((res.data as { images?: string[] } | null)?.images)
+          ? (res.data as { images: string[] }).images
+          : [];
+        toast.success(res.message || 'عکس مدل آماده شد');
+        onSuccess?.(nextImages);
+        onClose();
+        router.refresh();
+      } else {
+        toast.error(res.message || 'ساخت مدل انجام نشد');
+      }
+    });
+  }
+
   return (
-    <Modal isOpen onClose={onClose} size="lg" rounded="lg" title="ویرایش تصویر با هوش مصنوعی">
+    <Modal isOpen onClose={onClose} size="lg" rounded="lg" title="ساخت تصویر محصول">
       <FormCard className="border-0 shadow-none rounded-[inherit]">
-        <div className="mb-4 space-y-1">
-          <p className="text-sm text-gray-500">
-            هر تصویر دقیقاً {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن مصرف می‌کند.
-            {unlimited ? ' حساب ادمین محدودیتی ندارد.' : ` مانده: ${faNumber(tokens)} توکن.`}
-          </p>
+        <div className="mb-4 flex gap-2">
+          <Button type="button" size="sm" variant={mode === 'model' ? 'primary' : 'outline'} onClick={() => setMode('model')}>
+            عکس با مدل
+          </Button>
+          <Button type="button" size="sm" variant={mode === 'studio' ? 'primary' : 'outline'} onClick={() => setMode('studio')}>
+            استودیو / پس‌زمینه
+          </Button>
         </div>
+        <p className="mb-4 text-sm text-gray-500">
+          هر ساخت دقیقاً {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن است.
+          {unlimited ? ' حساب ادمین محدودیتی ندارد.' : ` مانده: ${faNumber(tokens)} توکن.`}
+          {mode === 'model'
+            ? ' چند عکس از جلو، پشت و بغل را انتخاب کنید تا مدل لباس را بپوشد. تصویر ساخته‌شده جایگزین همان انتخاب‌ها می‌شود.'
+            : ' یک تصویر را انتخاب کنید و جلوه استودیو بسازید.'}
+        </p>
         <div className="grid gap-3 sm:grid-cols-3">
-          {images.map((src) => (
-            <button
-              key={src}
-              type="button"
-              onClick={() => setImageUrl(src)}
-              className={`overflow-hidden rounded-2xl border ${
-                imageUrl === src ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-gray-200'
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="h-28 w-full object-cover" />
-            </button>
-          ))}
+          {images.map((src) => {
+            const active = mode === 'model' ? selected.includes(src) : imageUrl === src;
+            return (
+              <button
+                key={src}
+                type="button"
+                onClick={() => (mode === 'model' ? toggleSelected(src) : setImageUrl(src))}
+                className={`overflow-hidden rounded-2xl border ${
+                  active ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-gray-200'
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="h-28 w-full object-cover" />
+              </button>
+            );
+          })}
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {IMAGE_EDIT_STYLES.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setStyleId(item.id)}
-              className={`rounded-2xl border p-3 text-right ${
-                styleId === item.id ? 'border-teal-600 bg-teal-50/60' : 'border-gray-200 bg-white'
-              }`}
-            >
-              <p className="text-sm font-semibold text-gray-900">{item.name}</p>
-              <p className="mt-1 text-xs leading-5 text-gray-500">{item.blurb}</p>
-            </button>
-          ))}
-        </div>
+        {mode === 'model' ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <Select
+              label="مدل"
+              value={model}
+              options={[...PHOTOROOM_MODELS]}
+              onChange={(value) => setModel(String(value))}
+              fullWidth
+            />
+            <Select
+              label="صحنه"
+              value={scene}
+              options={[...PHOTOROOM_SCENES]}
+              onChange={(value) => setScene(String(value))}
+              fullWidth
+            />
+            <Select
+              label="ژست"
+              value={pose}
+              options={[...PHOTOROOM_POSES]}
+              onChange={(value) => setPose(String(value))}
+              fullWidth
+            />
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {IMAGE_EDIT_STYLES.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setStyleId(item.id)}
+                className={`rounded-2xl border p-3 text-right ${
+                  styleId === item.id ? 'border-teal-600 bg-teal-50/60' : 'border-gray-200 bg-white'
+                }`}
+              >
+                <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                <p className="mt-1 text-xs leading-5 text-gray-500">{item.blurb}</p>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
           <Link href="/counting/images" className="text-sm text-teal-800 hover:underline">
             خرید توکن
@@ -309,8 +396,15 @@ export function ImageEditModal({
             <Button variant="outline" disabled={pending} onClick={onClose}>
               انصراف
             </Button>
-            <Button disabled={pending || !imageUrl} onClick={run}>
-              {pending ? 'در حال ساخت…' : `ساخت تصویر · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`}
+            <Button
+              disabled={pending || (mode === 'model' ? !selected.length : !imageUrl)}
+              onClick={mode === 'model' ? runModel : runStudio}
+            >
+              {pending
+                ? 'در حال ساخت…'
+                : mode === 'model'
+                  ? `ساخت با مدل · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`
+                  : `ساخت تصویر · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`}
             </Button>
           </div>
         </div>
@@ -328,7 +422,7 @@ export function ClothImageStudio({
   compact,
   onSuccess,
 }: {
-  clothId: string;
+  clothId?: string;
   images: string[];
   imageUrl?: string;
   label?: string;
@@ -402,7 +496,7 @@ export function ImageStudioBoard({
               {unlimited ? 'نامحدود' : faNumber(tokens)}
             </p>
             <p className="mt-1 text-sm text-gray-600">
-              هر ویرایش یک توکن است. پس‌زمینه سفید، نور استودیو یا کادر مربعی کاتالوگ را انتخاب کنید.
+              هر ویرایش یک توکن است. چند زاویه لباس را بدهید تا عکس مدل ساخته شود، یا پس‌زمینه سفید و کاتالوگ.
             </p>
           </div>
           <Sparkles className="h-10 w-10 text-teal-700" />
@@ -423,7 +517,7 @@ export function ImageStudioBoard({
           <section className="space-y-3">
             <div>
               <h2 className="text-base font-semibold text-gray-900">محصولات این فروشگاه</h2>
-              <p className="text-sm text-gray-500">روی یک عکس بزنید تا پس‌زمینه سفید یا جلوه استودیو بسازید.</p>
+              <p className="text-sm text-gray-500">روی یک عکس بزنید. می‌توانید چند زاویه را انتخاب کنید و با مدل بسازید؛ تصویر جدید جایگزین همان انتخاب‌ها می‌شود.</p>
             </div>
             {products.length ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
