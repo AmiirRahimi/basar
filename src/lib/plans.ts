@@ -32,7 +32,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'starter',
     name: 'پایه',
-    blurb: 'یک برند، یک فروشگاه و ثبت شریک درآمد — برای شروع حجره',
+    blurb: 'یک برند، یک حجره. برای شروع کار و ثبت شریک.',
     monthlyPrice: MONTHLY_BASE_TOMAN,
     maxBrands: 1,
     maxStores: 1,
@@ -53,7 +53,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'shops',
     name: 'فروشگاه‌ها',
-    blurb: 'چند شعبه روی یک برند، با شریک درآمد',
+    blurb: 'چند حجره روی یک برند. لباس را بین شعبه‌ها پخش کن.',
     monthlyPrice: 650_000,
     maxBrands: 1,
     maxStores: 5,
@@ -74,7 +74,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'partners',
     name: 'شرکا',
-    blurb: 'همان فروشگاه‌ها با ظرفیت بیشتر برای کار روزمره حجره',
+    blurb: 'همان چند حجره، با فضای بیشتر برای کار روز.',
     monthlyPrice: 850_000,
     maxBrands: 1,
     maxStores: 5,

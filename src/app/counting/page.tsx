@@ -3,9 +3,9 @@ import { CountingLanding } from '@/components/counting/CountingLanding';
 import { getSession } from '@/server/session';
 
 export const metadata: Metadata = {
-  title: 'باسار · پنل شمارش | جین پوش',
+  title: 'باسار · نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی',
   description:
-    'پنل شمارش باسار برای حجره پوشاک: فاکتور، چک، البسه، لینک محصول، حساب مشتری و اشتراک.',
+    'باسار نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی پوشاک است: پارچه و خیاط، فاکتور و بیجک، لینک مشتری، چند فروشگاه و برند، شریک و فروش آنلاین.',
 };
 
 export default async function CountingIndex() {

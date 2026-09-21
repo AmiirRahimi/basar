@@ -144,7 +144,7 @@ export function CountingSidebar({
             <BrandLogo variant="mark" className="h-9 w-9 shrink-0" />
             <SidebarReveal show={expanded} className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold leading-5 tracking-tight">باسار</p>
-              <p className="truncate text-[10px] leading-4 text-white/45">پنل شمارش</p>
+              <p className="text-[10px] leading-4 text-white/45">نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی</p>
             </SidebarReveal>
             <button
               type="button"

@@ -75,9 +75,9 @@ export function CountingLogin() {
       logoAlt="باسار"
       logoHref="/counting"
       brandName="باسار"
-      brandTagline="شمارش و عمده‌فروشی پوشاک"
+      brandTagline="نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی"
       welcomeBadge="ورود کارکنان"
-      title="ورود به شمارش بازار"
+      title="ورود به باسار"
       subtitle={
         step === 'otp'
           ? 'کد ارسال‌شده را وارد کنید'

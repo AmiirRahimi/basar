@@ -2,20 +2,18 @@ import Link from 'next/link';
 import type { ComponentType, ReactNode } from 'react';
 import {
   ArrowLeft,
+  Building2,
   Check,
   FileText,
   Handshake,
-  Landmark,
-  LayoutDashboard,
+  Layers,
   Link2,
-  Scissors,
-  Settings,
+  MessageSquare,
+  ScrollText,
   Shield,
   Shirt,
   Sparkles,
-  Undo2,
-  Users,
-  Wallet,
+  Store,
   X,
 } from 'lucide-react';
 import { BrandLogo } from '@/components/brand/BrandLogo';
@@ -28,129 +26,108 @@ import { cn } from '@/ui';
 type FeatureCard = {
   id: string;
   title: string;
+  copy: string;
   icon: ComponentType<{ className?: string }>;
-  points: string[];
-  span?: 'wide' | 'tall' | 'hero';
-  tone?: 'ink' | 'saffron' | 'paper';
+  tone: 'ink' | 'saffron' | 'paper' | 'wash';
+  className: string;
 };
 
 const FEATURES: FeatureCard[] = [
   {
-    id: 'dashboard',
-    title: 'داشبورد',
-    icon: LayoutDashboard,
-    span: 'hero',
+    id: 'cloth',
+    title: 'هر لباس، کامل',
+    copy: 'برای هر مدل پارچه، خیاط، شست‌وشو و چاپ را جدا ثبت کن. بعداً می‌فهمی این شلوار از کجا آمده و به کی بدهکاری.',
+    icon: Shirt,
     tone: 'ink',
-    points: [
-      'فروش هفته، ماه و سال در یک نگاه',
-      'نمودار فروش ماهانه و مقایسه دوره‌ها',
-      'سررسید چک، چک برگشتی، مانده نسیه و سهم شرکا',
-    ],
+    className:
+      'md:col-span-4 md:row-span-2 rounded-[2.6rem] rounded-bl-2xl md:min-h-[22rem]',
   },
   {
     id: 'invoice',
-    title: 'فاکتور',
+    title: 'فاکتور و چاپ',
+    copy: 'فاکتور عمده را همان لحظه بزن و چاپ بگیر. مشتری نایستد، تو هم یادداشت نکن.',
     icon: FileText,
-    span: 'wide',
     tone: 'saffron',
-    points: ['صدور فاکتور عمده با بسته کامل یا ناقص', 'چاپ فاکتور برای حجره و مشتری', 'اتصال مستقیم به موجودی البسه'],
+    className: 'md:col-span-2 rounded-[1.4rem] rounded-tr-[3.2rem] md:-rotate-1',
   },
   {
-    id: 'cloth',
-    title: 'البسه',
-    icon: Shirt,
-    span: 'tall',
-    points: ['کد، رنگ، سایز، نوع و مدل', 'موجودی حجره به‌روز', 'تصاویر و جزئیات هر لباس'],
+    id: 'bijak',
+    title: 'بیجک',
+    copy: 'بیجک را از روی همان فاکتور بساز و چاپ کن. بار که می‌رود، کاغذش هم آماده‌ست.',
+    icon: ScrollText,
+    tone: 'paper',
+    className: 'md:col-span-2 rounded-[2.2rem] rounded-bl-[3rem] md:rotate-1',
   },
   {
-    id: 'person',
-    title: 'اشخاص',
-    icon: Users,
-    points: ['مشتری و طرف‌حساب', 'شماره تماس برای پیامک', 'پیوند با فاکتور و حساب'],
+    id: 'photos',
+    title: 'عکس با هوش مصنوعی',
+    copy: 'عکس لباس را بگذار؛ پس‌زمینه را بردار یا هر جور که می‌خواهی ادیت کن. ویترین تمیز می‌ماند.',
+    icon: Sparkles,
+    tone: 'wash',
+    className: 'md:col-span-3 rounded-[2.8rem] rounded-tl-xl',
   },
   {
     id: 'share',
-    title: 'لینک محصول',
+    title: 'لینک اختصاصی',
+    copy: 'برای مشتری یک لینک بساز، مثل ویترین خودت. مدل‌ها را می‌بیند، انتخاب می‌کند، می‌خرد.',
     icon: Link2,
-    span: 'wide',
-    tone: 'paper',
-    points: ['ساخت لینک عمومی /s/… برای مشتری', 'ارسال لینک با پیامک (بسته به پلن)', 'انتخاب چند لباس در یک لینک'],
-  },
-  {
-    id: 'images',
-    title: 'تصویر محصول',
-    icon: Sparkles,
-    points: ['ویرایش تصویر با توکن', 'سبک‌های آماده برای ویترین', 'خرید بسته توکن از داخل پنل'],
-  },
-  {
-    id: 'check',
-    title: 'چک',
-    icon: Landmark,
-    points: ['جهت و وضعیت چک', 'سررسید ماه جاری', 'پیگیری چک‌های برگشتی'],
-  },
-  {
-    id: 'account',
-    title: 'حساب',
-    icon: Wallet,
-    points: ['مانده نسیه هر مشتری', 'ثبت پرداخت‌ها', 'دفتر حساب شفاف برای حجره'],
-  },
-  {
-    id: 'fabric',
-    title: 'خرید پارچه',
-    icon: Scissors,
-    points: ['ثبت خرید پارچه جدا از البسه', 'پیگیری هزینه مواد', 'سابقه خرید برای حسابداری'],
-  },
-  {
-    id: 'returned',
-    title: 'برگشتی',
-    icon: Undo2,
-    points: ['ثبت مرجوعی کالا', 'توضیح دلیل برگشت', 'هماهنگی با موجودی و حساب'],
-  },
-  {
-    id: 'workspace',
-    title: 'فضای کار',
-    icon: Settings,
-    points: ['چند برند و چند فروشگاه', 'نقش کارکنان روی هر فروشگاه', 'تنظیمات پروفایل و اشتراک'],
-  },
-  {
-    id: 'admin',
-    title: 'ادمین',
-    icon: Shield,
-    span: 'wide',
     tone: 'ink',
-    points: [
-      'کاربران و تمدید اشتراک',
-      'انتشار البسه در تلگرام و دعوت مشتری',
-      'لیست‌های کمکی: رنگ، سایز، نوع و مدل',
-    ],
+    className: 'md:col-span-3 rounded-3xl rounded-br-[3.4rem] md:-rotate-[0.6deg]',
+  },
+  {
+    id: 'stores',
+    title: 'چند فروشگاه',
+    copy: 'چند حجره داشته باش. لباس را بین‌شان شریک کن یا فقط مال یک جا نگه دار.',
+    icon: Building2,
+    tone: 'paper',
+    className: 'md:col-span-2 rounded-[1.75rem] rounded-tl-[2.8rem]',
+  },
+  {
+    id: 'brands',
+    title: 'چند برند',
+    copy: 'هر برند یک فروشگاه یا چند تا. کارها قاطی نمی‌شود.',
+    icon: Layers,
+    tone: 'saffron',
+    className: 'md:col-span-2 rounded-[2.4rem] md:rotate-1',
+  },
+  {
+    id: 'partners',
+    title: 'شریک و سود',
+    copy: 'شریک را روی برند یا فروشگاه بگذار. سهم هر کس جدا دیده می‌شود.',
+    icon: Handshake,
+    tone: 'wash',
+    className: 'md:col-span-2 rounded-2xl rounded-br-[2.8rem]',
+  },
+  {
+    id: 'privacy',
+    title: 'فقط خودت می‌بینی',
+    copy: 'داده‌ها مال خودت است. کس دیگری از حجره تو خبر ندارد.',
+    icon: Shield,
+    tone: 'ink',
+    className: 'md:col-span-2 rounded-[2.1rem] rounded-tr-[3rem] md:-rotate-1',
+  },
+  {
+    id: 'sms',
+    title: 'پیامک محصول جدید',
+    copy: 'مدل تازه که آمد، برای مشتری‌ها خودش پیامک می‌رود. تو دنبال شماره نگرد.',
+    icon: MessageSquare,
+    tone: 'paper',
+    className: 'md:col-span-2 rounded-[1.9rem] rounded-bl-[2.6rem]',
+  },
+  {
+    id: 'shop',
+    title: 'فروش در فروشگاه آنلاین',
+    copy: 'لباس را روی فروشگاه بگذار و مستقیم بفروش. از حجره تا خرید آنلاین، یک مسیر.',
+    icon: Store,
+    tone: 'saffron',
+    className: 'md:col-span-2 rounded-[2.5rem] rounded-tl-[1rem] md:rotate-[0.8deg]',
   },
 ];
 
-const DAY_STEPS = [
-  {
-    step: '۱',
-    title: 'ثبت البسه',
-    copy: 'کد، رنگ، سایز و موجودی حجره را وارد کنید تا ویترین آماده باشد.',
-    icon: Shirt,
-  },
-  {
-    step: '۲',
-    title: 'صدور فاکتور',
-    copy: 'بسته کامل یا ناقص را برای مشتری عمده ثبت و در صورت نیاز چاپ کنید.',
-    icon: FileText,
-  },
-  {
-    step: '۳',
-    title: 'پیگیری چک و نسیه',
-    copy: 'سررسید چک‌ها و مانده دفتر را از داشبورد و حساب ببینید.',
-    icon: Landmark,
-  },
-  {
-    step: '۴',
-    title: 'لینک برای مشتری',
-    copy: 'لینک محصول بسازید و با پیامک برای مشتری عمده بفرستید.',
-    icon: Link2,
-  },
+const BENEFITS = [
+  'دفتر و چک و موجودی توی یک جا جمع می‌شود؛ شب که می‌بندی، گیج نیستی.',
+  'مشتری عمده لینک می‌گیرد، خودش می‌بیند و سفارش می‌دهد. تو فقط آماده‌سازی.',
+  'هر لباس هزینه‌اش مشخص است: پارچه، خیاط، شست، چاپ. سود را حدس نمی‌زنی.',
 ];
 
 function NavLink({ href, children }: { href: string; children: ReactNode }) {
@@ -163,65 +140,44 @@ function NavLink({ href, children }: { href: string; children: ReactNode }) {
 
 function FeatureArticle({ feature }: { feature: FeatureCard }) {
   const Icon = feature.icon;
-  const isDark = feature.tone === 'ink';
-  const isSaffron = feature.tone === 'saffron';
+  const tone = {
+    ink: {
+      card: 'border-white/10 bg-shop-ink text-shop-bone',
+      icon: 'bg-white/10 text-shop-saffron',
+      copy: 'text-shop-bone/75',
+    },
+    saffron: {
+      card: 'border-shop-saffron/35 bg-shop-saffron text-shop-ink',
+      icon: 'bg-shop-ink/10 text-shop-ink',
+      copy: 'text-shop-ink/80',
+    },
+    paper: {
+      card: 'border-shop-ink/10 bg-shop-paper text-shop-ink',
+      icon: 'bg-shop-ink/5 text-shop-ink',
+      copy: 'text-shop-ink/70',
+    },
+    wash: {
+      card: 'border-teal-800/10 bg-teal-50 text-teal-950',
+      icon: 'bg-teal-900/10 text-teal-900',
+      copy: 'text-teal-950/75',
+    },
+  }[feature.tone];
 
   return (
     <article
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-[1.75rem] border p-5 shadow-[0_18px_40px_-24px_rgb(16_28_48_/_0.45)] transition duration-300 hover:-translate-y-1 sm:p-6',
-        feature.span === 'hero' && 'md:col-span-2 md:row-span-2',
-        feature.span === 'wide' && 'md:col-span-2',
-        feature.span === 'tall' && 'md:row-span-2',
-        isDark && 'border-white/10 bg-shop-ink text-shop-bone',
-        isSaffron && 'border-shop-saffron/40 bg-shop-saffron text-shop-ink',
-        !isDark && !isSaffron && 'border-shop-ink/10 bg-shop-paper text-shop-ink',
+        'col-span-2 flex flex-col justify-between overflow-hidden border p-5 shadow-[0_16px_36px_-28px_rgb(16_28_48_/_0.55)] transition duration-300 hover:z-10 hover:rotate-0 sm:p-6',
+        tone.card,
+        feature.className,
       )}
     >
-      <div
-        className={cn(
-          'mb-4 flex h-11 w-11 items-center justify-center rounded-2xl',
-          isDark && 'bg-white/10 text-shop-saffron',
-          isSaffron && 'bg-shop-ink/10 text-shop-ink',
-          !isDark && !isSaffron && 'bg-shop-ink/5 text-shop-ink',
-        )}
-      >
-        <Icon className="h-5 w-5" />
+      <div>
+        <span className={cn('mb-4 flex h-11 w-11 items-center justify-center rounded-2xl', tone.icon)}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <h3 className="text-xl font-semibold tracking-tight sm:text-[1.35rem]">{feature.title}</h3>
       </div>
-      <h3
-        className={cn(
-          'text-xl font-semibold tracking-tight',
-          feature.span === 'hero' && 'sm:text-2xl',
-        )}
-      >
-        {feature.title}
-      </h3>
-      <ul
-        className={cn(
-          'mt-3 space-y-2 text-sm leading-7',
-          isDark && 'text-shop-bone/75',
-          isSaffron && 'text-shop-ink/80',
-          !isDark && !isSaffron && 'text-shop-ink/65',
-          feature.span === 'hero' && 'sm:mt-4 sm:text-base',
-        )}
-      >
-        {feature.points.map((point) => (
-          <li key={point} className="flex gap-2">
-            <span
-              className={cn(
-                'mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full',
-                isDark && 'bg-shop-saffron',
-                isSaffron && 'bg-shop-ink/70',
-                !isDark && !isSaffron && 'bg-shop-saffron',
-              )}
-            />
-            <span>{point}</span>
-          </li>
-        ))}
-      </ul>
-      {feature.span === 'hero' ? (
-        <div className="pointer-events-none absolute -left-8 bottom-0 h-40 w-40 rounded-full bg-shop-saffron/15 blur-3xl" />
-      ) : null}
+      <p className={cn('mt-3 text-sm leading-7 sm:text-[15px]', tone.copy)}>{feature.copy}</p>
     </article>
   );
 }
@@ -238,11 +194,12 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             <BrandLogo variant="mark" className="h-9 w-9 shrink-0" />
             <span className="min-w-0">
               <span className="block truncate text-[15px] font-semibold leading-5">باسار</span>
-              <span className="block truncate text-[10px] text-white/45">پنل شمارش · {BRAND.name}</span>
+              <span className="block max-w-[11rem] text-[10px] leading-4 text-white/45">
+                نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی
+              </span>
             </span>
           </Link>
           <nav className="hidden items-center gap-5 md:flex">
-            <NavLink href="#day">یک روز کاری</NavLink>
             <NavLink href="#features">امکانات</NavLink>
             <NavLink href="#plans">طرح‌ها</NavLink>
           </nav>
@@ -265,104 +222,44 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
         <div className="shop-grain absolute inset-0 bg-gradient-to-bl from-shop-ink via-shop-mill/90 to-shop-ink" />
         <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-shop-saffron/20 blur-3xl" />
         <div className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-teal-500/10 blur-3xl" />
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:py-20 lg:grid-cols-[1.15fr_0.85fr] lg:items-end lg:px-6 lg:py-28">
-          <div>
-            <p className="text-[11px] tracking-[0.28em] text-shop-saffron">BASAR · COUNTING</p>
-            <h1 className="mt-4 max-w-3xl text-[2.2rem] font-semibold leading-[1.2] sm:text-5xl md:text-6xl">
-              حجره را از یک میز اداره کنید
-              <span className="mt-2 block text-shop-saffron">فاکتور، چک، البسه و لینک مشتری</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-8 text-shop-bone/75 sm:text-lg">
-              پنل شمارش باسار برای تیم {BRAND.name} ساخته شده؛ از موجودی بازار آهنگران تا نسیه دفتر و اشتراک‌گذاری
-              محصول با مشتری عمده، همه در یک جا.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <ShopButton href={primaryHref} className="px-6 py-3 text-base">
-                {primaryLabel}
-              </ShopButton>
-              <ShopButton
-                href="#features"
-                variant="outline"
-                className="border-white/20 bg-transparent px-6 py-3 text-base text-shop-bone hover:bg-white/5"
-              >
-                دیدن امکانات
-              </ShopButton>
-            </div>
-            <div className="mt-10 flex flex-wrap gap-3 text-xs text-shop-bone/55">
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">RTL · فارسی</span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">چند برند و فروشگاه</span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">لینک و پیامک محصول</span>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {[
-              { label: 'فروش امروز', value: 'داشبورد زنده', hint: 'هفته · ماه · سال' },
-              { label: 'چک در جریان', value: 'سررسید ماه', hint: 'برگشتی جداگانه' },
-              { label: 'ویترین دیجیتال', value: 'لینک /s/…', hint: 'پیامک به مشتری' },
-              { label: 'فضای کار', value: 'برند + فروشگاه', hint: 'نقش کارکنان' },
-            ].map((card) => (
-              <div
-                key={card.label}
-                className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm"
-              >
-                <p className="text-[11px] tracking-wide text-shop-saffron">{card.label}</p>
-                <p className="mt-2 text-lg font-semibold text-shop-bone">{card.value}</p>
-                <p className="mt-1 text-xs text-shop-bone/50">{card.hint}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="day" className="scroll-mt-24 border-b border-shop-ink/10 bg-shop-paper">
-        <div className="mx-auto max-w-7xl px-4 py-14 lg:px-6 lg:py-20">
-          <div className="mb-10 max-w-2xl">
-            <p className="text-[11px] tracking-[0.28em] text-shop-saffron">یک روز در حجره</p>
-            <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">چهار قدم تا بستن روز</h2>
-            <p className="mt-3 text-shop-ink/65 leading-8">
-              پنل شمارش مسیر واقعی کار عمده‌فروشی را دنبال می‌کند؛ نه یک لیست انتزاعی از منوها.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {DAY_STEPS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.step}
-                  className="relative overflow-hidden rounded-[1.6rem] border border-shop-ink/10 bg-shop-bone p-5 shadow-sm"
-                >
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-shop-ink text-shop-saffron">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span className="font-mono text-3xl font-semibold text-shop-ink/10">{item.step}</span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-shop-ink">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-7 text-shop-ink/65">{item.copy}</p>
-                </div>
-              );
-            })}
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20 lg:px-6 lg:py-28">
+          <p className="text-[11px] leading-6 text-shop-saffron sm:text-sm">
+            نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی
+          </p>
+          <h1 className="mt-4 max-w-3xl text-[2.15rem] font-semibold leading-[1.25] sm:text-5xl md:text-[3.4rem]">
+            حجره لباس را از روی دفتر پاره اداره نکن
+            <span className="mt-2 block text-shop-saffron">از پارچه تا فروش، همه‌ش اینجاست</span>
+          </h1>
+          <p className="mt-5 max-w-xl text-base leading-8 text-shop-bone/75 sm:text-lg">
+            باسار حسابداری تحت وب است، فقط برای عمده‌فروشی لباس — شلوار، پیراهن، تیشرت و هر مدلی که می‌فروشی. موجودی،
+            فاکتور، شریک و مشتری یک‌جا می‌ماند تا سر ماه حساب‌ها قاطی نشود.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <ShopButton href={primaryHref} className="px-6 py-3 text-base">
+              {primaryLabel}
+            </ShopButton>
+            <ShopButton
+              href="#features"
+              variant="outline"
+              className="border-white/20 bg-transparent px-6 py-3 text-base text-shop-bone hover:bg-white/5"
+            >
+              ببین چی داخلش هست
+            </ShopButton>
           </div>
         </div>
       </section>
 
       <section id="features" className="scroll-mt-24">
         <div className="mx-auto max-w-7xl px-4 py-14 lg:px-6 lg:py-20">
-          <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
-            <div className="max-w-2xl">
-              <p className="text-[11px] tracking-[0.28em] text-shop-saffron">محصولات پنل</p>
-              <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">همه امکانات، کارت به کارت</h2>
-              <p className="mt-3 text-shop-ink/65 leading-8">
-                هر کارت همان بخشی است که در منوی شمارش می‌بینید — با جزئیات واقعی کار حجره، نه شعار عمومی.
-              </p>
-            </div>
-            <p className="rounded-full border border-shop-ink/10 bg-shop-paper px-4 py-2 text-xs text-shop-ink/55">
-              {faNumber(FEATURES.length)} ماژول محصول
+          <div className="mb-8 max-w-2xl">
+            <p className="text-[11px] tracking-[0.22em] text-shop-saffron">امکانات</p>
+            <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">کار روز حجره، روی چند کارت کنار هم</h2>
+            <p className="mt-3 leading-8 text-shop-ink/65">
+              حسابداری عمومی نیست؛ مخصوص عمده‌فروشی پوشاک است. برای کسی که لباس می‌خرد، می‌دوزد، می‌شوید و عمده می‌فروشد.
             </p>
           </div>
 
-          <div className="grid auto-rows-[minmax(11rem,auto)] gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-6 md:gap-3">
             {FEATURES.map((feature) => (
               <FeatureArticle key={feature.id} feature={feature} />
             ))}
@@ -370,46 +267,25 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
         </div>
       </section>
 
-      <section className="border-y border-shop-ink/10 bg-sidebar-gradient text-shop-bone">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 lg:grid-cols-3 lg:px-6 lg:py-16">
-          {[
-            {
-              icon: Handshake,
-              title: 'شریک درآمد',
-              copy: 'در طرح شرکا و برندها، سهم شرکا روی داشبورد دیده می‌شود تا تقسیم فروش شفاف بماند.',
-            },
-            {
-              icon: Link2,
-              title: 'لینک و پیامک',
-              copy: 'لینک محصول برای مشتری عمده؛ در پلن‌های بالاتر ارسال پیامک و اطلاع محصول جدید هم هست.',
-            },
-            {
-              icon: Shield,
-              title: 'ادمین و تلگرام',
-              copy: 'کاربران، اشتراک، لیست‌های کمکی و انتشار البسه در کانال تلگرام از پنل ادمین.',
-            },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.06] p-5">
-                <Icon className="h-5 w-5 text-shop-saffron" />
-                <h3 className="mt-3 text-lg font-semibold">{item.title}</h3>
-                <p className="mt-2 text-sm leading-7 text-white/65">{item.copy}</p>
-              </div>
-            );
-          })}
+      <section className="border-y border-shop-ink/10 bg-shop-paper">
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-12 md:grid-cols-3 lg:px-6 lg:py-16">
+          {BENEFITS.map((copy, index) => (
+            <p key={copy} className="text-base leading-8 text-shop-ink/80">
+              <span className="mb-2 block font-mono text-sm text-shop-saffron">{faNumber(index + 1)}</span>
+              {copy}
+            </p>
+          ))}
         </div>
       </section>
 
       <section id="plans" className="scroll-mt-24 bg-shop-paper">
         <div className="mx-auto max-w-7xl px-4 py-14 lg:px-6 lg:py-20">
           <div className="mb-10 max-w-2xl">
-            <p className="text-[11px] tracking-[0.28em] text-shop-saffron">اشتراک</p>
-            <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">چهار طرح برای رشد حجره</h2>
-            <p className="mt-3 text-shop-ink/65 leading-8">
-              طرح پایه برند، فروشگاه و شریک درآمد دارد. ویترین اختصاصی (لینک محصول و پرداخت مشتری، مثل فروشگاه خودتان)
-              طرح جدا و گران‌تری است. قیمت‌ها ماهانه نمایش داده شده‌اند. اشتراک سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪
-              تخفیف دارد.
+            <p className="text-[11px] tracking-[0.22em] text-shop-saffron">اشتراک</p>
+            <h2 className="mt-2 text-3xl font-semibold text-shop-ink sm:text-4xl">هر حجره به اندازه خودش شروع می‌کند</h2>
+            <p className="mt-3 leading-8 text-shop-ink/65">
+              از یک فروشگاه ساده تا چند برند و ویترین لینک‌دار. قیمت‌ها ماهانه‌اند؛ سالانه {faNumber(ANNUAL_DISCOUNT * 100)}٪
+              کمتر می‌دهی.
             </p>
           </div>
 
@@ -419,14 +295,12 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
                 key={plan.id}
                 className={cn(
                   'flex flex-col rounded-[1.6rem] border bg-shop-bone p-5 shadow-sm',
-                  plan.highlight
-                    ? 'border-shop-saffron ring-1 ring-shop-saffron'
-                    : 'border-shop-ink/10',
+                  plan.highlight ? 'border-shop-saffron ring-1 ring-shop-saffron' : 'border-shop-ink/10',
                 )}
               >
                 {plan.highlight ? (
                   <span className="mb-3 w-fit rounded-full bg-shop-saffron/20 px-2.5 py-0.5 text-[11px] font-medium text-shop-ink">
-                    پیشنهادی
+                    مناسب ویترین
                   </span>
                 ) : (
                   <span className="mb-3 w-fit rounded-full bg-shop-ink/5 px-2.5 py-0.5 text-[11px] font-medium text-shop-ink/55">
@@ -435,9 +309,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
                 )}
                 <h3 className="text-xl font-semibold text-shop-ink">{plan.name}</h3>
                 <p className="mt-2 min-h-14 text-sm leading-6 text-shop-ink/60">{plan.blurb}</p>
-                <p className="mt-4 text-2xl font-semibold tracking-tight text-shop-ink">
-                  {toman(plan.monthlyPrice)}
-                </p>
+                <p className="mt-4 text-2xl font-semibold tracking-tight text-shop-ink">{toman(plan.monthlyPrice)}</p>
                 <p className="text-xs text-shop-ink/45">برای هر ماه</p>
                 <ul className="mt-5 flex-1 space-y-2.5 text-sm">
                   {plan.features.map((feature) => (
@@ -447,9 +319,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
                       ) : (
                         <X className="mt-0.5 h-4 w-4 shrink-0 text-shop-ink/25" />
                       )}
-                      <span className={feature.included ? 'text-shop-ink/80' : 'text-shop-ink/35'}>
-                        {feature.label}
-                      </span>
+                      <span className={feature.included ? 'text-shop-ink/80' : 'text-shop-ink/35'}>{feature.label}</span>
                     </li>
                   ))}
                 </ul>
@@ -457,21 +327,17 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
             ))}
           </div>
 
-          <p className="mt-6 text-center text-sm text-shop-ink/50">
-            برای فعال‌سازی طرح‌ها وارد پنل شوید و از بخش اشتراک در تنظیمات اقدام کنید.
-          </p>
+          <p className="mt-6 text-center text-sm text-shop-ink/50">طرح را بعد از ورود، از تنظیمات پنل فعال می‌کنی.</p>
         </div>
       </section>
 
       <section className="relative overflow-hidden bg-shop-ink text-shop-bone">
         <div className="shop-grain absolute inset-0 opacity-80" />
         <div className="relative mx-auto flex max-w-7xl flex-col items-start gap-6 px-4 py-16 sm:items-center sm:text-center lg:px-6 lg:py-24">
-          <p className="text-[11px] tracking-[0.28em] text-shop-saffron">آماده شروع</p>
-          <h2 className="max-w-3xl text-3xl font-semibold sm:text-4xl md:text-5xl">
-            امروز را با داشبورد بشمارید، نه دفتر پراکنده
-          </h2>
-          <p className="max-w-xl text-shop-bone/70 leading-8">
-            وارد پنل شمارش شوید، برند و فروشگاه را انتخاب کنید و از فاکتور تا لینک مشتری را یک‌جا جلو ببرید.
+          <p className="text-[11px] tracking-[0.22em] text-shop-saffron">شروع</p>
+          <h2 className="max-w-3xl text-3xl font-semibold sm:text-4xl md:text-5xl">یک هفته باهاش کار کن؛ دفتر را کنار می‌گذاری</h2>
+          <p className="max-w-xl leading-8 text-shop-bone/70">
+            وارد شو، برند و فروشگاه را بساز، لباس‌ها را بگذار. حسابداری عمده‌فروشی‌ات روی وب می‌ماند؛ دفتر را کنار می‌گذاری.
           </p>
           <div className="flex flex-wrap gap-3 sm:justify-center">
             <ShopButton href={primaryHref} className="px-6 py-3 text-base">
@@ -483,7 +349,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
               variant="outline"
               className="border-white/20 bg-transparent px-6 py-3 text-base text-shop-bone hover:bg-white/5"
             >
-              بازگشت به فروشگاه
+              فروشگاه جین پوش
             </ShopButton>
           </div>
         </div>
@@ -491,15 +357,13 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
 
       <footer className="border-t border-shop-ink/10 bg-shop-paper">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-shop-ink/55 lg:px-6">
-          <p>
-            باسار · پنل شمارش برای {BRAND.name}
-          </p>
+          <p>باسار · نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی</p>
           <div className="flex flex-wrap gap-4">
             <Link href="/counting/login" className="hover:text-shop-ink">
               ورود
             </Link>
             <Link href="/" className="hover:text-shop-ink">
-              فروشگاه جین پوش
+              فروشگاه {BRAND.name}
             </Link>
           </div>
         </div>
