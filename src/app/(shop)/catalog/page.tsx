@@ -4,15 +4,16 @@ import { filterCatalog } from '@/lib/catalog';
 import { CatalogFilters } from '@/components/shop/CatalogFilters';
 import { ProductCard } from '@/components/shop/ProductCard';
 import { faNumber } from '@/lib/format';
+import { pageShare } from '@/lib/share-meta';
 import { absoluteUrl } from '@/lib/site';
 import type { CatalogFilters as Filters } from '@/lib/types';
 import { Suspense } from 'react';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageShare({
   title: 'کاتالوگ عمده جین پوش',
   description: 'همه مدل‌های عمده جین پوش: شلوار جین، کتان و پوشاک حجره بازار بزرگ تهران.',
-  alternates: { canonical: absoluteUrl('/catalog') },
-};
+  url: absoluteUrl('/catalog'),
+});
 
 export default async function CatalogPage({
   searchParams,

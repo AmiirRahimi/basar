@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
 import { Toaster } from '@/ui/components/Toast';
 import { siteOrigin } from '@/lib/site';
+import { pageShare } from '@/lib/share-meta';
 import './globals.css';
+
+const title = 'جین پوش | شلوار جین و پوشاک عمده از بازار بزرگ تهران';
+const description = 'فروش عمده شلوار جین و پوشاک از حجره جین پوش در بازار بزرگ تهران';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin()),
-  title: 'جین پوش | شلوار جین و پوشاک عمده از بازار بزرگ تهران',
-  description: 'فروش عمده شلوار جین و پوشاک از حجره جین پوش در بازار بزرگ تهران',
+  ...pageShare({ title, description, url: '/' }),
   icons: {
     icon: [
       { url: '/brand/favicon.png', sizes: '32x32', type: 'image/png' },

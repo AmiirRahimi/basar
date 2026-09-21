@@ -8,6 +8,7 @@ import { collectionsForSeo } from '@/lib/catalog';
 import { collectionSlugs } from '@/lib/collection-slug';
 import { faNumber } from '@/lib/format';
 import { shopOrganizationLd } from '@/lib/json-ld';
+import { pageShare } from '@/lib/share-meta';
 import { absoluteUrl } from '@/lib/site';
 
 type Params = { slug: string };
@@ -39,12 +40,8 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const title = `${found.name} عمده | جین پوش`;
   const description = `خرید عمده ${found.name} از حجره جین پوش در بازار بزرگ تهران. سفارش با بسته، موجودی روز حجره.`;
   const url = absoluteUrl(`/c/${encodeURIComponent(slug)}`);
-  return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: { title, description, url, locale: 'fa_IR', type: 'website' },
-  };
+  const image = collections.find((row) => row.id === found.id)?.image;
+  return pageShare({ title, description, url, image });
 }
 
 export default async function CollectionPage({ params }: { params: Promise<Params> }) {

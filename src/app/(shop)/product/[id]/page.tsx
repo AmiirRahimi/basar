@@ -9,6 +9,7 @@ import { collectionsFromCatalog } from '@/lib/catalog';
 import { collectionPath } from '@/lib/collection-slug';
 import { faNumber, toman } from '@/lib/format';
 import { packLabelFa } from '@/lib/packs';
+import { pageShare } from '@/lib/share-meta';
 import { absoluteUrl } from '@/lib/site';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -20,12 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const title = `${product.name} عمده | جین پوش`;
   const description = `خرید عمده ${product.name} از حجره جین پوش در بازار بزرگ تهران. سفارش با بسته.`;
   const url = absoluteUrl(`/product/${product.id}`);
-  return {
-    title,
-    description,
-    alternates: { canonical: url },
-    openGraph: { title, description, url, locale: 'fa_IR', type: 'website' },
-  };
+  return pageShare({ title, description, url, image: product.image });
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
