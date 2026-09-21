@@ -46,8 +46,8 @@ export function CheckoutForm({ storefront = false }: { storefront?: boolean }) {
       </ShopField>
       <p className="text-sm text-shop-ink/60">
         {storefront
-          ? 'پس از ثبت مشخصات به درگاه باسار می‌روید. مبلغ به حساب پلتفرم واریز می‌شود و سفارش برای فروشندهٔ همین لینک ثبت می‌گردد.'
-          : 'فاکتور در شمارش ثبت می‌شود. پرداخت و چک را کارکنان بعد از هماهنگی وارد می‌کنند.'}
+          ? 'پس از ثبت مشخصات به درگاه پرداخت می‌روید. سفارش عمده برای همین فروشنده ثبت می‌شود.'
+          : 'سفارش عمده ثبت می‌شود. پرداخت و چک را بعد از هماهنگی با حجره وارد می‌کنید.'}
       </p>
       {message ? <p className="text-sm text-shop-madder">{message}</p> : null}
       <ShopButton type="submit" disabled={pending || totals.packs < 1} className="w-full">

@@ -39,7 +39,7 @@ export default async function SharedCatalogPage({ params }: { params: Promise<{ 
           </h1>
           <p className="mt-3 max-w-2xl text-sm text-shop-ink/65">
             {faNumber(shared.products.length)} مدل
-            {shared.storeName ? ` · ${shared.storeName}` : ''} — بسته‌ها را به سبد اضافه کنید و از درگاه باسار پرداخت کنید.
+            {shared.storeName ? ` · ${shared.storeName}` : ''} — بسته‌ها را به سبد اضافه کنید و از فروشگاه عمده سفارش دهید.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -33,7 +33,12 @@ export type DatePickerProps = {
 
 const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+const PERSIAN_MONTHS = Array.from({ length: 12 }, (_, index) =>
+  new DateObject({ calendar: persian, locale: persian_fa, year: 1400, month: index + 1, day: 1 }).month.name,
+);
 const PANEL_MS = 320;
+
+type CalendarView = 'days' | 'months' | 'years';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -246,6 +251,7 @@ export function DatePicker({
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [panel, setPanel] = useState<'date' | 'time'>(onlyTime ? 'time' : 'date');
+  const [calendarView, setCalendarView] = useState<CalendarView>('days');
   const [viewYear, setViewYear] = useState(selectedParts?.year || today.year);
   const [viewMonth, setViewMonth] = useState(selectedParts?.month || today.month);
   const [hour, setHour] = useState(selectedParts?.hour ?? 0);
@@ -270,6 +276,7 @@ export function DatePicker({
     if (open) {
       setMounted(true);
       setPanel(onlyTime ? 'time' : 'date');
+      setCalendarView('days');
       if (!selectedParts) {
         setViewYear(today.year);
         setViewMonth(today.month);
@@ -302,7 +309,7 @@ export function DatePicker({
     place();
     window.addEventListener('resize', place);
     return () => window.removeEventListener('resize', place);
-  }, [open, mounted, panel]);
+  }, [open, mounted, panel, calendarView]);
 
   useEffect(() => {
     if (!open) return;
@@ -325,6 +332,12 @@ export function DatePicker({
     setViewYear(next.year);
     setViewMonth(next.month.number);
   }
+
+  function shiftYear(delta: number) {
+    setViewYear((year) => year + delta);
+  }
+
+  const years = Array.from({ length: 12 }, (_, index) => viewYear - 5 + index);
 
   function commit(next: Date) {
     onChange?.(dateToFormValue(next, type, outputFormat, valueCalendar));
@@ -432,7 +445,10 @@ export function DatePicker({
                 <div className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-gray-50 p-1">
                   <button
                     type="button"
-                    onClick={() => setPanel('date')}
+                    onClick={() => {
+                      setPanel('date');
+                      setCalendarView('days');
+                    }}
                     className={cn(
                       'flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition',
                       panel === 'date' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800',
@@ -461,24 +477,55 @@ export function DatePicker({
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <button
                         type="button"
-                        onClick={() => shiftMonth(-1)}
+                        onClick={() => (calendarView === 'days' ? shiftMonth(-1) : shiftYear(calendarView === 'years' ? -12 : -1))}
                         className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
-                        aria-label="ماه قبل"
+                        aria-label="قبلی"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </button>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {monthName} {toFaDigits(viewYear)}
-                      </p>
+                      <div className="flex min-w-0 items-center gap-1">
+                        {calendarView === 'years' ? (
+                          <button
+                            type="button"
+                            onClick={() => setCalendarView('days')}
+                            className="rounded-xl px-2 py-1 text-sm font-semibold text-gray-900 transition hover:bg-gray-50"
+                          >
+                            {toFaDigits(years[0])} – {toFaDigits(years[years.length - 1])}
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setCalendarView('months')}
+                              className={cn(
+                                'rounded-xl px-2 py-1 text-sm font-semibold transition hover:bg-gray-50',
+                                calendarView === 'months' ? 'bg-primary/10 text-primary' : 'text-gray-900',
+                              )}
+                            >
+                              {monthName}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCalendarView('years')}
+                              className="rounded-xl px-2 py-1 text-sm font-semibold tabular-nums text-gray-900 transition hover:bg-gray-50"
+                            >
+                              {toFaDigits(viewYear)}
+                            </button>
+                          </>
+                        )}
+                      </div>
                       <button
                         type="button"
-                        onClick={() => shiftMonth(1)}
+                        onClick={() => (calendarView === 'days' ? shiftMonth(1) : shiftYear(calendarView === 'years' ? 12 : 1))}
                         className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
-                        aria-label="ماه بعد"
+                        aria-label="بعدی"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
                     </div>
+
+                    <Accordion open={calendarView === 'days'}>
+                      <div>
                     <div className="mb-1 grid grid-cols-7">
                       {WEEKDAYS.map((day) => (
                         <p key={day} className="py-1 text-center text-[11px] font-medium text-gray-400">
@@ -511,6 +558,57 @@ export function DatePicker({
                         );
                       })}
                     </div>
+                      </div>
+                    </Accordion>
+
+                    <Accordion open={calendarView === 'months'}>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {PERSIAN_MONTHS.map((name, index) => {
+                          const month = index + 1;
+                          const active = viewMonth === month;
+                          return (
+                            <button
+                              key={name}
+                              type="button"
+                              onClick={() => {
+                                setViewMonth(month);
+                                setCalendarView('days');
+                              }}
+                              className={cn(
+                                'rounded-2xl px-2 py-2.5 text-sm font-medium transition',
+                                active ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-gray-800 hover:bg-gray-50',
+                              )}
+                            >
+                              {name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </Accordion>
+
+                    <Accordion open={calendarView === 'years'}>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {years.map((year) => {
+                          const active = viewYear === year;
+                          return (
+                            <button
+                              key={year}
+                              type="button"
+                              onClick={() => {
+                                setViewYear(year);
+                                setCalendarView('months');
+                              }}
+                              className={cn(
+                                'rounded-2xl px-2 py-2.5 text-sm font-medium tabular-nums transition',
+                                active ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-gray-800 hover:bg-gray-50',
+                              )}
+                            >
+                              {toFaDigits(year)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </Accordion>
                   </div>
                 </Accordion>
               ) : null}

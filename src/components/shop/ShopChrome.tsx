@@ -123,9 +123,6 @@ export function ShopFooter() {
               {link.label}
             </Link>
           ))}
-          <Link href="/counting" className="hover:text-shop-bone">
-            حسابداری عمده‌فروشی باسار
-          </Link>
         </div>
         <div className="grid gap-2 text-sm">
           <p className="mb-1 text-xs tracking-[0.18em] text-shop-saffron">تلفن</p>

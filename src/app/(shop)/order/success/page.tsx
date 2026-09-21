@@ -15,12 +15,12 @@ export default async function OrderSuccessPage({
     <div className="mx-auto max-w-3xl px-4 py-16 lg:px-6">
       <p className="text-[11px] tracking-[0.28em] text-shop-saffron">{gatewayPaid ? 'پرداخت شد' : 'ثبت شد'}</p>
       <h1 className="mt-2 text-4xl font-semibold">
-        {gatewayPaid ? 'پرداخت انجام شد و سفارش ثبت شد' : 'سفارش بسته‌ها در شمارش ثبت شد'}
+        {gatewayPaid ? 'پرداخت انجام شد و سفارش ثبت شد' : 'سفارش عمده ثبت شد'}
       </h1>
       <p className="mt-3 text-shop-ink/65">
         {gatewayPaid
-          ? 'فاکتور پرداخت‌شده در پنل فروشنده دیده می‌شود. مبلغ در حساب درگاه باسار است.'
-          : 'فاکتور برای کارکنان انبار قابل مشاهده است. پرداخت و چک را جدا هماهنگ کنید.'}
+          ? 'سفارش پرداخت‌شده برای فروشنده ارسال شد.'
+          : 'سفارش برای حجره ثبت شد. پرداخت و چک را جدا هماهنگ کنید.'}
       </p>
       <div className="mt-8 space-y-6">
         {invoices.length ? (

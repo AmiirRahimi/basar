@@ -48,7 +48,7 @@ export default function AboutPage() {
         <ul className="mt-8 space-y-4 text-shop-ink/75">
           <li className="rounded-2xl bg-shop-paper px-5 py-4">فروش عمده است؛ واحد سفارش بسته است نه عدد تکی مصرف‌کننده.</li>
           <li className="rounded-2xl bg-shop-paper px-5 py-4">بسته کامل در اولویت است. بسته‌های ناقص جدا انتخاب می‌شوند.</li>
-          <li className="rounded-2xl bg-shop-paper px-5 py-4">فاکتور روی موجودی حجره ثبت می‌شود و کارکنان در پنل شمارش آن را می‌بینند.</li>
+          <li className="rounded-2xl bg-shop-paper px-5 py-4">سفارش عمده از همین فروشگاه آنلاین ثبت می‌شود و موجودی حجره کم می‌شود.</li>
           {BRAND_ADDRESSES.map((address) => (
             <li key={address.title} className="rounded-2xl bg-shop-paper px-5 py-4">
               {address.title}: {address.line}
