@@ -549,6 +549,24 @@ const PaymentIntentSchema = defineSchema(
   { collection: 'paymentintents' },
 );
 
+const SmsCampaignSchema = defineSchema(
+  {
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    templateId: { type: String, default: 'custom' },
+    title: { type: String, default: '' },
+    body: { type: String, default: '' },
+    audience: { type: String, default: 'customers' },
+    phones: { type: [String], default: [] },
+    sentCount: { type: Number, default: 0 },
+    failedCount: { type: Number, default: 0 },
+    packIds: { type: [String], default: [] },
+    discountPercent: { type: Number, default: 0 },
+    link: { type: String, default: '' },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'smscampaigns' },
+);
+
 const AttachmentSchema = defineSchema(
   {
     size: Number,
@@ -597,6 +615,7 @@ export const PlanCatalog = modelOf<any>('PlanCatalog', PlanCatalogSchema);
 export const PaymentIntent = modelOf<any>('PaymentIntent', PaymentIntentSchema);
 export const TelegramPublish = modelOf<any>('TelegramPublish', TelegramPublishSchema);
 export const TelegramInvite = modelOf<any>('TelegramInvite', TelegramInviteSchema);
+export const SmsCampaign = modelOf<any>('SmsCampaign', SmsCampaignSchema);
 export const Attachment = modelOf<any>('Attachment', AttachmentSchema);
 
 export const PERSON_POPULATE = personSelect;

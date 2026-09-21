@@ -46,6 +46,7 @@ const menuSections = [
       { name: 'کاربران و اشتراک', href: '/counting/admin/users' },
       { name: 'طرح‌های اشتراک', href: '/counting/admin/plans' },
       { name: 'سفارش‌های ویترین', href: '/counting/admin/storefront' },
+      { name: 'پیامک', href: '/counting/admin/sms' },
       { name: 'تلگرام', href: '/counting/admin/telegram' },
       { name: 'لیست‌های کمکی', href: '/counting/admin/dropdowns' },
     ],

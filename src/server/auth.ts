@@ -6,7 +6,7 @@ import { fileModels } from './file-db';
 import { fail, failDb, ok, type ActionResult } from './result';
 import { clearAuthCookies, setAuthCookies, signTokens, type Session } from './session';
 import { OTP_TTL_MS, PHONE_RE } from '@/lib/constants';
-import { sendSmsText } from './sms';
+import { sendOtpCode, sendWelcomeSms, smsLive } from './sms';
 import {
   activateMemberships,
   ensureOwnerWorkspace,
@@ -77,12 +77,9 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
     const code = String(randomInt(100000, 1000000));
     const hashed = await argon2.hash(code);
     await M().OTP.create({ receptor: phonenumber, code: hashed, type: 1, isUsed: false });
-    if (process.env.NODE_ENV === 'production') {
-      const sms = await sendSmsText(phonenumber, `کد ورود بازار: ${code}`);
-      if (!sms.ok) return fail(sms.message || 'ارسال پیامک ناموفق بود');
-    } else {
-      console.info('[OTP]', phonenumber, code);
-    }
+    const sms = await sendOtpCode(phonenumber, code);
+    if (!sms.ok) return fail(sms.message || 'ارسال پیامک ناموفق بود');
+    if (!smsLive()) console.info('[OTP]', phonenumber, code);
     if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
     return ok(null, 'کد ارسال شد');
   } catch {
@@ -132,6 +129,7 @@ export async function loginWithOtp(form: {
     await M().OTP.updateOne({ _id: otpId }, { isUsed: true });
 
     let user = await M().User.findOne({ phonenumber });
+    const isNew = !user;
     if (!user) user = await M().User.create({ phonenumber });
     const userId = String(user._id);
     await activateMemberships(userId, phonenumber);
@@ -148,6 +146,13 @@ export async function loginWithOtp(form: {
     const tokens = signTokens(session);
     await M().User.updateOne({ _id: String(user._id) }, { refreshToken: tokens.refreshToken });
     await setAuthCookies(tokens);
+    if (isNew) {
+      try {
+        await sendWelcomeSms(phonenumber, String(user.fullName || ''));
+      } catch {
+        /* never block signup */
+      }
+    }
     return ok(null, 'ورود موفق');
   } catch {
     return failDb();

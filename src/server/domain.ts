@@ -1304,7 +1304,7 @@ async function notifyCustomersOfNewCloth(session: Session, cloth: any) {
       const phone = String(person.phoneNumber || '').trim();
       if (!PHONE_RE.test(phone)) continue;
       if (!rateLimit(`new-product-sms:${session._storeId}:${phone}`, 3, 24 * 60 * 60 * 1000)) continue;
-      await sendSmsText(phone, `محصول جدید اضافه شد. مشاهده: ${url}`);
+      await sendSmsText(phone, `محصولات جدید رسید. برای دیدن و سفارش عمده به این لینک سر بزنید:\n${url}`);
     }
   } catch {
     /* never block cloth create */
