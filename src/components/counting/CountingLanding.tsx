@@ -18,6 +18,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { BRAND } from '@/lib/brand';
 import { faNumber, toman } from '@/lib/format';
 import { ANNUAL_DISCOUNT, SUBSCRIPTION_PLANS } from '@/lib/plans';
@@ -234,9 +235,7 @@ export function CountingLanding({ signedIn }: { signedIn: boolean }) {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-sidebar-gradient/95 text-shop-bone backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
           <Link href="/counting" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-bold text-shop-ink shadow-sm">
-              ب
-            </span>
+            <BrandLogo variant="mark" className="h-9 w-9 shrink-0" />
             <span className="min-w-0">
               <span className="block truncate text-[15px] font-semibold leading-5">باسار</span>
               <span className="block truncate text-[10px] text-white/45">پنل شمارش · {BRAND.name}</span>

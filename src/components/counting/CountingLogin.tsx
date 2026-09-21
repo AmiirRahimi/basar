@@ -71,7 +71,10 @@ export function CountingLogin() {
 
   return (
     <SignInShell
-      brandName="بازار"
+      logoSrc="/brand/logo-mark.png"
+      logoAlt="باسار"
+      logoHref="/counting"
+      brandName="باسار"
       brandTagline="شمارش و عمده‌فروشی پوشاک"
       welcomeBadge="ورود کارکنان"
       title="ورود به شمارش بازار"

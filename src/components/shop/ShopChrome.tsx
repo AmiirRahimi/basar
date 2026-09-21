@@ -1,5 +1,6 @@
 'use client';
 
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { BRAND, BRAND_ADDRESSES, BRAND_PHONES, BRAND_SOCIAL } from '@/lib/brand';
 import { cn } from '@/ui/lib/cn';
 import { Instagram, Linkedin, Menu, Phone, Send, X } from 'lucide-react';
@@ -28,7 +29,7 @@ export function ShopHeader() {
     return (
       <header className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
-          <span className="min-w-0 text-xl font-semibold tracking-tight sm:text-2xl">{BRAND.name}</span>
+          <BrandLogo variant="full" className="h-8 w-auto sm:h-9" priority />
           <Link
             href="/catalog"
             className="rounded-full bg-shop-saffron px-4 py-2 text-sm font-medium text-shop-ink hover:brightness-105"
@@ -43,10 +44,12 @@ export function ShopHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-shop-ink/95 text-shop-bone backdrop-blur-md" dir="rtl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
-        <Link href="/" className="min-w-0 leading-none">
-          <span className="block text-xl font-semibold tracking-tight sm:text-2xl">{BRAND.name}</span>
-          <span className="mt-1 hidden max-w-[16rem] truncate text-[10px] tracking-[0.14em] text-shop-saffron sm:block md:max-w-none md:tracking-[0.18em]">
-            {BRAND.tagline}
+        <Link href="/" className="flex min-w-0 items-center gap-3 leading-none">
+          <BrandLogo variant="full" className="h-8 w-auto sm:h-10" priority />
+          <span className="hidden min-w-0 sm:block">
+            <span className="block truncate text-[11px] tracking-[0.14em] text-shop-saffron md:tracking-[0.18em]">
+              {BRAND.tagline}
+            </span>
           </span>
         </Link>
         <nav className="hidden items-center gap-4 text-sm md:flex lg:gap-7">
@@ -102,8 +105,8 @@ export function ShopFooter() {
     <footer data-shop-dark className="mt-16 border-t border-shop-ink/10 bg-shop-ink text-shop-bone" dir="rtl">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 lg:grid-cols-4 lg:px-6">
         <div>
-          <p className="text-2xl font-semibold">{BRAND.name}</p>
-          <p className="mt-1 text-xs tracking-[0.16em] text-shop-saffron">{BRAND.latin}</p>
+          <BrandLogo variant="full" className="h-10 w-auto" />
+          <p className="mt-2 text-xs tracking-[0.16em] text-shop-saffron">{BRAND.latin}</p>
           <p className="mt-3 max-w-sm text-sm leading-7 text-shop-bone/65">{BRAND.description}. فروش عمده با بسته از حجره‌های بازار آهنگران.</p>
         </div>
         <div className="grid gap-2 text-sm text-shop-bone/75">

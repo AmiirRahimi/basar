@@ -62,7 +62,7 @@ export function SignInShell({
         alt={logoAlt}
         width={44}
         height={44}
-        className="rounded-xl shadow-lg shadow-black/20"
+        className="h-11 w-11 object-contain"
       />
     ) : null);
 

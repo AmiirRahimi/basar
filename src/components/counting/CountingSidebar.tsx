@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { ComponentType } from 'react';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Pin, PinOff } from 'lucide-react';
 import { cn } from '@/ui';
 import { SidebarReveal } from './SidebarCollapsible';
@@ -140,9 +141,7 @@ export function CountingSidebar({
               expanded ? 'items-center gap-2 px-2' : 'flex-col items-center gap-1.5 px-1',
             )}
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-bold text-slate-900 shadow-sm">
-              ب
-            </span>
+            <BrandLogo variant="mark" className="h-9 w-9 shrink-0" />
             <SidebarReveal show={expanded} className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold leading-5 tracking-tight">باسار</p>
               <p className="truncate text-[10px] leading-4 text-white/45">پنل شمارش</p>
