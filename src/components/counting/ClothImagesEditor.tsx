@@ -13,12 +13,14 @@ export function ClothImagesEditor({
   value,
   onChange,
   error,
+  locked = false,
 }: {
   label: string;
   value?: string;
   onChange: (value: string) => void;
   clothId?: string;
   error?: string;
+  locked?: boolean;
 }) {
   const images = parseImageList(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +39,10 @@ export function ClothImagesEditor({
   }
 
   function openPicker(replaceIndex: number | null = null) {
+    if (locked) {
+      toast.error('ثبت تصویر لباس فقط در طرح ویترین است');
+      return;
+    }
     if (replaceIndex == null && atLimit) {
       toast.error(`حداکثر ${faNumber(MAX_CLOTH_IMAGES)} تصویر برای هر لباس مجاز است`);
       return;
@@ -46,6 +52,10 @@ export function ClothImagesEditor({
   }
 
   function uploadFiles(fileList: FileList | File[] | null) {
+    if (locked) {
+      toast.error('ثبت تصویر لباس فقط در طرح ویترین است');
+      return;
+    }
     const files = fileList ? Array.from(fileList) : [];
     if (!files.length) return;
 
@@ -82,7 +92,11 @@ export function ClothImagesEditor({
   return (
     <FieldGroup
       title={label}
-      description={`فایل تصویر را از دستگاه وارد کنید. حداکثر ${faNumber(MAX_CLOTH_IMAGES)} تصویر (JPG، PNG، WEBP، GIF).`}
+      description={
+        locked
+          ? 'ثبت تصویر فقط در طرح ویترین است. طرح را از تنظیمات اشتراک ارتقا دهید.'
+          : `فایل تصویر را از دستگاه وارد کنید. حداکثر ${faNumber(MAX_CLOTH_IMAGES)} تصویر (JPG، PNG، WEBP، GIF).`
+      }
       headerAction={
         <p className="shrink-0 text-xs text-gray-500">
           {faNumber(images.length)} / {faNumber(MAX_CLOTH_IMAGES)}
@@ -111,7 +125,7 @@ export function ClothImagesEditor({
                     type="button"
                     size="xs"
                     variant="outline"
-                    disabled={pending}
+                    disabled={pending || locked}
                     icon={<Replace className="h-3 w-3" />}
                     onClick={() => openPicker(index)}
                   >
@@ -136,7 +150,7 @@ export function ClothImagesEditor({
 
       <button
         type="button"
-        disabled={pending || atLimit}
+        disabled={pending || atLimit || locked}
         onClick={() => openPicker(null)}
         onDragEnter={(e) => {
           e.preventDefault();
@@ -156,7 +170,7 @@ export function ClothImagesEditor({
         }}
         className={[
           'flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-sm transition-colors',
-          atLimit || pending
+          atLimit || pending || locked
             ? 'cursor-not-allowed border-gray-200 text-gray-400 dark:border-gray-700'
             : dragging
               ? 'border-primary/50 bg-primary/5 text-primary'
@@ -164,8 +178,16 @@ export function ClothImagesEditor({
         ].join(' ')}
       >
         <ImagePlus className="h-5 w-5" />
-        <span>{pending ? 'در حال بارگذاری…' : atLimit ? 'ظرفیت تصاویر پر است' : 'انتخاب یا رها کردن فایل تصویر'}</span>
-        {!atLimit && !pending ? (
+        <span>
+          {locked
+            ? 'برای افزودن تصویر، طرح ویترین را فعال کنید'
+            : pending
+              ? 'در حال بارگذاری…'
+              : atLimit
+                ? 'ظرفیت تصاویر پر است'
+                : 'انتخاب یا رها کردن فایل تصویر'}
+        </span>
+        {!locked && !atLimit && !pending ? (
           <span className="text-xs text-gray-400">{faNumber(remaining)} جای خالی باقی مانده</span>
         ) : null}
       </button>

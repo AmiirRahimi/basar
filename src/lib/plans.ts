@@ -9,6 +9,7 @@ export type SubscriptionPlan = {
   maxBrands: number;
   maxStores: number;
   allowPartners: boolean;
+  allowClothImages: boolean;
   allowProductShare: boolean;
   allowShareSms: boolean;
   notifyCustomersOnNewProduct: boolean;
@@ -16,13 +17,15 @@ export type SubscriptionPlan = {
   highlight?: boolean;
 };
 
-export const MONTHLY_BASE_TOMAN = 500_000;
+export const MONTHLY_BASE_TOMAN = 1_000_000;
+export const HIGHEST_PLAN_TOMAN = 5_000_000;
 export const ANNUAL_DISCOUNT = 0.2;
 export const ADMIN_ADD_MONTH_OPTIONS = [2, 3, 4, 6, 12] as const;
 
 const CORE_FEATURES = {
-  invoice: { label: 'فاکتور، چک و البسه', included: true as const },
+  invoice: { label: 'فاکتور، چک، البسه و پارچه', included: true as const },
   partners: { label: 'شریک درآمد', included: true as const },
+  images: { label: 'تصویر محصول', included: false as const },
   vitrin: { label: 'ویترین اختصاصی: لینک محصول، سبد و پرداخت مشتری (مثل فروشگاه خودتان)', included: false as const },
   smsLink: { label: 'ارسال لینک با پیامک', included: false as const },
   smsNew: { label: 'پیامک محصول جدید به مشتری‌ها', included: false as const },
@@ -32,19 +35,21 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'starter',
     name: 'پایه',
-    blurb: 'یک برند، یک حجره. برای شروع کار و ثبت شریک.',
+    blurb: 'یک برند، یک حجره. کار روز: البسه، فاکتور، پارچه و چک — بدون شریک و بدون عکس.',
     monthlyPrice: MONTHLY_BASE_TOMAN,
     maxBrands: 1,
     maxStores: 1,
-    allowPartners: true,
+    allowPartners: false,
+    allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
     notifyCustomersOnNewProduct: false,
     features: [
       { label: 'یک برند', included: true },
       { label: 'یک فروشگاه', included: true },
-      CORE_FEATURES.partners,
       CORE_FEATURES.invoice,
+      { ...CORE_FEATURES.partners, included: false },
+      CORE_FEATURES.images,
       CORE_FEATURES.vitrin,
       CORE_FEATURES.smsLink,
       CORE_FEATURES.smsNew,
@@ -54,18 +59,20 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: 'shops',
     name: 'فروشگاه‌ها',
     blurb: 'چند حجره روی یک برند. لباس را بین شعبه‌ها پخش کن.',
-    monthlyPrice: 650_000,
+    monthlyPrice: 1_800_000,
     maxBrands: 1,
     maxStores: 5,
-    allowPartners: true,
+    allowPartners: false,
+    allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
     notifyCustomersOnNewProduct: false,
     features: [
       { label: 'یک برند', included: true },
       { label: 'تا ۵ فروشگاه', included: true },
-      CORE_FEATURES.partners,
       CORE_FEATURES.invoice,
+      { ...CORE_FEATURES.partners, included: false },
+      CORE_FEATURES.images,
       CORE_FEATURES.vitrin,
       CORE_FEATURES.smsLink,
       CORE_FEATURES.smsNew,
@@ -74,19 +81,21 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'partners',
     name: 'شرکا',
-    blurb: 'همان چند حجره، با فضای بیشتر برای کار روز.',
-    monthlyPrice: 850_000,
+    blurb: 'همان چند حجره، به‌اضافه ثبت شریک و سهم سود.',
+    monthlyPrice: 2_500_000,
     maxBrands: 1,
     maxStores: 5,
     allowPartners: true,
+    allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
     notifyCustomersOnNewProduct: false,
     features: [
       { label: 'یک برند', included: true },
       { label: 'تا ۵ فروشگاه', included: true },
-      CORE_FEATURES.partners,
       CORE_FEATURES.invoice,
+      CORE_FEATURES.partners,
+      CORE_FEATURES.images,
       CORE_FEATURES.vitrin,
       CORE_FEATURES.smsLink,
       CORE_FEATURES.smsNew,
@@ -95,11 +104,12 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'brands',
     name: 'ویترین',
-    blurb: 'مثل فروشگاه خودتان: لینک بسازید، مشتری سبد کند و از درگاه باسار بپردازد. چند برند و فروشگاه نامحدود.',
-    monthlyPrice: 3_500_000,
+    blurb: 'برند و فروشگاه نامحدود، عکس لباس، لینک مشتری و پرداخت. قیمت این طرح با بقیه فرق دارد.',
+    monthlyPrice: HIGHEST_PLAN_TOMAN,
     maxBrands: 99,
     maxStores: 99,
     allowPartners: true,
+    allowClothImages: true,
     allowProductShare: true,
     allowShareSms: true,
     notifyCustomersOnNewProduct: true,
@@ -107,8 +117,9 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     features: [
       { label: 'برند نامحدود', included: true },
       { label: 'فروشگاه نامحدود', included: true },
-      CORE_FEATURES.partners,
       CORE_FEATURES.invoice,
+      CORE_FEATURES.partners,
+      { ...CORE_FEATURES.images, included: true },
       { ...CORE_FEATURES.vitrin, included: true },
       { ...CORE_FEATURES.smsLink, included: true },
       { ...CORE_FEATURES.smsNew, included: true },
@@ -118,6 +129,10 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 
 export function planById(id?: string | null) {
   return SUBSCRIPTION_PLANS.find((plan) => plan.id === id) || SUBSCRIPTION_PLANS[0];
+}
+
+export function isHighestPlan(id?: string | null) {
+  return planById(id).id === 'brands';
 }
 
 export function annualPrice(monthlyPrice: number) {
@@ -160,6 +175,8 @@ export function cycleFromLegacy(type?: number, cycle?: string): BillingCycle {
 
 export function planFeatureFlags(plan: SubscriptionPlan) {
   return {
+    allowPartners: Boolean(plan.allowPartners),
+    allowClothImages: Boolean(plan.allowClothImages),
     allowProductShare: Boolean(plan.allowProductShare),
     allowShareSms: Boolean(plan.allowShareSms),
     notifyCustomersOnNewProduct: Boolean(plan.notifyCustomersOnNewProduct),

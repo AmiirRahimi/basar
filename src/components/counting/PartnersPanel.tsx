@@ -12,7 +12,7 @@ import { Button, Input, Modal, MultiSelect, toast } from '@/ui';
 import { AddPlusButton } from './PageAction';
 import { useWorkspace } from './WorkspaceProvider';
 import { useWritable } from './useWritable';
-import { PlanLocked } from './PlanLocked';
+import { PlanCapacityBanner, PlanLocked } from './PlanLocked';
 
 const selectLabels = {
   search: 'جستجو',
@@ -170,11 +170,15 @@ export function PartnersPanel({
         {canManage ? <AddPlusButton label="ثبت شریک" onClick={openCreate} /> : null}
       </div>
 
+      <div className="mb-4">
+        <PlanCapacityBanner />
+      </div>
+
       {showPlanLock ? (
         <PlanLocked
           title="شریک درآمد"
-          what="شریک را روی برند یا فروشگاه می‌گذاری و سهم سود هر نفر جدا دیده می‌شود؛ بدون قاطی شدن حساب حجره."
-          planHint="دارای شریک درآمد"
+          what="شریک را روی برند یا فروشگاه می‌گذاری و سهم سود هر نفر جدا دیده می‌شود. در طرح پایه این کار نیست؛ فاکتور، البسه و پارچه همان‌جا می‌ماند."
+          planHint="شرکا یا ویترین"
         />
       ) : (
         <>

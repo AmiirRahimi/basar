@@ -22,6 +22,7 @@ import { Button, EmptyState, IconButton, Input, Modal, Select, toast } from '@/u
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { useWorkspace } from './WorkspaceProvider';
 import { useWritable } from './useWritable';
+import { PlanCapacityBanner } from './PlanLocked';
 
 const selectLabels = {
   search: 'جستجو',
@@ -368,6 +369,9 @@ export function BrandStoreWorkspace() {
 
   return (
     <>
+      <div className="mb-4">
+        <PlanCapacityBanner />
+      </div>
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
           <div className="mb-2 flex items-center justify-between px-1">

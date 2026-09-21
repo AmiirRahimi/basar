@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { canWriteResource } from '@/lib/roles';
-import { imageEditStyleById, imageTokenPackById, type ImageEditStyleId } from '@/lib/image-tokens';
+import { IMAGE_EDIT_TOKEN_COST, imageEditStyleById, imageTokenPackById, type ImageEditStyleId } from '@/lib/image-tokens';
 import { MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
@@ -9,6 +9,7 @@ import { renderProductEdit } from './image-process';
 import { readSourceImage, saveProductImage } from './image-store';
 import { clientIp, rateLimit } from './rate-limit';
 import { fail, ok, type ActionResult } from './result';
+import { denyPlanFeature, subscriptionForSession } from './subscription';
 import { withWorkspace, accessibleStores } from './workspace';
 
 function M() {
@@ -74,7 +75,7 @@ export async function listImageStudio(): Promise<ActionResult> {
   );
 }
 
-export async function buyImageTokens(packId: string): Promise<ActionResult> {
+export async function previewImageTokenDiscount(packId: string, discountCode = ''): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
   if (access.session.storeRole !== 'owner' && !access.session.isPlatformAdmin) {
@@ -82,11 +83,39 @@ export async function buyImageTokens(packId: string): Promise<ActionResult> {
   }
   const pack = imageTokenPackById(packId);
   if (!pack) return fail('بسته توکن نامعتبر است');
+  await db();
+  const { consumeDiscountCode } = await import('./admin');
+  const discounted = await consumeDiscountCode(discountCode, pack.price, access.session._id);
+  if (!discounted.ok) return fail(discounted.message);
+  const percent = pack.price > 0 ? Math.round((1 - discounted.price / pack.price) * 100) : 0;
+  return ok({
+    packId: pack.id,
+    originalPrice: pack.price,
+    price: discounted.price,
+    code: discounted.code,
+    percent,
+    tokens: pack.tokens,
+  });
+}
+
+export async function buyImageTokens(packId: string, discountCode = ''): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  if (access.session.storeRole !== 'owner' && !access.session.isPlatformAdmin) {
+    return fail('فقط صاحب برند می‌تواند توکن بخرد', 403);
+  }
+  const tokenPlan = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');
+  if (tokenPlan) return tokenPlan;
+  const pack = imageTokenPackById(packId);
+  if (!pack) return fail('بسته توکن نامعتبر است');
   const ip = await clientIp();
   if (!rateLimit(`image-tokens:buy:${access.session._id}`, 8, 10 * 60 * 1000) || !rateLimit(`image-tokens:buy:ip:${ip}`, 20, 10 * 60 * 1000)) {
     return fail('تعداد خریدها زیاد است. کمی بعد دوباره تلاش کنید', 429);
   }
   await db();
+  const { consumeDiscountCode } = await import('./admin');
+  const discounted = await consumeDiscountCode(discountCode, pack.price, access.session._id);
+  if (!discounted.ok) return fail(discounted.message);
   const ownerId = await tokenOwnerId(access.session);
   const owner = await M().User.findById(ownerId).lean();
   if (!owner) return fail('کاربر پیدا نشد', 404);
@@ -96,10 +125,16 @@ export async function buyImageTokens(packId: string): Promise<ActionResult> {
     _userId: oid(ownerId),
     packId: pack.id,
     tokens: pack.tokens,
-    price: pack.price,
+    price: discounted.price,
+    originalPrice: pack.price,
+    discountCode: discounted.code,
     timeStamp: new Date(),
   });
-  return ok(serialize({ imageTokens: next, added: pack.tokens }), `${pack.tokens} توکن به حساب اضافه شد`);
+  if (discounted.id) {
+    const row = await M().DiscountCode.findById(discounted.id).lean();
+    await M().DiscountCode.updateOne({ _id: oid(discounted.id) }, { usedCount: Number(row?.usedCount || 0) + 1 });
+  }
+  return ok(serialize({ imageTokens: next, added: pack.tokens, price: discounted.price }), `${pack.tokens} توکن به حساب اضافه شد`);
 }
 
 export async function editProductImage(payload: {
@@ -116,6 +151,8 @@ export async function editProductImage(payload: {
     access.session.subscriptionActive !== false,
   );
   if (!canEdit) return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
+  const imagePlan = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');
+  if (imagePlan) return imagePlan;
   const style = imageEditStyleById(payload.styleId);
   if (!style) return fail('جلوه نامعتبر است');
   const ip = await clientIp();
@@ -138,8 +175,9 @@ export async function editProductImage(payload: {
   const owner = await M().User.findById(ownerId).lean();
   if (!owner) return fail('حساب توکن پیدا نشد', 404);
   const balance = Number(owner.imageTokens || 0);
-  if (!access.session.isPlatformAdmin && balance < style.tokenCost) {
-    return fail('توکن کافی نیست. ابتدا بسته توکن بخرید.');
+  const spent = IMAGE_EDIT_TOKEN_COST;
+  if (!access.session.isPlatformAdmin && balance < spent) {
+    return fail('توکن کافی نیست. هر تصویر یک توکن می‌خواهد. ابتدا بسته توکن بخرید.');
   }
   try {
     const source = await readSourceImage(sourceUrl);
@@ -151,7 +189,7 @@ export async function editProductImage(payload: {
       .slice(0, MAX_CLOTH_IMAGES);
     await M().Cloth.findByIdAndUpdate(payload.clothId, { images: nextImages });
     if (!access.session.isPlatformAdmin) {
-      await M().User.findByIdAndUpdate(ownerId, { imageTokens: Math.max(0, balance - style.tokenCost) });
+      await M().User.findByIdAndUpdate(ownerId, { imageTokens: Math.max(0, balance - spent) });
     }
     await M().ImageEdit.create({
       _userId: oid(ownerId),
@@ -165,8 +203,8 @@ export async function editProductImage(payload: {
       serialize({
         resultUrl,
         images: nextImages,
-        imageTokens: access.session.isPlatformAdmin ? balance : Math.max(0, balance - style.tokenCost),
-        spent: style.tokenCost,
+        imageTokens: access.session.isPlatformAdmin ? balance : Math.max(0, balance - spent),
+        spent,
       }),
       'تصویر محصول آماده شد',
     );

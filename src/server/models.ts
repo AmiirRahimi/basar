@@ -453,6 +453,8 @@ const ImageTokenPurchaseSchema = defineSchema(
     tokens: { type: Number, required: true },
     price: { type: Number, required: true },
     timeStamp: { type: Date, required: true, default: Date.now },
+    discountCode: { type: String, default: '' },
+    originalPrice: { type: Number, default: 0 },
   },
   { collection: 'imagetokenpurchases' },
 );

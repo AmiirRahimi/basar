@@ -14,6 +14,7 @@ import { displayName, faDate, parseGroupedNumber, toman } from '@/lib/format';
 import { normalizePersonRoles, personRolesLabel } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { ClothImagesEditor } from './ClothImagesEditor';
+import { useWorkspace } from './WorkspaceProvider';
 import { ClothPacksEditor } from './ClothPacksEditor';
 import { ClothShareFields } from './ClothShareFields';
 import { ClothExtrasEditor } from './ClothExtrasEditor';
@@ -157,6 +158,8 @@ export function ResourceCrud({
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, any> | null>(null);
+  const workspace = useWorkspace();
+  const allowClothImages = Boolean(workspace?.isPlatformAdmin || workspace?.subscription?.allowClothImages);
   const [form, setForm] = useState<Record<string, string>>({});
   const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
@@ -620,6 +623,7 @@ export function ResourceCrud({
           value={form[field.name] || ''}
           onChange={(next) => setValue(field, next)}
           error={imagesError || undefined}
+          locked={!allowClothImages}
         />
       );
     }

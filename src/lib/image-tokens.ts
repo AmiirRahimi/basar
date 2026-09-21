@@ -20,6 +20,8 @@ export type ImageEditStyle = {
 
 /** List price of one edit token, used to show savings on larger packs. */
 export const IMAGE_TOKEN_LIST_PRICE = 1_500;
+/** One token is always one image edit. */
+export const IMAGE_EDIT_TOKEN_COST = 1;
 
 export const IMAGE_TOKEN_PACKS: ImageTokenPack[] = [
   {

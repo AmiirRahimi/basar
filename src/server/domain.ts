@@ -599,6 +599,27 @@ function applyClothShopFields(body: Record<string, unknown>): ActionResult<Recor
   return ok(body);
 }
 
+async function restrictClothImages(
+  session: Session,
+  body: Record<string, unknown>,
+  previous: Record<string, unknown> | null,
+) {
+  if (session.isPlatformAdmin) return null;
+  const sub = await subscriptionForSession(session);
+  if (sub.allowClothImages) return null;
+  if (body.images == null) {
+    if (!previous) body.images = [];
+    return null;
+  }
+  const incoming = parseImageList(body.images);
+  const existing = parseImageList(previous?.images);
+  const added = incoming.filter((url) => !existing.includes(url));
+  if (added.length) {
+    return denyPlanFeature(sub, 'cloth-images');
+  }
+  return null;
+}
+
 async function restrictClothPublish(session: Session, body: Record<string, unknown>, isCreate: boolean) {
   if (session.isPlatformAdmin) return;
   const sub = await subscriptionForSession(session);
@@ -823,6 +844,8 @@ export async function createResource(resource: string, payload: unknown): Promis
     const inventoried = applyClothInventory(next);
     if (!inventoried.ok) return inventoried;
     next = inventoried.data || next;
+    const imagesBlocked = await restrictClothImages(auth.session, next, null);
+    if (imagesBlocked) return imagesBlocked;
     await restrictClothPublish(auth.session, next, true);
     next = await applyClothCost(auth.session, next);
   }
@@ -923,6 +946,8 @@ export async function updateResource(resource: string, id: string, payload: unkn
     const inventoried = applyClothInventoryUpdate(body, previous as Record<string, unknown> | null);
     if (!inventoried.ok) return inventoried;
     body = inventoried.data || body;
+    const imagesBlocked = await restrictClothImages(auth.session, body, previous as Record<string, unknown> | null);
+    if (imagesBlocked) return imagesBlocked;
     await restrictClothPublish(auth.session, body, false);
     body = await applyClothCost(auth.session, body);
   }

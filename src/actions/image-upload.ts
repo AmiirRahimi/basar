@@ -9,6 +9,7 @@ import {
   saveClothImage,
 } from '@/server/image-store';
 import { fail, ok, type ActionResult } from '@/server/result';
+import { denyPlanFeature, subscriptionForSession } from '@/server/subscription';
 import { withWorkspace } from '@/server/workspace';
 
 export async function uploadClothImages(formData: FormData): Promise<ActionResult<{ urls: string[] }>> {
@@ -22,6 +23,9 @@ export async function uploadClothImages(formData: FormData): Promise<ActionResul
     access.session.subscriptionActive !== false,
   );
   if (!writable) return fail('دسترسی ثبت تصویر ندارید', 403);
+
+  const blocked = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');
+  if (blocked) return blocked;
 
   const remaining = Math.max(0, Math.min(MAX_CLOTH_IMAGES, Number(formData.get('remaining') || MAX_CLOTH_IMAGES)));
   if (!remaining) return fail(`حداکثر ${MAX_CLOTH_IMAGES} تصویر برای هر لباس مجاز است`);
