@@ -65,6 +65,7 @@ export async function checkPhone(phonenumber: string): Promise<ActionResult> {
 }
 
 export async function sendOtp(phonenumber: string): Promise<ActionResult> {
+  if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
   try {
     await db();
     if (!phonenumber || !PHONE_RE.test(phonenumber)) {
@@ -80,11 +81,9 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
     const sms = await sendOtpCode(phonenumber, code);
     if (!sms.ok) {
       console.error('[OTP SMS]', sms.message);
-      if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
       return fail(publicSmsFailureMessage(sms.message));
     }
     if (!smsLive()) console.info('[OTP]', phonenumber, code);
-    if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
     return ok(null, 'کد ارسال شد');
   } catch {
     return failDb();
