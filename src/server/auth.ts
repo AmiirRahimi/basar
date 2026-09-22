@@ -41,7 +41,7 @@ function envFlag(name: string) {
 }
 
 function revealLoginCode() {
-  return process.env.NODE_ENV !== 'production' || envFlag('SHOW_LOGIN_NUMBER');
+  return envFlag('SHOW_LOGIN_NUMBER');
 }
 
 async function adminPasswordMatches(password: string) {
@@ -80,6 +80,7 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
     const sms = await sendOtpCode(phonenumber, code);
     if (!sms.ok) {
       console.error('[OTP SMS]', sms.message);
+      if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
       return fail(publicSmsFailureMessage(sms.message));
     }
     if (!smsLive()) console.info('[OTP]', phonenumber, code);
