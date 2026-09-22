@@ -66,8 +66,6 @@ export async function checkPhone(phonenumber: string): Promise<ActionResult> {
 
 export async function sendOtp(phonenumber: string): Promise<ActionResult> {
   try {
-    const code = String(randomInt(100000, 1000000));
-    if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
     await db();
     if (!phonenumber || !PHONE_RE.test(phonenumber)) {
       return fail('شماره موبایل معتبر نیست');
@@ -76,14 +74,17 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
     if (!rateLimit(`otp:send:phone:${phonenumber}`, 3, 10 * 60 * 1000) || !rateLimit(`otp:send:ip:${ip}`, 10, 10 * 60 * 1000)) {
       return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
     }
+    const code = String(randomInt(100000, 1000000));
     const hashed = await argon2.hash(code);
     await M().OTP.create({ receptor: phonenumber, code: hashed, type: 1, isUsed: false });
     const sms = await sendOtpCode(phonenumber, code);
     if (!sms.ok) {
       console.error('[OTP SMS]', sms.message);
+      if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
       return fail(publicSmsFailureMessage(sms.message));
     }
     if (!smsLive()) console.info('[OTP]', phonenumber, code);
+    if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
     return ok(null, 'کد ارسال شد');
   } catch {
     return failDb();
