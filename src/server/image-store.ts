@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { s3Configured, s3PublicBase, uploadObject } from './s3';
 
 const PUBLIC_ROOT = path.join(process.cwd(), 'public');
 const UPLOADS_ROOT = path.join(PUBLIC_ROOT, 'uploads');
@@ -32,6 +33,22 @@ function isInsideUploads(resolved: string) {
   return resolved === UPLOADS_ROOT || resolved.startsWith(root);
 }
 
+function allowedRemoteHost(hostname: string) {
+  const host = hostname.toLowerCase();
+  const bases = [s3PublicBase(), process.env.LIARA_BUCKET_DOMAIN || '', process.env.S3_ENDPOINT || '']
+    .map((value) => {
+      try {
+        return value ? new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase() : '';
+      } catch {
+        return '';
+      }
+    })
+    .filter(Boolean);
+  if (bases.some((base) => host === base || host.endsWith(`.${base}`))) return true;
+  if (host.endsWith('.filebase.io') || host === 'ipfs.filebase.io') return true;
+  return false;
+}
+
 export function isSafeImageUrl(raw: string) {
   if (raw.startsWith('/uploads/')) {
     const resolved = path.resolve(PUBLIC_ROOT, `.${raw}`);
@@ -40,6 +57,7 @@ export function isSafeImageUrl(raw: string) {
   try {
     const url = new URL(raw);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    if (allowedRemoteHost(url.hostname)) return true;
     if (blockedHost(url.hostname)) return false;
     return true;
   } catch {
@@ -82,12 +100,22 @@ async function saveInDir(dir: string, publicPrefix: string, buffer: Buffer, ext 
   return `${publicPrefix}/${name}`;
 }
 
+async function saveUpload(folder: 'clothes' | 'product-edits', buffer: Buffer, ext = 'jpg') {
+  const safeExt = String(ext || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+  const name = `${Date.now()}-${randomBytes(6).toString('hex')}.${safeExt}`;
+  if (s3Configured()) {
+    return uploadObject(`${folder}/${name}`, buffer, safeExt);
+  }
+  if (folder === 'clothes') return saveInDir(CLOTHES_DIR, '/uploads/clothes', buffer, safeExt);
+  return saveInDir(PRODUCT_EDITS_DIR, '/uploads/product-edits', buffer, safeExt);
+}
+
 export async function saveProductImage(buffer: Buffer, ext = 'jpg') {
-  return saveInDir(PRODUCT_EDITS_DIR, '/uploads/product-edits', buffer, ext);
+  return saveUpload('product-edits', buffer, ext);
 }
 
 export async function saveClothImage(buffer: Buffer, ext = 'jpg') {
-  return saveInDir(CLOTHES_DIR, '/uploads/clothes', buffer, ext);
+  return saveUpload('clothes', buffer, ext);
 }
 
 export function extensionForMime(mime: string) {
