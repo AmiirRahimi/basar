@@ -51,6 +51,17 @@ export function smsConfigured() {
   return Boolean(smsApiKey());
 }
 
+/** Env / provider setup issues — show these on SMS admin, not on login. */
+export function isSmsConfigError(message?: string | null) {
+  const text = String(message || '');
+  return /کلید|وب.?سرویس|API|قالب پیامک|خط ارسال|SMSIR|تنظیم نشده/i.test(text);
+}
+
+export function publicSmsFailureMessage(message?: string | null) {
+  if (isSmsConfigError(message)) return 'ارسال پیامک ناموفق بود. کمی بعد دوباره تلاش کنید';
+  return String(message || '').trim() || 'ارسال پیامک ناموفق بود';
+}
+
 const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
 
@@ -298,8 +309,24 @@ export async function sendWelcomeSms(phone: string, name = '') {
 }
 
 export async function smsCredit(): Promise<number | null> {
-  if (!smsLive()) return null;
+  const status = await smsProviderStatus();
+  return status.credit;
+}
+
+export async function smsProviderStatus(): Promise<{ credit: number | null; error: string }> {
+  if (!smsApiKey()) {
+    return { credit: null, error: 'کلید وب‌سرویس پیامک تنظیم نشده است (SMSIR_API_KEY)' };
+  }
+  if (!smsLive()) {
+    return { credit: null, error: '' };
+  }
   const res = await smsIr<number>('GET', '/credit');
-  if (!res.ok || typeof res.data !== 'number') return null;
-  return res.data;
+  if (!res.ok) {
+    return {
+      credit: null,
+      error: res.message || 'ارتباط با SMS.ir برقرار نشد — SMSIR_API_KEY را بررسی کنید',
+    };
+  }
+  if (typeof res.data !== 'number') return { credit: null, error: '' };
+  return { credit: res.data, error: '' };
 }

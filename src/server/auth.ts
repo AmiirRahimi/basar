@@ -6,7 +6,7 @@ import { fileModels } from './file-db';
 import { fail, failDb, ok, type ActionResult } from './result';
 import { clearAuthCookies, setAuthCookies, signTokens, type Session } from './session';
 import { OTP_TTL_MS, PHONE_RE } from '@/lib/constants';
-import { sendOtpCode, sendWelcomeSms, smsLive } from './sms';
+import { publicSmsFailureMessage, sendOtpCode, sendWelcomeSms, smsLive } from './sms';
 import {
   activateMemberships,
   ensureOwnerWorkspace,
@@ -78,7 +78,10 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
     const hashed = await argon2.hash(code);
     await M().OTP.create({ receptor: phonenumber, code: hashed, type: 1, isUsed: false });
     const sms = await sendOtpCode(phonenumber, code);
-    if (!sms.ok) return fail(sms.message || 'ارسال پیامک ناموفق بود');
+    if (!sms.ok) {
+      console.error('[OTP SMS]', sms.message);
+      return fail(publicSmsFailureMessage(sms.message));
+    }
     if (!smsLive()) console.info('[OTP]', phonenumber, code);
     if (revealLoginCode()) return ok(null, `کد ورود: ${code}`);
     return ok(null, 'کد ارسال شد');

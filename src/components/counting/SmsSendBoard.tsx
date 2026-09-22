@@ -51,6 +51,7 @@ export type SmsBoardData = {
   live: boolean;
   hasLine: boolean;
   credit: number | null;
+  providerError?: string;
   defaultLink: string;
   newProductsLink: string;
   people: SmsPerson[];
@@ -231,6 +232,14 @@ export function SmsSendBoard({ data }: { data: SmsBoardData }) {
           برای ارسال واقعی، <code className="mx-1">SMSIR_API_KEY</code> و{' '}
           <code className="mx-1">SMSIR_LINE_NUMBER</code> را در محیط سرور بگذارید. برای OTP قالب Verify را با{' '}
           <code className="mx-1">SMSIR_OTP_TEMPLATE_ID</code> تنظیم کنید.
+        </p>
+      ) : data.providerError ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
+          {data.providerError}
+          <span className="mt-1 block text-xs text-red-800/80">
+            متغیرهای مرتبط: <code className="mx-1">SMSIR_API_KEY</code>،{' '}
+            <code className="mx-1">SMSIR_LINE_NUMBER</code>، <code className="mx-1">SMSIR_OTP_TEMPLATE_ID</code>
+          </span>
         </p>
       ) : null}
 

@@ -21,9 +21,9 @@ import {
   sendBulkSms,
   sendLikeToLikeSms,
   smsConfigured,
-  smsCredit,
   smsLineNumber,
   smsLive,
+  smsProviderStatus,
 } from './sms';
 
 function M() {
@@ -85,7 +85,7 @@ export async function getSmsBoard(): Promise<ActionResult> {
   if ('error' in access) return access.error;
   await db();
 
-  const [people, users, campaigns, remaining, credit] = await Promise.all([
+  const [people, users, campaigns, remaining, provider] = await Promise.all([
     M()
       .Person.find({ isDeleted: false })
       .select('_id fullName phoneNumber role city')
@@ -95,7 +95,7 @@ export async function getSmsBoard(): Promise<ActionResult> {
     M().User.find().select('_id fullName phonenumber city').limit(400).lean(),
     M().SmsCampaign.find().sort({ timeStamp: -1 }).limit(40).lean(),
     remainingByPerson(),
-    smsCredit(),
+    smsProviderStatus(),
   ]);
   const origin = await publicAppOrigin();
 
@@ -116,7 +116,8 @@ export async function getSmsBoard(): Promise<ActionResult> {
     configured: smsConfigured(),
     live: smsLive(),
     hasLine: Boolean(smsLineNumber()),
-    credit,
+    credit: provider.credit,
+    providerError: provider.error,
     defaultLink: origin ? `${origin}/catalog` : '',
     newProductsLink: origin ? `${origin}/catalog?new=1` : '',
     people: serialize(personRows),
