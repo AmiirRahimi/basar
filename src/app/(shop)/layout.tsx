@@ -3,6 +3,7 @@ import { CartDock } from '@/components/shop/CartDock';
 import { ShopCartProvider } from '@/components/shop/CartProvider';
 import { ShareCookieGuard } from '@/components/shop/ShareCookieGuard';
 import { ShopFooter, ShopHeader } from '@/components/shop/ShopChrome';
+import { ChatWidget } from '@/components/chat/ChatWidget';
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
   const catalog = await resolveShopCatalog();
@@ -15,6 +16,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         <main className="overflow-x-clip pb-24 md:pb-10">{children}</main>
         <ShopFooter />
         <CartDock />
+        <ChatWidget variant="shop" />
       </ShopCartProvider>
     </div>
   );

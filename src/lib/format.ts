@@ -59,3 +59,22 @@ export function faDate(value?: string | Date | number) {
   if (Number.isNaN(d.getTime())) return String(value);
   return new Intl.DateTimeFormat('fa-IR').format(d);
 }
+
+export function faRelativeTime(value?: string | Date | number) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
+  if (diffSec < 45) return 'همین الان';
+  if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))} دقیقه پیش`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ساعت پیش`;
+  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)} روز پیش`;
+  return new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric' }).format(d);
+}
+
+export function faTime(value?: string | Date | number) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit' }).format(d);
+}

@@ -2,6 +2,10 @@ export const ACCESS_COOKIE = 'basar_access';
 export const REFRESH_COOKIE = 'basar_refresh';
 export const CART_COOKIE = 'basar_wholesale_cart';
 export const SHARE_TOKEN_COOKIE = 'basar_share_token';
+/** Shop guest support-chat resume cookie (`conversationId.token`). */
+export const CHAT_COOKIE = 'basar_chat';
+export const CHAT_COOKIE_DAYS = 30;
+export const CHAT_MESSAGE_MAX = 2000;
 /** Refresh cookie lifetime. Access tokens are much shorter. */
 export const SESSION_DAYS = 7;
 export const ACCESS_TOKEN_MINUTES = 15;

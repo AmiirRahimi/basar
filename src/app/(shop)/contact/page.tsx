@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { BRAND, BRAND_ADDRESSES, BRAND_PHONES } from '@/lib/brand';
 import { ShopButton } from '@/components/shop/ShopUi';
+import { OpenShopChatButton } from '@/components/chat/OpenShopChatButton';
 import { MapPin, Phone } from 'lucide-react';
 import { pageShare } from '@/lib/share-meta';
 import { absoluteUrl } from '@/lib/site';
@@ -19,6 +20,16 @@ export default function ContactPage() {
       <p className="mt-4 max-w-2xl leading-8 text-shop-ink/70">
         برای هماهنگی بارگیری، موجودی یا بازدید از حجره با {BRAND.family} تماس بگیرید. سفارش عمده بسته‌ای را می‌توانید از کاتالوگ هم ثبت کنید.
       </p>
+
+      <section className="mt-8 rounded-3xl border border-shop-ink/10 bg-shop-paper px-5 py-6 sm:px-7">
+        <h2 className="text-xl font-medium text-shop-ink">گفتگوی آنلاین</h2>
+        <p className="mt-2 max-w-xl text-sm leading-7 text-shop-ink/65">
+          سوالی درباره موجودی یا سفارش دارید؟ همین‌جا پیام بگذارید؛ پشتیبانی پاسخ می‌دهد.
+        </p>
+        <div className="mt-4">
+          <OpenShopChatButton />
+        </div>
+      </section>
 
       <section className="mt-10">
         <h2 className="flex items-center gap-2 text-xl font-medium text-shop-ink">

@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { BrandLogo } from '@/components/brand/BrandLogo';
+import { AdminChatUnreadBadge } from '@/components/chat/AdminChatUnreadBadge';
 import { Pin, PinOff } from 'lucide-react';
 import { cn } from '@/ui';
 import { SidebarReveal } from './SidebarCollapsible';
@@ -52,6 +53,7 @@ function NavLink({
   active,
   expanded,
   onNavigate,
+  badge,
 }: {
   href: string;
   name: string;
@@ -59,6 +61,7 @@ function NavLink({
   active: boolean;
   expanded: boolean;
   onNavigate?: () => void;
+  badge?: ReactNode;
 }) {
   return (
     <Link
@@ -83,8 +86,12 @@ function NavLink({
         <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', active ? 'bg-teal-600' : 'bg-white/30')} />
       )}
       <SidebarReveal show={expanded}>
-        <span className={cn('truncate', active ? 'font-semibold text-zinc-900' : undefined)}>{name}</span>
+        <span className={cn('flex min-w-0 flex-1 items-center gap-2', active ? 'font-semibold text-zinc-900' : undefined)}>
+          <span className="truncate">{name}</span>
+          {badge}
+        </span>
       </SidebarReveal>
+      {!expanded && badge ? <span className="absolute -top-0.5 -end-0.5">{badge}</span> : null}
     </Link>
   );
 }
@@ -232,6 +239,11 @@ export function CountingSidebar({
                                 active={isActivePath(pathname, item.href)}
                                 expanded={expanded}
                                 onNavigate={onClose}
+                                badge={
+                                  item.href === '/counting/admin/messages' ? (
+                                    <AdminChatUnreadBadge />
+                                  ) : undefined
+                                }
                               />
                             ))}
                           </div>

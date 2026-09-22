@@ -567,6 +567,37 @@ const SmsCampaignSchema = defineSchema(
   { collection: 'smscampaigns' },
 );
 
+const ConversationSchema = defineSchema(
+  {
+    channel: { type: String, required: true, enum: ['counting', 'shop'], index: true },
+    status: { type: String, required: true, enum: ['open', 'closed'], default: 'open', index: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    visitorName: { type: String, default: '' },
+    visitorPhone: { type: String, default: '' },
+    storeId: { type: Schema.Types.ObjectId, ref: 'Store', default: null },
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', default: null },
+    subject: { type: String, default: '' },
+    lastMessageAt: { type: Date, default: Date.now, index: true },
+    lastMessagePreview: { type: String, default: '' },
+    unreadForAdmin: { type: Number, default: 0 },
+    unreadForVisitor: { type: Number, default: 0 },
+    guestTokenHash: { type: String, default: '', index: true },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'conversations' },
+);
+
+const ChatMessageSchema = defineSchema(
+  {
+    conversationId: { type: Schema.Types.ObjectId, ref: 'Conversation', required: true, index: true },
+    body: { type: String, required: true },
+    sender: { type: String, required: true, enum: ['admin', 'user', 'visitor'] },
+    senderUserId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    createdAt: { type: Date, required: true, default: Date.now, index: true },
+  },
+  { collection: 'chatmessages' },
+);
+
 const AttachmentSchema = defineSchema(
   {
     size: Number,
@@ -616,6 +647,8 @@ export const PaymentIntent = modelOf<any>('PaymentIntent', PaymentIntentSchema);
 export const TelegramPublish = modelOf<any>('TelegramPublish', TelegramPublishSchema);
 export const TelegramInvite = modelOf<any>('TelegramInvite', TelegramInviteSchema);
 export const SmsCampaign = modelOf<any>('SmsCampaign', SmsCampaignSchema);
+export const Conversation = modelOf<any>('Conversation', ConversationSchema);
+export const ChatMessage = modelOf<any>('ChatMessage', ChatMessageSchema);
 export const Attachment = modelOf<any>('Attachment', AttachmentSchema);
 
 export const PERSON_POPULATE = personSelect;

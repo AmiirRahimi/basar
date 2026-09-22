@@ -374,4 +374,6 @@ export const fileModels = {
   TelegramPublish: new FileModel('telegrampublishes'),
   TelegramInvite: new FileModel('telegraminvites'),
   SmsCampaign: new FileModel('smscampaigns'),
+  Conversation: new FileModel('conversations'),
+  ChatMessage: new FileModel('chatmessages'),
 };

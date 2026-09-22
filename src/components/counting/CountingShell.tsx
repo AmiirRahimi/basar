@@ -25,6 +25,7 @@ import { CountingSidebar } from './CountingSidebar';
 import { SidebarWorkspace } from './SidebarWorkspace';
 import { useWorkspace } from './WorkspaceProvider';
 import { PageActionProvider } from './PageAction';
+import { ChatWidget } from '@/components/chat/ChatWidget';
 
 const menuSections = [
   { id: 'dashboard', name: 'داشبورد', icon: LayoutDashboard, href: '/counting/dashboard', menuItems: [] },
@@ -43,6 +44,7 @@ const menuSections = [
     name: 'ادمین',
     icon: Shield,
     menuItems: [
+      { name: 'پیام‌ها', href: '/counting/admin/messages' },
       { name: 'کاربران و اشتراک', href: '/counting/admin/users' },
       { name: 'طرح‌های اشتراک', href: '/counting/admin/plans' },
       { name: 'سفارش‌های ویترین', href: '/counting/admin/storefront' },
@@ -155,6 +157,7 @@ export function CountingShell({
           </PageActionProvider>
         </MainWrapper>
       </div>
+      {workspace && !workspace.isPlatformAdmin ? <ChatWidget variant="counting" /> : null}
     </main>
   );
 }
