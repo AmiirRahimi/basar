@@ -94,7 +94,9 @@ export async function publishClothesToTelegram(payload: {
   for (const cloth of rows as any[]) {
     const clothId = String(cloth._id);
     const images = parseImageList(cloth.images);
-    const imageUrl = images[0] || '';
+    const rawImage = images[0] || '';
+    const imageUrl =
+      rawImage.startsWith('/') && origin ? `${origin}${rawImage}` : rawImage;
     const orderUrl = origin ? `${origin}/product/${clothId}` : `/product/${clothId}`;
     const sizeName = displayName(cloth._size);
     const colorName = displayName(cloth._color);

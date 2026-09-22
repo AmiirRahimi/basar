@@ -21,8 +21,7 @@ const nextConfig: NextConfig = {
     unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
-      { protocol: 'https', hostname: 'basar-bucket.ir' },
-      { protocol: 'https', hostname: 'baasar-bucket.ir' },
+      { protocol: 'https', hostname: 'dpioaivrbfistssbxokr.supabase.co' },
     ],
   },
   async headers() {

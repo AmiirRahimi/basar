@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { s3Configured, s3PublicBase, uploadObject } from './s3';
+import { supabaseConfigured, supabaseUrl, uploadObject } from './supabase-storage';
 
 const PUBLIC_ROOT = path.join(process.cwd(), 'public');
 const UPLOADS_ROOT = path.join(PUBLIC_ROOT, 'uploads');
@@ -35,17 +35,13 @@ function isInsideUploads(resolved: string) {
 
 function allowedRemoteHost(hostname: string) {
   const host = hostname.toLowerCase();
-  const bases = [s3PublicBase(), process.env.LIARA_BUCKET_DOMAIN || '', process.env.S3_ENDPOINT || '']
-    .map((value) => {
-      try {
-        return value ? new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase() : '';
-      } catch {
-        return '';
-      }
-    })
-    .filter(Boolean);
-  if (bases.some((base) => host === base || host.endsWith(`.${base}`))) return true;
-  if (host.endsWith('.filebase.io') || host === 'ipfs.filebase.io') return true;
+  try {
+    const supabaseHost = supabaseUrl() ? new URL(supabaseUrl()).hostname.toLowerCase() : '';
+    if (supabaseHost && (host === supabaseHost || host.endsWith(`.${supabaseHost}`))) return true;
+  } catch {
+    /* ignore */
+  }
+  if (host.endsWith('.supabase.co') || host.endsWith('.supabase.in')) return true;
   return false;
 }
 
@@ -103,7 +99,7 @@ async function saveInDir(dir: string, publicPrefix: string, buffer: Buffer, ext 
 async function saveUpload(folder: 'clothes' | 'product-edits', buffer: Buffer, ext = 'jpg') {
   const safeExt = String(ext || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
   const name = `${Date.now()}-${randomBytes(6).toString('hex')}.${safeExt}`;
-  if (s3Configured()) {
+  if (supabaseConfigured()) {
     return uploadObject(`${folder}/${name}`, buffer, safeExt);
   }
   if (folder === 'clothes') return saveInDir(CLOTHES_DIR, '/uploads/clothes', buffer, safeExt);
