@@ -68,8 +68,10 @@ export async function publishClothesToTelegram(payload: {
   if ('error' in access) return access.error;
   const clothIds = asIdList(payload.clothIds);
   if (!clothIds.length) return fail('حداقل یک لباس انتخاب کنید');
-  if (!telegramConfigured() && process.env.NODE_ENV === 'production') {
-    return fail('ربات یا کانال تلگرام تنظیم نشده است');
+  if (!telegramConfigured()) {
+    return fail(
+      'ربات یا کانال تلگرام تنظیم نشده است. TELEGRAM_BOT_TOKEN و TELEGRAM_CHANNEL_ID را در .env.local بگذارید و سرور را ری‌استارت کنید.',
+    );
   }
 
   await db();

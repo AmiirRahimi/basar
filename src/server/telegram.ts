@@ -13,19 +13,37 @@ function botToken() {
   return String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
 }
 
+/** Accepts @username, numeric -100… id, or t.me / telegram.me links. */
+export function normalizeTelegramChatId(raw: string) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  const link = value.match(/(?:t\.me|telegram\.me)\/(?:c\/)?([A-Za-z0-9_+-]+)/i);
+  if (link?.[1]) {
+    const slug = link[1];
+    if (/^\d+$/.test(slug)) return `-100${slug}`;
+    return slug.startsWith('+') ? value : `@${slug.replace(/^@/, '')}`;
+  }
+  if (/^-?\d+$/.test(value)) return value;
+  return value.startsWith('@') ? value : `@${value}`;
+}
+
 function channelId() {
-  return String(process.env.TELEGRAM_CHANNEL_ID || '').trim();
+  return normalizeTelegramChatId(process.env.TELEGRAM_CHANNEL_ID || '');
 }
 
 export function telegramConfigured() {
   return Boolean(botToken() && channelId());
 }
 
+function shouldMockTelegram() {
+  return process.env.TELEGRAM_MOCK === '1';
+}
+
 async function telegramApi(method: string, body: Record<string, unknown>): Promise<TelegramApiResult> {
   const token = botToken();
   if (!token) return { ok: false, description: 'TELEGRAM_BOT_TOKEN تنظیم نشده' };
-  if (process.env.NODE_ENV !== 'production' && process.env.TELEGRAM_FORCE_SEND !== '1') {
-    console.info('[Telegram]', method, body);
+  if (shouldMockTelegram()) {
+    console.info('[Telegram mock]', method, body);
     return {
       ok: true,
       result: {
@@ -41,9 +59,13 @@ async function telegramApi(method: string, body: Record<string, unknown>): Promi
       body: JSON.stringify(body),
     });
     const data = (await res.json()) as TelegramApiResult;
-    if (!data.ok) return { ok: false, description: data.description || 'ارسال به تلگرام ناموفق بود' };
+    if (!data.ok) {
+      console.error('[Telegram]', method, data.description || data);
+      return { ok: false, description: data.description || 'ارسال به تلگرام ناموفق بود' };
+    }
     return data;
-  } catch {
+  } catch (error) {
+    console.error('[Telegram]', method, error);
     return { ok: false, description: 'ارتباط با تلگرام برقرار نشد' };
   }
 }
@@ -76,10 +98,28 @@ export function buildClothCaption(input: {
   return lines.join('\n').slice(0, 1024);
 }
 
+function isPublicHttpUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function sendChannelPhoto(photoUrl: string, caption: string) {
   const chatId = channelId();
   if (!chatId) return { ok: false as const, message: 'TELEGRAM_CHANNEL_ID تنظیم نشده' };
   if (!photoUrl) return { ok: false as const, message: 'تصویر لباس موجود نیست' };
+  if (!shouldMockTelegram() && !isPublicHttpUrl(photoUrl)) {
+    return {
+      ok: false as const,
+      message: 'آدرس تصویر باید عمومی و در دسترس اینترنت باشد (localhost برای تلگرام کار نمی‌کند)',
+    };
+  }
 
   const data = await telegramApi('sendPhoto', {
     chat_id: chatId,

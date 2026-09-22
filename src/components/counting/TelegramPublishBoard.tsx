@@ -99,10 +99,17 @@ export function TelegramPublishBoard({ data }: { data: TelegramBoardData }) {
     <div className="space-y-6">
       {!data.configured ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          برای ارسال واقعی، <code className="mx-1">TELEGRAM_BOT_TOKEN</code> و{' '}
-          <code className="mx-1">TELEGRAM_CHANNEL_ID</code> را در محیط سرور تنظیم کنید. در حالت توسعه پست‌ها فقط لاگ می‌شوند.
+          برای ارسال، <code className="mx-1">TELEGRAM_BOT_TOKEN</code> و{' '}
+          <code className="mx-1">TELEGRAM_CHANNEL_ID</code> را در <code className="mx-1">.env.local</code> بگذارید و سرور
+          را ری‌استارت کنید. شناسه کانال معمولاً شبیه <code className="mx-1">@mychannel</code> یا{' '}
+          <code className="mx-1">-100…</code> است و ربات باید ادمین کانال باشد.
         </p>
-      ) : null}
+      ) : (
+        <p className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-950">
+          ربات و کانال تنظیم شده‌اند. پست‌ها واقعاً به تلگرام ارسال می‌شوند. اگر خطا دیدید، ادمین بودن ربات و عمومی بودن
+          آدرس تصویر را چک کنید.
+        </p>
+      )}
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-4">
