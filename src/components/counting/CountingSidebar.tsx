@@ -24,16 +24,25 @@ export type CountingMenuSection = {
 const GROUPS: { label: string; ids: string[] }[] = [
   { label: 'کار روزانه', ids: ['dashboard', 'invoice', 'cloth', 'share', 'images', 'check', 'returned'] },
   { label: 'اطلاعات', ids: ['person', 'fabric', 'account'] },
-  { label: 'سازمان', ids: ['store', 'subscription', 'admin'] },
+  { label: 'سازمان', ids: ['profile', 'admin'] },
 ];
 
 const EASE = 'duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]';
 
+function normalizePath(path: string) {
+  if (!path) return '/';
+  const trimmed = path.split('?')[0].split('#')[0].replace(/\/+$/, '');
+  return trimmed || '/';
+}
+
 function isActivePath(pathname: string, href?: string) {
   if (!href) return false;
-  if (pathname === href) return true;
-  if (href === '/counting/dashboard') return false;
-  return pathname.startsWith(href);
+  const path = normalizePath(pathname);
+  const target = normalizePath(href);
+  if (path === target) return true;
+  // Dashboard should not stay active on every /counting/* page
+  if (target === '/counting/dashboard') return false;
+  return path.startsWith(`${target}/`);
 }
 
 function NavLink({
@@ -56,22 +65,25 @@ function NavLink({
       href={href}
       onClick={onNavigate}
       title={name}
+      aria-current={active ? 'page' : undefined}
       className={cn(
         'group relative flex items-center text-[13px] font-medium transition',
         EASE,
         expanded ? 'gap-2.5 rounded-xl px-2.5 py-2' : 'mx-auto h-11 w-11 justify-center rounded-xl',
-        active ? 'bg-white/12 text-white' : 'text-white/68 hover:bg-white/[0.07] hover:text-white',
+        active
+          ? 'bg-white text-zinc-900 shadow-sm shadow-black/15'
+          : 'text-white/68 hover:bg-white/[0.07] hover:text-white',
       )}
     >
       {Icon ? (
         <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-          <Icon className="h-4 w-4" />
+          <Icon className={cn('h-4 w-4', active ? 'text-zinc-900' : undefined)} />
         </span>
       ) : (
-        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', active ? 'bg-primary' : 'bg-white/30')} />
+        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', active ? 'bg-teal-600' : 'bg-white/30')} />
       )}
       <SidebarReveal show={expanded}>
-        <span className="truncate">{name}</span>
+        <span className={cn('truncate', active ? 'font-semibold text-zinc-900' : undefined)}>{name}</span>
       </SidebarReveal>
     </Link>
   );
