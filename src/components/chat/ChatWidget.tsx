@@ -51,8 +51,21 @@ export function ChatWidget({
   }, [variant]);
 
   const refreshThread = useCallback(async () => {
-    if (variant === 'counting') {
-      const res = await getCountingThread();
+    try {
+      if (variant === 'counting') {
+        const res = await getCountingThread();
+        if (res.ok) {
+          if (res.data) {
+            maybeToastNewReply(res.data);
+            setThread(res.data);
+            setUnread(res.data.conversation.unreadForVisitor);
+          } else {
+            setThread(null);
+          }
+        }
+        return;
+      }
+      const res = await getShopThread();
       if (res.ok) {
         if (res.data) {
           maybeToastNewReply(res.data);
@@ -62,17 +75,8 @@ export function ChatWidget({
           setThread(null);
         }
       }
-      return;
-    }
-    const res = await getShopThread();
-    if (res.ok) {
-      if (res.data) {
-        maybeToastNewReply(res.data);
-        setThread(res.data);
-        setUnread(res.data.conversation.unreadForVisitor);
-      } else {
-        setThread(null);
-      }
+    } catch {
+      // Opening or polling should stay quiet if the thread request fails.
     }
   }, [variant]);
 
@@ -117,30 +121,36 @@ export function ChatWidget({
 
   useEffect(() => {
     if (!open) return;
-    start(async () => {
-      await refreshThread();
-      if (variant === 'counting') await markCountingRead();
-      else await markShopRead();
-      setUnread(0);
-    });
+    let cancelled = false;
+    void (async () => {
+      try {
+        await refreshThread();
+        if (cancelled) return;
+        if (variant === 'counting') await markCountingRead();
+        else await markShopRead();
+        if (!cancelled) setUnread(0);
+      } catch {
+        // A failed refresh must not surface as an error when the panel opens.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, refreshThread, variant]);
 
   async function handleSend(body: string) {
-    if (variant === 'counting') {
-      const res = await sendCountingMessage(body);
+    try {
+      const res = variant === 'counting' ? await sendCountingMessage(body) : await sendShopMessage(body);
       if (!res.ok) {
         toast.error(res.message || 'ارسال نشد');
-        return;
+        return false;
       }
       if (res.data) setThread(res.data);
-      return;
+      return true;
+    } catch {
+      toast.error('ارسال نشد');
+      return false;
     }
-    const res = await sendShopMessage(body);
-    if (!res.ok) {
-      toast.error(res.message || 'ارسال نشد');
-      return;
-    }
-    if (res.data) setThread(res.data);
   }
 
   function startGuest() {
@@ -206,21 +216,25 @@ export function ChatWidget({
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     placeholder="نام"
-                    className="w-full rounded-xl border border-shop-ink/10 bg-shop-paper px-2.5 py-2 text-[13px] outline-none focus:ring-2 focus:ring-shop-saffron/35"
+                    autoComplete="name"
+                    className="w-full rounded-xl border border-shop-ink/15 bg-shop-paper px-2.5 py-2 text-[13px] shadow-none outline-none ring-0 focus:border-shop-ink/25 focus:outline-none focus:ring-0"
                   />
                   <input
                     value={guestPhone}
                     onChange={(e) => setGuestPhone(e.target.value)}
                     placeholder="۰۹۱۲…"
                     dir="ltr"
-                    className="w-full rounded-xl border border-shop-ink/10 bg-shop-paper px-2.5 py-2 text-[13px] outline-none focus:ring-2 focus:ring-shop-saffron/35"
+                    autoComplete="tel"
+                    className="w-full rounded-xl border border-shop-ink/15 bg-shop-paper px-2.5 py-2 text-[13px] shadow-none outline-none ring-0 focus:border-shop-ink/25 focus:outline-none focus:ring-0"
                   />
                   <textarea
                     value={guestBody}
                     onChange={(e) => setGuestBody(e.target.value)}
                     placeholder="پیام شما…"
                     rows={2}
-                    className="w-full resize-none rounded-xl border border-shop-ink/10 bg-shop-paper px-2.5 py-2 text-[13px] outline-none focus:ring-2 focus:ring-shop-saffron/35"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="w-full resize-none rounded-xl border border-shop-ink/15 bg-shop-paper px-2.5 py-2 text-[13px] shadow-none outline-none ring-0 focus:border-shop-ink/25 focus:outline-none focus:ring-0"
                   />
                 </div>
                 <button
@@ -245,7 +259,6 @@ export function ChatWidget({
                 messages={thread?.messages || []}
                 viewer={variant === 'shop' ? 'visitor' : 'user'}
                 accent={accent}
-                sending={pending}
                 onSend={handleSend}
                 composerPlaceholder={
                   thread?.conversation.status === 'closed'

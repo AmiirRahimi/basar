@@ -105,35 +105,38 @@ function toConversationDto(
   extras?: { userFullName?: string; contactPhone?: string },
 ): ChatConversationDto {
   const channel = (row.channel === 'shop' ? 'shop' : 'counting') as ChatChannel;
-  return {
+  const dto: ChatConversationDto = {
     _id: String(row._id),
     channel,
     status: row.status === 'closed' ? 'closed' : 'open',
-    userId: row.userId ? String(row.userId) : undefined,
-    visitorName: row.visitorName || undefined,
-    visitorPhone: row.visitorPhone || undefined,
-    storeId: row.storeId ? String(row.storeId) : undefined,
-    brandId: row.brandId ? String(row.brandId) : undefined,
-    subject: row.subject || undefined,
     lastMessageAt: iso(row.lastMessageAt || row.timeStamp),
     lastMessagePreview: String(row.lastMessagePreview || ''),
     unreadForAdmin: Number(row.unreadForAdmin || 0),
     unreadForVisitor: Number(row.unreadForVisitor || 0),
     title: conversationTitle(row, extras?.userFullName),
-    contactPhone: channel === 'shop' ? String(row.visitorPhone || '') : extras?.contactPhone,
-    userFullName: extras?.userFullName,
   };
+  if (row.userId) dto.userId = String(row.userId);
+  if (row.visitorName) dto.visitorName = String(row.visitorName);
+  if (row.visitorPhone) dto.visitorPhone = String(row.visitorPhone);
+  if (row.storeId) dto.storeId = String(row.storeId);
+  if (row.brandId) dto.brandId = String(row.brandId);
+  if (row.subject) dto.subject = String(row.subject);
+  const contactPhone = channel === 'shop' ? String(row.visitorPhone || '') : extras?.contactPhone;
+  if (contactPhone) dto.contactPhone = contactPhone;
+  if (extras?.userFullName) dto.userFullName = extras.userFullName;
+  return dto;
 }
 
 function toMessageDto(row: any): ChatMessageDto {
-  return {
+  const dto: ChatMessageDto = {
     _id: String(row._id),
     conversationId: String(row.conversationId),
     body: String(row.body || ''),
     sender: (['admin', 'user', 'visitor'].includes(row.sender) ? row.sender : 'user') as ChatSender,
-    senderUserId: row.senderUserId ? String(row.senderUserId) : undefined,
     createdAt: iso(row.createdAt || row.timeStamp),
   };
+  if (row.senderUserId) dto.senderUserId = String(row.senderUserId);
+  return dto;
 }
 
 async function loadUserNames(userIds: string[]) {
@@ -255,6 +258,15 @@ async function createCountingConversation(session: {
 
 /** Latest open thread, or most recent closed (history) — never creates empty chats. */
 export async function getCountingThread(): Promise<ActionResult<ChatThreadDto | null>> {
+  try {
+    return await loadCountingThread();
+  } catch (error) {
+    console.error('[chat] getCountingThread', error);
+    return failDto('گفتگو بارگذاری نشد');
+  }
+}
+
+async function loadCountingThread(): Promise<ActionResult<ChatThreadDto | null>> {
   const access = await withWorkspace();
   if ('error' in access) return access.error as ActionResult<ChatThreadDto | null>;
   await db();
@@ -345,18 +357,23 @@ export async function sendCountingMessage(bodyRaw: unknown): Promise<ActionResul
 }
 
 export async function markCountingRead(): Promise<ActionResult<{ unread: number }>> {
-  const access = await withWorkspace();
-  if ('error' in access) return access.error as ActionResult<{ unread: number }>;
-  await db();
-  await M().Conversation.updateMany(
-    { channel: 'counting', userId: oid(access.session._id) },
-    { unreadForVisitor: 0 },
-  );
-  await M().Conversation.updateMany(
-    { channel: 'counting', userId: access.session._id },
-    { unreadForVisitor: 0 },
-  );
-  return ok({ unread: 0 });
+  try {
+    const access = await withWorkspace();
+    if ('error' in access) return access.error as ActionResult<{ unread: number }>;
+    await db();
+    await M().Conversation.updateMany(
+      { channel: 'counting', userId: oid(access.session._id) },
+      { unreadForVisitor: 0 },
+    );
+    await M().Conversation.updateMany(
+      { channel: 'counting', userId: access.session._id },
+      { unreadForVisitor: 0 },
+    );
+    return ok({ unread: 0 });
+  } catch (error) {
+    console.error('[chat] markCountingRead', error);
+    return ok({ unread: 0 });
+  }
 }
 
 export async function countingUnread(): Promise<ActionResult<{ unread: number }>> {

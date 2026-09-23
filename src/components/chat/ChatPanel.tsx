@@ -29,7 +29,7 @@ export function ChatPanel({
   accent?: 'teal' | 'saffron';
   emptyHint?: string;
   sending?: boolean;
-  onSend: (body: string) => Promise<void> | void;
+  onSend: (body: string) => Promise<boolean | void> | boolean | void;
   headerRight?: React.ReactNode;
   className?: string;
   composerPlaceholder?: string;
@@ -59,8 +59,12 @@ export function ChatPanel({
     const body = draft.trim();
     if (!body || busy || readOnly) return;
     start(async () => {
-      await onSend(body);
-      setDraft('');
+      try {
+        const sent = await onSend(body);
+        if (sent !== false) setDraft('');
+      } catch {
+        // Keep the draft. The caller surfaces a message when send fails.
+      }
     });
   }
 
@@ -92,13 +96,14 @@ export function ChatPanel({
         </div>
       ) : (
         <form
+          noValidate
           className="shrink-0 border-t border-zinc-100 bg-white p-2"
           onSubmit={(event) => {
             event.preventDefault();
             submit();
           }}
         >
-          <div className="flex items-end gap-1.5 rounded-2xl bg-zinc-100/90 px-1.5 py-1 ring-1 ring-zinc-200/60 focus-within:ring-teal-500/30">
+          <div className="flex items-end gap-1.5 rounded-2xl bg-zinc-100/90 px-1.5 py-1 ring-1 ring-zinc-200/80">
             <textarea
               ref={inputRef}
               value={draft}
@@ -106,7 +111,10 @@ export function ChatPanel({
               rows={1}
               placeholder={composerPlaceholder}
               disabled={busy}
-              className="max-h-24 min-h-[34px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] leading-5 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:opacity-60"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              className="max-h-24 min-h-[34px] flex-1 resize-none !border-0 bg-transparent px-2 py-1.5 text-[13px] leading-5 text-zinc-900 !shadow-none outline-none !ring-0 placeholder:text-zinc-400 focus:!border-0 focus:!shadow-none focus:!outline-none focus:!ring-0 focus-visible:!outline-none focus-visible:!ring-0 disabled:opacity-60"
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
