@@ -74,6 +74,7 @@ export default async function ClothesPage() {
     maxStores: data?.subscription?.maxStores,
     allowPartners: data?.subscription?.allowPartners,
   });
+  const allowClothImages = Boolean(data?.isPlatformAdmin || data?.subscription?.allowClothImages);
   const allowWrite = canWriteResource(workspace.data?.storeRole || 'owner', 'cloth', workspace.data?.isPlatformAdmin);
   return (
     <CountingShell title="البسه" error={errorMessage(res)}>
@@ -351,7 +352,9 @@ export default async function ClothesPage() {
             visibleWhen: { field: 'onSale', values: ['true'] },
           },
           { name: 'description', label: 'توضیح فروشگاه', type: 'textarea' },
-          { name: 'images', label: 'تصاویر فروشگاه', type: 'images' },
+          ...(allowClothImages
+            ? [{ name: 'images', label: 'تصاویر فروشگاه', type: 'images' as const }]
+            : []),
         ]}
       />
     </CountingShell>
