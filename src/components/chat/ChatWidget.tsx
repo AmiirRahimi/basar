@@ -179,55 +179,55 @@ export function ChatWidget({
             exit={{ opacity: 0, y: 12, scale: 0.96 }}
             transition={{ duration: 0.2 }}
             className={cn(
-              'pointer-events-auto fixed bottom-20 left-4 flex w-[min(100vw-1.5rem,22rem)] flex-col overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-2xl shadow-black/20 sm:bottom-24 sm:left-6',
-              'h-[min(70vh,32rem)]',
+              'pointer-events-auto fixed bottom-20 left-4 flex w-[min(100vw-1.5rem,20rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-xl shadow-black/15 sm:bottom-24 sm:left-6',
+              'h-[min(65vh,28rem)]',
             )}
           >
             {needsGuestForm ? (
-              <div className="flex h-full flex-col p-4">
+              <div className="flex h-full flex-col bg-white p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h2 className="text-sm font-semibold text-shop-ink">گفتگو با فروشگاه</h2>
-                    <p className="mt-1 text-xs leading-6 text-shop-ink/60">
-                      نام و موبایل را وارد کنید تا پشتیبانی پاسخ دهد.
+                    <h2 className="text-[13px] font-semibold text-shop-ink">گفتگو با فروشگاه</h2>
+                    <p className="mt-0.5 text-[11px] leading-5 text-shop-ink/55">
+                      نام و موبایل را وارد کنید.
                     </p>
                   </div>
                   <button
                     type="button"
                     aria-label="بستن"
-                    className="rounded-xl p-1.5 text-zinc-500 hover:bg-zinc-100"
+                    className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100"
                     onClick={() => setOpen(false)}
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="mt-4 space-y-3">
+                <div className="mt-3 space-y-2">
                   <input
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     placeholder="نام"
-                    className="w-full rounded-2xl border border-shop-ink/10 bg-shop-paper px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-shop-saffron/40"
+                    className="w-full rounded-xl border border-shop-ink/10 bg-shop-paper px-2.5 py-2 text-[13px] outline-none focus:ring-2 focus:ring-shop-saffron/35"
                   />
                   <input
                     value={guestPhone}
                     onChange={(e) => setGuestPhone(e.target.value)}
                     placeholder="۰۹۱۲…"
                     dir="ltr"
-                    className="w-full rounded-2xl border border-shop-ink/10 bg-shop-paper px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-shop-saffron/40"
+                    className="w-full rounded-xl border border-shop-ink/10 bg-shop-paper px-2.5 py-2 text-[13px] outline-none focus:ring-2 focus:ring-shop-saffron/35"
                   />
                   <textarea
                     value={guestBody}
                     onChange={(e) => setGuestBody(e.target.value)}
                     placeholder="پیام شما…"
-                    rows={3}
-                    className="w-full resize-none rounded-2xl border border-shop-ink/10 bg-shop-paper px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-shop-saffron/40"
+                    rows={2}
+                    className="w-full resize-none rounded-xl border border-shop-ink/10 bg-shop-paper px-2.5 py-2 text-[13px] outline-none focus:ring-2 focus:ring-shop-saffron/35"
                   />
                 </div>
                 <button
                   type="button"
                   disabled={pending}
                   onClick={startGuest}
-                  className="mt-auto rounded-full bg-shop-saffron px-4 py-2.5 text-sm font-medium text-shop-ink disabled:opacity-50"
+                  className="mt-auto rounded-full bg-shop-saffron px-4 py-2 text-[13px] font-medium text-shop-ink disabled:opacity-50"
                 >
                   شروع گفتگو
                 </button>
@@ -273,15 +273,14 @@ export function ChatWidget({
         aria-label="گفتگو با پشتیبانی"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition',
+          'pointer-events-auto relative flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition',
           fabClass,
-          // Physical left; sit above shop cart FAB on small screens
           variant === 'shop'
             ? 'fixed bottom-24 left-4 sm:bottom-6 sm:left-6 md:bottom-6'
             : 'fixed bottom-6 left-4 sm:left-6',
         )}
       >
-        {open ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+        {open ? <X className="h-[18px] w-[18px]" /> : <MessageCircle className="h-[18px] w-[18px]" />}
         {!open ? <NewMessageBadge count={unread} className="absolute -top-1 -start-1" /> : null}
       </button>
     </div>

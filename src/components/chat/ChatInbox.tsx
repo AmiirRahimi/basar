@@ -12,7 +12,7 @@ import {
 import type { ChatChannel, ChatConversationDto, ChatThreadDto } from '@/lib/chat-types';
 import { faRelativeTime } from '@/lib/format';
 import { cn } from '@/ui';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, RotateCcw, X } from 'lucide-react';
 import { ChatPanel } from './ChatPanel';
 import { NewMessageBadge } from './NewMessageBadge';
 import { useChatPolling } from './useChatPolling';
@@ -24,7 +24,7 @@ const CHANNEL_FILTERS: { id: ChatChannel | 'all'; label: string }[] = [
 ];
 
 const STATUS_FILTERS: { id: 'all' | 'open' | 'closed'; label: string }[] = [
-  { id: 'all', label: 'همه وضعیت' },
+  { id: 'all', label: 'همه' },
   { id: 'open', label: 'باز' },
   { id: 'closed', label: 'بسته' },
 ];
@@ -140,53 +140,31 @@ export function ChatInbox({
 
   return (
     <div
-      className="grid min-h-[28rem] overflow-hidden rounded-2xl border border-zinc-200 bg-white lg:grid-cols-[22rem_1fr]"
+      className="grid h-[min(70vh,36rem)] min-h-[24rem] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm lg:grid-cols-[17.5rem_1fr]"
       dir="rtl"
     >
-      <aside className="flex min-h-0 flex-col border-b border-zinc-200 lg:border-b-0 lg:border-e">
-        <div className="space-y-2 border-b border-zinc-100 px-3 py-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-              <MessageSquare className="h-4 w-4 text-teal-700" />
-              پیام‌ها
-              <NewMessageBadge count={unread} pulse={unread > 0} />
-            </div>
+      <aside className="flex min-h-0 flex-col border-b border-zinc-100 lg:border-b-0 lg:border-e">
+        <div className="shrink-0 space-y-1.5 border-b border-zinc-100 px-2.5 py-2">
+          <div className="flex items-center gap-1.5 px-0.5 text-[13px] font-semibold text-zinc-900">
+            <MessageSquare className="h-3.5 w-3.5 text-teal-600" />
+            پیام‌ها
+            <NewMessageBadge count={unread} pulse={unread > 0} />
           </div>
-          <div className="flex flex-wrap gap-1 rounded-xl bg-zinc-100 p-0.5 text-[11px]">
-            {CHANNEL_FILTERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setChannel(item.id)}
-                className={cn(
-                  'rounded-lg px-2 py-1 transition',
-                  channel === item.id ? 'bg-white font-medium text-zinc-900 shadow-sm' : 'text-zinc-500',
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1 rounded-xl bg-zinc-100 p-0.5 text-[11px]">
-            {STATUS_FILTERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setStatus(item.id)}
-                className={cn(
-                  'rounded-lg px-2 py-1 transition',
-                  status === item.id ? 'bg-white font-medium text-zinc-900 shadow-sm' : 'text-zinc-500',
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <PillRow
+            items={CHANNEL_FILTERS}
+            value={channel}
+            onChange={setChannel}
+          />
+          <PillRow
+            items={STATUS_FILTERS}
+            value={status}
+            onChange={setStatus}
+          />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-zinc-500">گفتگویی در این فیلتر نیست.</p>
+            <p className="px-3 py-8 text-center text-[12px] text-zinc-400">گفتگویی نیست.</p>
           ) : (
             conversations.map((row) => (
               <ConversationRow
@@ -200,16 +178,15 @@ export function ChatInbox({
         </div>
       </aside>
 
-      <section className="min-h-[22rem] lg:min-h-0">
+      <section className="min-h-0">
         {thread ? (
           <ChatPanel
-            className="h-full min-h-[22rem] lg:min-h-[28rem]"
+            className="h-full"
             title={thread.conversation.title}
             subtitle={[
               thread.conversation.channel === 'shop' ? 'فروشگاه' : 'شمارش',
               thread.conversation.contactPhone,
-              isClosed ? 'بسته شده' : 'باز',
-              `${thread.messages.length} پیام`,
+              isClosed ? 'بسته' : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -219,16 +196,17 @@ export function ChatInbox({
             sending={pending}
             onSend={handleSend}
             readOnly={isClosed}
-            readOnlyHint="این گفتگو بسته است و در تاریخچه نگه داشته می‌شود. برای پاسخ، از سرگیری کنید."
-            emptyHint="در این گفتگو هنوز پیامی ثبت نشده است."
+            readOnlyHint="گفتگو بسته است — برای پاسخ از سرگیری کنید."
+            emptyHint="هنوز پیامی در این گفتگو نیست."
             headerRight={
               isClosed ? (
                 <button
                   type="button"
                   onClick={reopenThread}
                   disabled={pending}
-                  className="rounded-xl bg-teal-700 px-2.5 py-1 text-xs text-white hover:bg-teal-800 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2 py-1 text-[11px] text-white hover:bg-teal-700 disabled:opacity-50"
                 >
+                  <RotateCcw className="h-3 w-3" />
                   از سرگیری
                 </button>
               ) : (
@@ -236,20 +214,49 @@ export function ChatInbox({
                   type="button"
                   onClick={closeThread}
                   disabled={pending}
-                  className="rounded-xl px-2.5 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50"
                 >
-                  بستن گفتگو
+                  <X className="h-3 w-3" />
+                  بستن
                 </button>
               )
             }
           />
         ) : (
-          <div className="flex h-full min-h-[22rem] flex-col items-center justify-center gap-2 px-6 text-center text-sm text-zinc-500">
-            <MessageSquare className="h-8 w-8 text-zinc-300" />
-            یک گفتگو را از فهرست انتخاب کنید تا تاریخچه پیام‌ها را ببینید و پاسخ دهید.
+          <div className="flex h-full flex-col items-center justify-center gap-1.5 bg-zinc-50/50 px-6 text-center">
+            <MessageSquare className="h-7 w-7 text-zinc-300" />
+            <p className="text-[12px] text-zinc-400">یک گفتگو را انتخاب کنید</p>
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function PillRow<T extends string>({
+  items,
+  value,
+  onChange,
+}: {
+  items: { id: T; label: string }[];
+  value: T;
+  onChange: (id: T) => void;
+}) {
+  return (
+    <div className="flex gap-0.5 rounded-lg bg-zinc-100 p-0.5">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onChange(item.id)}
+          className={cn(
+            'flex-1 rounded-md px-1.5 py-1 text-[10px] transition',
+            value === item.id ? 'bg-white font-medium text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700',
+          )}
+        >
+          {item.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -265,46 +272,47 @@ function ConversationRow({
 }) {
   const hasUnread = row.unreadForAdmin > 0 && row.status === 'open';
   const closed = row.status === 'closed';
+  const initial = (row.title || '?').trim().charAt(0);
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full flex-col gap-0.5 border-b border-zinc-100 px-3 py-3 text-right transition',
-        active ? 'bg-teal-50/80' : hasUnread ? 'bg-rose-50/60' : closed ? 'bg-zinc-50/80' : 'hover:bg-zinc-50',
+        'flex w-full items-start gap-2 border-b border-zinc-50 px-2.5 py-2 text-right transition',
+        active ? 'bg-teal-50' : hasUnread ? 'bg-rose-50/50' : 'hover:bg-zinc-50',
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className={cn(
-            'truncate text-sm',
-            hasUnread ? 'font-semibold text-zinc-900' : closed ? 'font-medium text-zinc-600' : 'font-medium text-zinc-800',
-          )}
-        >
-          {row.title}
-        </span>
-        <span className="shrink-0 text-[10px] text-zinc-400">{faRelativeTime(row.lastMessageAt)}</span>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="truncate text-xs text-zinc-500">{row.lastMessagePreview || '—'}</p>
-        <div className="flex shrink-0 items-center gap-1.5">
+      <span
+        className={cn(
+          'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold',
+          row.channel === 'shop' ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800',
+          closed && 'opacity-60',
+        )}
+      >
+        {initial}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-1">
           <span
             className={cn(
-              'rounded-md px-1.5 py-0.5 text-[10px]',
-              row.channel === 'shop' ? 'bg-amber-100 text-amber-900' : 'bg-teal-100 text-teal-900',
+              'truncate text-[12px]',
+              hasUnread ? 'font-semibold text-zinc-900' : 'font-medium text-zinc-800',
+              closed && 'text-zinc-500',
             )}
           >
-            {row.channel === 'shop' ? 'فروشگاه' : 'شمارش'}
+            {row.title}
           </span>
-          <span
-            className={cn(
-              'rounded-md px-1.5 py-0.5 text-[10px]',
-              closed ? 'bg-zinc-200 text-zinc-700' : 'bg-emerald-100 text-emerald-900',
-            )}
-          >
-            {closed ? 'بسته' : 'باز'}
-          </span>
-          <NewMessageBadge count={hasUnread ? row.unreadForAdmin : 0} pulse={false} />
+          <span className="shrink-0 text-[9px] text-zinc-400">{faRelativeTime(row.lastMessageAt)}</span>
+        </div>
+        <div className="mt-0.5 flex items-center justify-between gap-1">
+          <p className="truncate text-[11px] text-zinc-400">{row.lastMessagePreview || '—'}</p>
+          <div className="flex shrink-0 items-center gap-1">
+            {closed ? (
+              <span className="rounded px-1 py-px text-[9px] text-zinc-400">بسته</span>
+            ) : null}
+            <NewMessageBadge count={hasUnread ? row.unreadForAdmin : 0} pulse={false} />
+          </div>
         </div>
       </div>
     </button>

@@ -17,7 +17,7 @@ export function NewMessageBadge({
   return (
     <span
       className={cn(
-        'inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm shadow-rose-500/40',
+        'inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-rose-500 px-1 py-0.5 text-[9px] font-bold leading-none text-white',
         pulse && 'animate-pulse',
         className,
       )}
