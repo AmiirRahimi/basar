@@ -62,7 +62,13 @@ export type Field = {
     | 'cloth-share';
   options?: FieldOption[];
   storeOptions?: FieldOption[];
+  partnerOptions?: FieldOption[];
+  /** Brand and store selects. Shown when the plan can place a cloth on more than one location, or for an admin. */
+  assignPlace?: boolean;
+  /** Partner select. Shown when the plan includes partners, or for an admin. */
+  assignPartner?: boolean;
   defaultBrandId?: string;
+  defaultStoreId?: string;
   /** Kind options preset for `type: 'extras'` (default cloth). */
   extrasVariant?: 'cloth' | 'fabric';
   /** Name of another field whose value narrows this field's options, matched against `option.parent`. */
@@ -174,9 +180,10 @@ export function ResourceCrud({
         next[f.name] = f.name === 'isProduced' ? '' : 'false';
       }
       if (f.type === 'cloth-share') {
-        if (next.sellInAllStores == null) next.sellInAllStores = 'false';
+        next.sellInAllStores = 'false';
         if (next._brandIds == null) next._brandIds = f.defaultBrandId || '';
-        if (next._storeIds == null) next._storeIds = '';
+        if (next._storeIds == null) next._storeIds = f.defaultStoreId || '';
+        if (next._partner == null) next._partner = '';
       }
     });
     setForm(next);
@@ -267,11 +274,20 @@ export function ResourceCrud({
                             )
                           : [];
                         const sellAll = Boolean(row.original.sellInAllStores);
-                        next.sellInAllStores = sellAll ? 'true' : 'false';
-                        next._brandIds = (sellAll ? (f.options || []).map((option) => String(option.value)) : brands.filter(Boolean)).join(
-                          ',',
-                        );
-                        next._storeIds = sellAll ? '' : stores.filter(Boolean).join(',');
+                        const brandList = (sellAll ? (f.options || []).map((option) => String(option.value)) : brands).filter(Boolean);
+                        const storeList = sellAll
+                          ? (f.storeOptions || [])
+                              .filter((option) => !option.parent || brandList.includes(String(option.parent)))
+                              .map((option) => String(option.value))
+                          : stores;
+                        next.sellInAllStores = 'false';
+                        next._brandIds = brandList.join(',');
+                        next._storeIds = storeList.filter(Boolean).join(',');
+                        const partner = row.original._partner;
+                        next._partner =
+                          partner && typeof partner === 'object'
+                            ? String((partner as { _id?: unknown })._id || '')
+                            : String(partner || '');
                         return;
                       }
                       next[f.name] =
@@ -373,8 +389,8 @@ export function ResourceCrud({
       return Boolean(field.required) && normalizePersonRoles(form[field.name]).length === 0;
     }
     if (field.type === 'cloth-share') {
-      if (form.sellInAllStores === 'true') return false;
-      return !String(form._brandIds || '').trim();
+      if (!field.assignPlace) return false;
+      return !String(form._brandIds || '').trim() || !String(form._storeIds || '').trim();
     }
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
@@ -470,15 +486,18 @@ export function ResourceCrud({
           return;
         }
         if (f.type === 'cloth-share') {
-          payload.sellInAllStores = form.sellInAllStores === 'true';
-          payload._brandIds = String(form._brandIds || '')
-            .split(/[,\s]+/)
-            .map((item) => item.trim())
-            .filter(Boolean);
-          payload._storeIds = String(form._storeIds || '')
-            .split(/[,\s]+/)
-            .map((item) => item.trim())
-            .filter(Boolean);
+          payload.sellInAllStores = false;
+          if (f.assignPlace) {
+            payload._brandIds = String(form._brandIds || '')
+              .split(/[,\s]+/)
+              .map((item) => item.trim())
+              .filter(Boolean);
+            payload._storeIds = String(form._storeIds || '')
+              .split(/[,\s]+/)
+              .map((item) => item.trim())
+              .filter(Boolean);
+          }
+          if (f.assignPartner) payload._partner = form._partner || null;
           return;
         }
         if (f.type === 'boolean') {
@@ -585,18 +604,21 @@ export function ResourceCrud({
         <ClothShareFields
           brandOptions={field.options || []}
           storeOptions={field.storeOptions || []}
-          sellInAllStores={form.sellInAllStores === 'true'}
+          partnerOptions={field.partnerOptions || []}
+          assignPlace={Boolean(field.assignPlace)}
+          assignPartner={Boolean(field.assignPartner)}
           brandIds={form._brandIds || ''}
           storeIds={form._storeIds || ''}
-          defaultBrandId={field.defaultBrandId}
+          partnerId={form._partner || ''}
           error={error}
           disabled={!writable}
           onChange={(next) =>
             setForm((s) => ({
               ...s,
-              sellInAllStores: next.sellInAllStores ? 'true' : 'false',
+              sellInAllStores: 'false',
               _brandIds: next.brandIds,
               _storeIds: next.storeIds,
+              _partner: next.partnerId,
             }))
           }
         />

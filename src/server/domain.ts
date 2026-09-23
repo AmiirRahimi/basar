@@ -465,14 +465,43 @@ function preparePayload(session: Session, resource: string, payload: Record<stri
   return next;
 }
 
+function copyClothPlacement(body: Record<string, unknown>, previous: Record<string, unknown>) {
+  body.sellInAllStores = Boolean(previous.sellInAllStores);
+  body._brandIds = previous._brandIds;
+  body._storeIds = previous._storeIds;
+  body._brandId = previous._brandId;
+  body._storeId = previous._storeId;
+}
+
 async function applyClothShare(
   session: Session,
   body: Record<string, unknown>,
+  previous?: Record<string, unknown> | null,
 ): Promise<ActionResult<Record<string, unknown> | null>> {
+  const sub = await subscriptionForSession(session);
+  const assignPlace = sub.maxStores > 1 || sub.maxBrands > 1;
+  const assignPartner = Boolean(sub.allowPartners);
+  if (!assignPartner) delete body._partner;
+
+  if (!assignPlace) {
+    if (previous) {
+      copyClothPlacement(body, previous);
+      return ok(body);
+    }
+    const brandId = String(session._brandId || '');
+    const storeId = String(session._storeId || '');
+    if (!brandId || !storeId) return fail('برند و فروشگاه فعال مشخص نیست');
+    body.sellInAllStores = false;
+    body._brandIds = [oid(brandId)];
+    body._storeIds = [oid(storeId)];
+    body._brandId = oid(brandId);
+    body._storeId = oid(storeId);
+    return ok(body);
+  }
+
   const { stores } = await accessibleStores(session._id, session.phonenumber);
   const accessibleStoreIds = new Set(stores.map((row: any) => String(row._id)));
   const accessibleBrandIds = new Set(stores.map((row: any) => String(row._brandId || '')).filter(Boolean));
-  const sellAll = isTruthyFlag(body.sellInAllStores);
   let brandIds = convertIdList(body._brandIds)
     .map((id) => String(id))
     .filter((id) => accessibleBrandIds.has(id));
@@ -483,27 +512,13 @@ async function applyClothShare(
     const store = stores.find((row: any) => String(row._id) === id);
     return store && brandIds.includes(String(store._brandId || ''));
   });
-  if (sellAll) {
-    brandIds = [...accessibleBrandIds];
-    storeIds = [];
-    body.sellInAllStores = true;
-  } else {
-    body.sellInAllStores = Boolean(brandIds.length === accessibleBrandIds.size && accessibleBrandIds.size && !storeIds.length);
-    if (!brandIds.length) {
-      const fallback = String(session._brandId || '');
-      if (fallback && accessibleBrandIds.has(fallback)) brandIds = [fallback];
-      else if (accessibleBrandIds.size) brandIds = [[...accessibleBrandIds][0]];
-    }
-    if (!brandIds.length) return fail('حداقل یک برند را انتخاب کنید');
-  }
+  if (!brandIds.length) return fail('برند را انتخاب کنید');
+  if (!storeIds.length) return fail('فروشگاه را انتخاب کنید');
+  body.sellInAllStores = false;
   body._brandIds = brandIds.map((id) => oid(id));
   body._storeIds = storeIds.map((id) => oid(id));
-  const originStore =
-    storeIds[0] ||
-    stores.find((row: any) => String(row._brandId || '') === brandIds[0])?._id ||
-    session._storeId;
-  body._storeId = oid(originStore);
-  body._brandId = oid(brandIds[0] || session._brandId);
+  body._storeId = oid(storeIds[0]);
+  body._brandId = oid(brandIds[0]);
   return ok(body);
 }
 
@@ -839,7 +854,7 @@ export async function createResource(resource: string, payload: unknown): Promis
   if (!cfg) return fail('منبع ناشناخته');
   let next = preparePayload(auth.session, resource, body);
   if (resource === 'cloth') {
-    const shared = await applyClothShare(auth.session, { ...next, sellInAllStores: body.sellInAllStores });
+    const shared = await applyClothShare(auth.session, { ...next, _brandIds: body._brandIds, _storeIds: body._storeIds, _partner: body._partner });
     if (!shared.ok) return shared;
     next = shared.data || next;
     const inventoried = applyClothInventory(next);
@@ -941,7 +956,11 @@ export async function updateResource(resource: string, id: string, payload: unkn
         : { _id: id, _storeId: oid(auth.session._storeId) };
   const previous = resource === 'cloth' ? await cfg.model.findOne(filter).lean() : null;
   if (resource === 'cloth') {
-    const shared = await applyClothShare(auth.session, { ...body, sellInAllStores: raw.sellInAllStores, _brandIds: raw._brandIds, _storeIds: raw._storeIds });
+    const shared = await applyClothShare(
+      auth.session,
+      { ...body, _brandIds: raw._brandIds, _storeIds: raw._storeIds, _partner: raw._partner },
+      previous as Record<string, unknown> | null,
+    );
     if (!shared.ok) return shared;
     body = shared.data || body;
     const inventoried = applyClothInventoryUpdate(body, previous as Record<string, unknown> | null);

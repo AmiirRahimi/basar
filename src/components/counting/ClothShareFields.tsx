@@ -1,6 +1,6 @@
 'use client';
 
-import { Checkbox, MultiSelect } from '@/ui';
+import { MultiSelect, Select } from '@/ui';
 import type { FieldOption } from '@/lib/types';
 
 const selectLabels = {
@@ -20,38 +20,40 @@ function splitIds(value: string) {
 export function ClothShareFields({
   brandOptions,
   storeOptions,
-  sellInAllStores,
+  partnerOptions,
+  assignPlace,
+  assignPartner,
   brandIds,
   storeIds,
-  defaultBrandId,
+  partnerId,
   error,
   disabled,
   onChange,
 }: {
   brandOptions: FieldOption[];
   storeOptions: FieldOption[];
-  sellInAllStores: boolean;
+  partnerOptions: FieldOption[];
+  assignPlace: boolean;
+  assignPartner: boolean;
   brandIds: string;
   storeIds: string;
-  defaultBrandId?: string;
+  partnerId: string;
   error?: string;
   disabled?: boolean;
-  onChange: (next: { sellInAllStores: boolean; brandIds: string; storeIds: string }) => void;
+  onChange: (next: { brandIds: string; storeIds: string; partnerId: string }) => void;
 }) {
   const selectedBrands = splitIds(brandIds);
   const selectedStores = splitIds(storeIds);
-  const allBrandIds = brandOptions.map((option) => String(option.value));
-  const allSelected = Boolean(
-    allBrandIds.length && selectedBrands.length === allBrandIds.length && !selectedStores.length,
-  );
   const visibleStores = storeOptions.filter(
     (option) => !option.parent || selectedBrands.includes(String(option.parent)),
   );
+  const columns = (assignPlace ? 2 : 0) + (assignPartner ? 1 : 0);
+  const brandError = error && !selectedBrands.length ? error : undefined;
+  const storeError = error && selectedBrands.length && !selectedStores.length ? error : undefined;
 
   function setBrands(next: string[]) {
     const allowed = new Set(next);
     onChange({
-      sellInAllStores: Boolean(allBrandIds.length && next.length === allBrandIds.length && !selectedStores.length),
       brandIds: next.join(','),
       storeIds: selectedStores
         .filter((id) => {
@@ -59,54 +61,72 @@ export function ClothShareFields({
           return store ? allowed.has(String(store.parent || '')) : false;
         })
         .join(','),
+      partnerId,
     });
   }
 
+  if (!assignPlace && !assignPartner) return null;
+
   return (
-    <div className="space-y-3">
-      <Checkbox
-        checked={sellInAllStores || allSelected}
-        disabled={disabled || !allBrandIds.length}
-        label="اشتراک در همه برندها و فروشگاه‌ها"
-        onChange={() => {
-          const nextAll = !(sellInAllStores || allSelected);
-          onChange({
-            sellInAllStores: nextAll,
-            brandIds: nextAll ? allBrandIds.join(',') : defaultBrandId || selectedBrands[0] || '',
-            storeIds: '',
-          });
-        }}
-      />
-      <MultiSelect
-        label="برندها *"
-        value={selectedBrands}
-        onChange={(value) => setBrands(value.map(String))}
-        options={brandOptions}
-        searchable
-        disabled={disabled || sellInAllStores}
-        error={error}
-        labels={selectLabels}
-      />
-      <MultiSelect
-        label="فروشگاه‌ها"
-        value={selectedStores}
-        onChange={(value) =>
-          onChange({
-            sellInAllStores: false,
-            brandIds,
-            storeIds: value.map(String).join(','),
-          })
-        }
-        options={visibleStores}
-        searchable
-        disabled={disabled || sellInAllStores || !selectedBrands.length}
-        hint={
-          selectedBrands.length
-            ? 'اگر فروشگاهی انتخاب نشود، لباس در همه فروشگاه‌های برندهای انتخاب‌شده دیده می‌شود.'
-            : 'ابتدا برند را انتخاب کنید'
-        }
-        labels={selectLabels}
-      />
+    <div
+      className={
+        columns >= 3
+          ? 'grid gap-3 sm:grid-cols-3'
+          : columns === 2
+            ? 'grid gap-3 sm:grid-cols-2'
+            : 'grid gap-3'
+      }
+    >
+      {assignPlace ? (
+        <MultiSelect
+          label="برند *"
+          value={selectedBrands}
+          onChange={(value) => setBrands(value.map(String))}
+          options={brandOptions}
+          searchable
+          disabled={disabled}
+          error={brandError}
+          labels={selectLabels}
+        />
+      ) : null}
+      {assignPlace ? (
+        <MultiSelect
+          label="فروشگاه *"
+          value={selectedStores}
+          onChange={(value) =>
+            onChange({
+              brandIds,
+              storeIds: value.map(String).join(','),
+              partnerId,
+            })
+          }
+          options={visibleStores}
+          searchable
+          disabled={disabled || !selectedBrands.length}
+          error={storeError}
+          hint={selectedBrands.length ? undefined : 'ابتدا برند را انتخاب کنید'}
+          labels={selectLabels}
+        />
+      ) : null}
+      {assignPartner ? (
+        <Select
+          label="شریک"
+          value={partnerId}
+          onChange={(value) =>
+            onChange({
+              brandIds,
+              storeIds,
+              partnerId: String(value ?? ''),
+            })
+          }
+          options={partnerOptions}
+          searchable
+          clearable
+          disabled={disabled}
+          placeholder="انتخاب کنید"
+          labels={selectLabels}
+        />
+      ) : null}
     </div>
   );
 }

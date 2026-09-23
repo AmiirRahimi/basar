@@ -32,6 +32,19 @@ export function clothAppliesToStore(cloth: ClothShareRef | null | undefined, sto
   return Boolean(storeId && idList(cloth._storeId).includes(storeId));
 }
 
+/** Brand/store pickers need more than one location. Partner needs the partners feature. Admins always qualify. */
+export function clothPlacementAccess(input: {
+  isPlatformAdmin?: boolean;
+  maxBrands?: number;
+  maxStores?: number;
+  allowPartners?: boolean;
+}) {
+  const isAdmin = Boolean(input.isPlatformAdmin);
+  const assignPlace = isAdmin || Number(input.maxStores || 0) > 1 || Number(input.maxBrands || 0) > 1;
+  const assignPartner = isAdmin || Boolean(input.allowPartners);
+  return { assignPlace, assignPartner, showPlacement: assignPlace || assignPartner };
+}
+
 export function clothShareLabel(
   cloth: ClothShareRef,
   brands: { _id: string; name?: string }[],

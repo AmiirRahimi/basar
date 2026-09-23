@@ -15,7 +15,7 @@ import { clothUnitPrice } from '@/lib/cloth-price';
 import { formatPacksFa, openingFromCloth, packsFromCloth, totalItems } from '@/lib/packs';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { saleState } from '@/lib/product-sale';
-import { clothShareLabel } from '@/lib/cloth-share';
+import { clothPlacementAccess, clothShareLabel } from '@/lib/cloth-share';
 import { canWriteResource } from '@/lib/roles';
 
 export default async function ClothesPage() {
@@ -68,6 +68,12 @@ export default async function ClothesPage() {
       parent: store._brandId,
     };
   });
+  const placement = clothPlacementAccess({
+    isPlatformAdmin: data?.isPlatformAdmin,
+    maxBrands: data?.subscription?.maxBrands,
+    maxStores: data?.subscription?.maxStores,
+    allowPartners: data?.subscription?.allowPartners,
+  });
   const allowWrite = canWriteResource(workspace.data?.storeRole || 'owner', 'cloth', workspace.data?.isPlatformAdmin);
   return (
     <CountingShell title="البسه" error={errorMessage(res)}>
@@ -76,8 +82,18 @@ export default async function ClothesPage() {
         title="لباس"
         rows={rows}
         allowWrite={allowWrite}
-        defaults={{ _brandIds: data?.activeBrandId || '', sellInAllStores: 'false' }}
-        headingDescription="لباس به یک فروشگاه وابسته نیست. پیش‌فرض روی همه فروشگاه‌های برند فعال است."
+        defaults={{
+          _brandIds: data?.activeBrandId || '',
+          _storeIds: data?.activeStoreId || '',
+          sellInAllStores: 'false',
+        }}
+        headingDescription={
+          !placement.showPlacement
+            ? 'لباس روی برند و فروشگاه فعال ثبت می‌شود.'
+            : placement.assignPartner
+              ? 'برند، فروشگاه و شریک این لباس را در بخش محل فروش انتخاب کنید.'
+              : 'برند و فروشگاه این لباس را در بخش محل فروش انتخاب کنید.'
+        }
         columns={[
           { header: 'کد', accessor: 'code' },
           { header: 'نوع', accessor: '_type', format: 'name' },
@@ -107,17 +123,25 @@ export default async function ClothesPage() {
           { header: 'شریک', accessor: '_partner', format: 'name' },
         ]}
         fields={[
-          {
-            name: 'clothShare',
-            label: 'اشتراک در برند و فروشگاه',
-            type: 'cloth-share',
-            options: brandOptions,
-            storeOptions,
-            defaultBrandId: data?.activeBrandId || '',
-            required: true,
-          },
+          ...(placement.showPlacement
+            ? [
+                {
+                  name: 'clothShare',
+                  label: 'محل فروش',
+                  type: 'cloth-share' as const,
+                  group: 'محل فروش',
+                  options: brandOptions,
+                  storeOptions,
+                  partnerOptions: partners,
+                  assignPlace: placement.assignPlace,
+                  assignPartner: placement.assignPartner,
+                  defaultBrandId: data?.activeBrandId || '',
+                  defaultStoreId: data?.activeStoreId || '',
+                  required: placement.assignPlace,
+                },
+              ]
+            : []),
           { name: 'code', label: 'کد', required: true },
-          { name: '_partner', label: 'شریک فروش این لباس', type: 'relation', options: partners },
           { name: 'packs', label: 'موجودی ثبت‌شده (اولیه)', type: 'packs', required: true },
           {
             name: '_type',
