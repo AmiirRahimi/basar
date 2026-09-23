@@ -181,6 +181,7 @@ export function ChatInbox({
       <section className="min-h-0">
         {thread ? (
           <ChatPanel
+            key={thread.conversation._id}
             className="h-full"
             title={thread.conversation.title}
             subtitle={[

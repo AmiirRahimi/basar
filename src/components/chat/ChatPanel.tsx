@@ -55,13 +55,48 @@ export function ChatPanel({
     el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
   }, [draft]);
 
+  useEffect(() => {
+    if (readOnly) return;
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [readOnly]);
+
+  useEffect(() => {
+    if (readOnly) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key.length !== 1) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      ) {
+        return;
+      }
+      const el = inputRef.current;
+      if (!el || el.disabled) return;
+      const next = (el.value + event.key).slice(0, CHAT_MESSAGE_MAX);
+      setDraft(next);
+      event.preventDefault();
+      requestAnimationFrame(() => {
+        el.focus();
+        el.setSelectionRange(next.length, next.length);
+      });
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [readOnly]);
+
   function submit() {
     const body = draft.trim();
     if (!body || busy || readOnly) return;
     start(async () => {
       try {
         const sent = await onSend(body);
-        if (sent !== false) setDraft('');
+        if (sent !== false) {
+          setDraft('');
+          inputRef.current?.focus();
+        }
       } catch {
         // Keep the draft. The caller surfaces a message when send fails.
       }

@@ -216,6 +216,7 @@ export function ChatWidget({
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     placeholder="نام"
+                    autoFocus
                     autoComplete="name"
                     className="w-full rounded-xl border border-shop-ink/15 bg-shop-paper px-2.5 py-2 text-[13px] shadow-none outline-none ring-0 focus:border-shop-ink/25 focus:outline-none focus:ring-0"
                   />
