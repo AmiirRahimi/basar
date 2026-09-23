@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Plus } from 'lucide-react';
-import { IconButton } from '@/ui';
+import { IconButton, HintPopover } from '@/ui';
 
 const PageActionContext = createContext<Dispatch<SetStateAction<ReactNode>> | null>(null);
 
@@ -16,17 +16,20 @@ export function AddPlusButton({
   disabled?: boolean;
 }) {
   return (
-    <IconButton
-      type="button"
-      variant="primary"
-      rounded="full"
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      <Plus className="h-4 w-4" />
-    </IconButton>
+    <HintPopover content={label} placement="bottom">
+      <span className="inline-flex shrink-0">
+        <IconButton
+          type="button"
+          variant="primary"
+          rounded="full"
+          aria-label={label}
+          disabled={disabled}
+          onClick={onClick}
+        >
+          <Plus className="h-4 w-4" />
+        </IconButton>
+      </span>
+    </HintPopover>
   );
 }
 
