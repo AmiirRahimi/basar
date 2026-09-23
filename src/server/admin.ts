@@ -298,3 +298,26 @@ export async function consumeDiscountCode(code: string, price: number, userId = 
   const next = Math.round(price * (1 - percent / 100));
   return { ok: true as const, price: Math.max(0, next), originalPrice: price, code: normalized, id: String(row._id) };
 }
+
+/** Atomically record one redemption. Empty id means no code was used. */
+export async function commitDiscountUse(id: string) {
+  if (!id) return { ok: true as const };
+  await db();
+  const row = await M().DiscountCode.findById(id).lean();
+  if (!row || row.active === false) return { ok: false as const, message: 'کد تخفیف معتبر نیست' };
+  const maxUses = Number(row.maxUses || 0);
+  const usedCount = Number(row.usedCount || 0);
+  if (maxUses > 0 && usedCount >= maxUses) {
+    return { ok: false as const, message: 'ظرفیت استفاده از این کد تمام شده است' };
+  }
+  if (dbEngine() === 'file') {
+    await M().DiscountCode.updateOne({ _id: row._id }, { usedCount: usedCount + 1 });
+    return { ok: true as const };
+  }
+  const filter: Record<string, unknown> = { _id: row._id, active: { $ne: false } };
+  if (maxUses > 0) filter.usedCount = { $lt: maxUses };
+  const res = await M().DiscountCode.updateOne(filter, { $inc: { usedCount: 1 } });
+  const matched = Number((res as { matchedCount?: number; modifiedCount?: number })?.matchedCount ?? (res as { modifiedCount?: number })?.modifiedCount ?? 0);
+  if (!matched) return { ok: false as const, message: 'ظرفیت استفاده از این کد تمام شده است' };
+  return { ok: true as const };
+}

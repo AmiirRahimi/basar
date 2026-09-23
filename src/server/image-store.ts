@@ -17,17 +17,6 @@ const ALLOWED_MIME: Record<string, string> = {
   'image/gif': 'gif',
 };
 
-function blockedHost(hostname: string) {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (host === 'localhost' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local') || host.endsWith('.internal')) {
-    return true;
-  }
-  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) return true;
-  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true;
-  if (/^169\.254\./.test(host) || host.startsWith('fd') || host.startsWith('fc')) return true;
-  return false;
-}
-
 function isInsideUploads(resolved: string) {
   const root = UPLOADS_ROOT.endsWith(path.sep) ? UPLOADS_ROOT : `${UPLOADS_ROOT}${path.sep}`;
   return resolved === UPLOADS_ROOT || resolved.startsWith(root);
@@ -52,13 +41,19 @@ export function isSafeImageUrl(raw: string) {
   }
   try {
     const url = new URL(raw);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-    if (allowedRemoteHost(url.hostname)) return true;
-    if (blockedHost(url.hostname)) return false;
-    return true;
+    if (url.protocol !== 'https:') return false;
+    return allowedRemoteHost(url.hostname);
   } catch {
     return false;
   }
+}
+
+export function sniffImageExt(buffer: Buffer) {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpg';
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'png';
+  if (buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  if (buffer.length >= 6 && (buffer.toString('ascii', 0, 6) === 'GIF87a' || buffer.toString('ascii', 0, 6) === 'GIF89a')) return 'gif';
+  return '';
 }
 
 export async function readSourceImage(raw: string) {
@@ -75,8 +70,9 @@ export async function readSourceImage(raw: string) {
     const res = await fetch(raw, {
       signal: controller.signal,
       headers: { Accept: 'image/*', 'User-Agent': 'BasarImageStudio/1.0' },
-      redirect: 'follow',
+      redirect: 'manual',
     });
+    if (res.status >= 300 && res.status < 400) throw new Error('آدرس تصویر مجاز نیست');
     if (!res.ok) throw new Error('دانلود تصویر ناموفق بود');
     const length = Number(res.headers.get('content-length') || 0);
     if (length > MAX_UPLOAD_BYTES) throw new Error('حجم تصویر زیاد است');

@@ -27,7 +27,10 @@ function userOptionLabel(user: { fullName?: string; phonenumber?: string }) {
 }
 
 function randomCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
 }
 
 type AdminUser = EditableAdminUser & {

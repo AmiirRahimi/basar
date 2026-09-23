@@ -7,17 +7,23 @@ function b64urlToBytes(input: string) {
   return bytes;
 }
 
+export type EdgeSession = { _id: string; phonenumber: string };
+
 /** HMAC-SHA256 JWT check for Edge middleware. Rejects missing exp, wrong alg, or bad signature. */
-export async function jwtHs256Valid(token: string, secret: string) {
-  if (!token || !secret) return false;
+export async function jwtHs256Payload(token: string, secret: string): Promise<EdgeSession | null> {
+  if (!token || !secret) return null;
   const parts = token.split('.');
-  if (parts.length !== 3) return false;
+  if (parts.length !== 3) return null;
   try {
     const header = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[0]))) as { alg?: string };
-    if (header.alg !== 'HS256') return false;
-    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[1]))) as { exp?: number; _id?: unknown };
-    if (!payload._id) return false;
-    if (typeof payload.exp !== 'number' || payload.exp * 1000 < Date.now()) return false;
+    if (header.alg !== 'HS256') return null;
+    const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[1]))) as {
+      exp?: number;
+      _id?: unknown;
+      phonenumber?: unknown;
+    };
+    if (!payload._id || !payload.phonenumber) return null;
+    if (typeof payload.exp !== 'number' || payload.exp * 1000 < Date.now()) return null;
     const key = await crypto.subtle.importKey(
       'raw',
       new TextEncoder().encode(secret),
@@ -25,13 +31,19 @@ export async function jwtHs256Valid(token: string, secret: string) {
       false,
       ['verify'],
     );
-    return crypto.subtle.verify(
+    const ok = await crypto.subtle.verify(
       'HMAC',
       key,
       b64urlToBytes(parts[2]) as BufferSource,
       new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
     );
+    if (!ok) return null;
+    return { _id: String(payload._id), phonenumber: String(payload.phonenumber) };
   } catch {
-    return false;
+    return null;
   }
+}
+
+export async function jwtHs256Valid(token: string, secret: string) {
+  return Boolean(await jwtHs256Payload(token, secret));
 }

@@ -40,7 +40,7 @@ export async function requestGatewayPayment(input: GatewayRequest) {
   if (!origin) return { ok: false as const, message: 'آدرس سایت برای بازگشت از درگاه مشخص نیست' };
   const amountRials = tomanToRials(input.amountToman);
   if (amountRials < 1000) {
-    return { ok: true as const, driver: 'mock' as const, authority: `free_${input.orderId}`, redirectUrl: '' };
+    return { ok: false as const, message: 'مبلغ پرداخت برای درگاه کافی نیست' };
   }
   const callbackUrl = `${origin}${input.callbackPath}`;
   if (driver === 'mock') {
@@ -88,7 +88,12 @@ export async function requestGatewayPayment(input: GatewayRequest) {
 
 export async function verifyGatewayPayment(input: { authority: string; amountToman: number; driver: GatewayDriver }) {
   if (!input.authority) return { ok: false as const, message: 'شناسه پرداخت نامعتبر است' };
-  if (input.driver === 'mock' || input.authority.startsWith('mock_') || input.authority.startsWith('free_')) {
+  const mockAuthority =
+    input.driver === 'mock' || input.authority.startsWith('mock_') || input.authority.startsWith('free_');
+  if (mockAuthority) {
+    if (process.env.NODE_ENV === 'production') {
+      return { ok: false as const, message: 'تایید پرداخت نامعتبر است' };
+    }
     return { ok: true as const, refId: input.authority.slice(0, 32) };
   }
   const amountRials = tomanToRials(input.amountToman);

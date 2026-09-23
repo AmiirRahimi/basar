@@ -533,7 +533,7 @@ const PlanCatalogSchema = defineSchema(
 
 const PaymentIntentSchema = defineSchema(
   {
-    kind: { type: String, required: true, enum: ['storefront', 'subscription'] },
+    kind: { type: String, required: true, enum: ['storefront', 'subscription', 'image-tokens'] },
     status: { type: String, required: true, default: 'pending', enum: ['pending', 'paid', 'failed', 'expired'] },
     amount: { type: Number, required: true, default: 0 },
     authority: { type: String, default: '', index: true },

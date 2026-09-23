@@ -59,11 +59,6 @@ async function ensurePublicBucket(client: SupabaseClient, bucket: string) {
         if (created.error && !/already exists|duplicate/i.test(created.error.message)) {
           throw new Error(created.error.message);
         }
-      } else {
-        const current = (listed.data || []).find((row) => row.name === bucket);
-        if (current && !current.public) {
-          await client.storage.updateBucket(bucket, { public: true });
-        }
       }
     })().catch((error) => {
       bucketReady = null;

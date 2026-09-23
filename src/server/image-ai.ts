@@ -101,6 +101,35 @@ export async function previewImageTokenDiscount(packId: string, discountCode = '
   });
 }
 
+export async function grantImageTokens(input: {
+  userId: string;
+  packId: string;
+  tokens: number;
+  price: number;
+  originalPrice: number;
+  discountCode: string;
+  discountId: string;
+}): Promise<ActionResult> {
+  await db();
+  const { commitDiscountUse } = await import('./admin');
+  const committed = await commitDiscountUse(input.discountId);
+  if (!committed.ok) return fail(committed.message);
+  const owner = await M().User.findById(input.userId).lean();
+  if (!owner) return fail('کاربر پیدا نشد', 404);
+  const next = Number(owner.imageTokens || 0) + Number(input.tokens || 0);
+  await M().User.findByIdAndUpdate(input.userId, { imageTokens: next });
+  await M().ImageTokenPurchase.create({
+    _userId: oid(input.userId),
+    packId: input.packId,
+    tokens: input.tokens,
+    price: input.price,
+    originalPrice: input.originalPrice,
+    discountCode: input.discountCode,
+    timeStamp: new Date(),
+  });
+  return ok(serialize({ imageTokens: next, added: input.tokens, price: input.price }), `${input.tokens} توکن به حساب اضافه شد`);
+}
+
 export async function buyImageTokens(packId: string, discountCode = ''): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
@@ -112,7 +141,10 @@ export async function buyImageTokens(packId: string, discountCode = ''): Promise
   const pack = imageTokenPackById(packId);
   if (!pack) return fail('بسته توکن نامعتبر است');
   const ip = await clientIp();
-  if (!rateLimit(`image-tokens:buy:${access.session._id}`, 8, 10 * 60 * 1000) || !rateLimit(`image-tokens:buy:ip:${ip}`, 20, 10 * 60 * 1000)) {
+  if (
+    !(await rateLimit(`image-tokens:buy:${access.session._id}`, 8, 10 * 60 * 1000)) ||
+    !(await rateLimit(`image-tokens:buy:ip:${ip}`, 20, 10 * 60 * 1000))
+  ) {
     return fail('تعداد خریدها زیاد است. کمی بعد دوباره تلاش کنید', 429);
   }
   await db();
@@ -120,24 +152,17 @@ export async function buyImageTokens(packId: string, discountCode = ''): Promise
   const discounted = await consumeDiscountCode(discountCode, pack.price, access.session._id);
   if (!discounted.ok) return fail(discounted.message);
   const ownerId = await tokenOwnerId(access.session);
-  const owner = await M().User.findById(ownerId).lean();
-  if (!owner) return fail('کاربر پیدا نشد', 404);
-  const next = Number(owner.imageTokens || 0) + pack.tokens;
-  await M().User.findByIdAndUpdate(ownerId, { imageTokens: next });
-  await M().ImageTokenPurchase.create({
-    _userId: oid(ownerId),
+  const { startImageTokenPayment } = await import('./pay');
+  return startImageTokenPayment({
+    userId: ownerId,
     packId: pack.id,
     tokens: pack.tokens,
     price: discounted.price,
     originalPrice: pack.price,
     discountCode: discounted.code,
-    timeStamp: new Date(),
+    discountId: discounted.id || '',
+    mobile: access.session.phonenumber,
   });
-  if (discounted.id) {
-    const row = await M().DiscountCode.findById(discounted.id).lean();
-    await M().DiscountCode.updateOne({ _id: oid(discounted.id) }, { usedCount: Number(row?.usedCount || 0) + 1 });
-  }
-  return ok(serialize({ imageTokens: next, added: pack.tokens, price: discounted.price }), `${pack.tokens} توکن به حساب اضافه شد`);
 }
 
 export async function editProductImage(payload: {
@@ -159,7 +184,7 @@ export async function editProductImage(payload: {
   const style = imageEditStyleById(payload.styleId);
   if (!style) return fail('جلوه نامعتبر است');
   const ip = await clientIp();
-  if (!rateLimit(`image-edit:${access.session._id}`, 12, 10 * 60 * 1000) || !rateLimit(`image-edit:ip:${ip}`, 30, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`image-edit:${access.session._id}`, 12, 10 * 60 * 1000)) || !(await rateLimit(`image-edit:ip:${ip}`, 30, 10 * 60 * 1000))) {
     return fail('تعداد ویرایش‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
   }
   await db();
@@ -238,30 +263,27 @@ export async function generateClothOnModel(payload: {
   const imagePlan = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');
   if (imagePlan) return imagePlan;
   if (!photoroomApiKey()) return fail('کلید Photoroom تنظیم نشده است');
+  const clothId = String(payload.clothId || '').trim();
+  if (!clothId) return fail('لباس را انتخاب کنید');
   const urls = [...new Set((payload.imageUrls || []).map((item) => String(item || '').trim()).filter(Boolean))];
   if (!urls.length) return fail('حداقل یک تصویر انتخاب کنید');
   if (urls.length > MAX_VIRTUAL_MODEL_IMAGES) return fail(`حداکثر ${MAX_VIRTUAL_MODEL_IMAGES} زاویه برای هر ساخت مجاز است`);
   const ip = await clientIp();
-  if (!rateLimit(`image-model:${access.session._id}`, 8, 10 * 60 * 1000) || !rateLimit(`image-model:ip:${ip}`, 20, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`image-model:${access.session._id}`, 8, 10 * 60 * 1000)) || !(await rateLimit(`image-model:ip:${ip}`, 20, 10 * 60 * 1000))) {
     return fail('تعداد ساخت مدل زیاد است. کمی بعد دوباره تلاش کنید', 429);
   }
 
   await db();
-  const clothId = String(payload.clothId || '').trim();
-  let cloth: any = null;
-  let images = urls;
-  if (clothId) {
-    cloth = await M().Cloth.findById(clothId).lean();
-    if (!cloth || cloth.isDeleted) return fail('لباس پیدا نشد', 404);
-    if (!access.session.isPlatformAdmin) {
-      const { stores } = await accessibleStores(access.session._id, access.session.phonenumber);
-      const allowed = new Set((stores as any[]).map((store) => String(store._id)));
-      const storeId = String(cloth._storeId?._id || cloth._storeId || '');
-      if (!allowed.has(storeId)) return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
-    }
-    images = parseImageList(cloth.images);
-    if (urls.some((url) => !images.includes(url))) return fail('یکی از تصاویر انتخاب‌شده برای این لباس ثبت نشده');
+  const cloth = await M().Cloth.findById(clothId).lean();
+  if (!cloth || cloth.isDeleted) return fail('لباس پیدا نشد', 404);
+  if (!access.session.isPlatformAdmin) {
+    const { stores } = await accessibleStores(access.session._id, access.session.phonenumber);
+    const allowed = new Set((stores as any[]).map((store) => String(store._id)));
+    const storeId = String(cloth._storeId?._id || cloth._storeId || '');
+    if (!allowed.has(storeId)) return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
   }
+  const images = parseImageList(cloth.images);
+  if (urls.some((url) => !images.includes(url))) return fail('یکی از تصاویر انتخاب‌شده برای این لباس ثبت نشده');
 
   const ownerId = await tokenOwnerId(access.session, cloth);
   const owner = await M().User.findById(ownerId).lean();

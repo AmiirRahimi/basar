@@ -3,10 +3,10 @@
 import { canWriteResource } from '@/lib/roles';
 import { MAX_CLOTH_IMAGES } from '@/lib/shop-cart';
 import {
-  extensionForMime,
   isAllowedImageMime,
   MAX_UPLOAD_BYTES,
   saveClothImage,
+  sniffImageExt,
 } from '@/server/image-store';
 import { fail, ok, type ActionResult } from '@/server/result';
 import { denyPlanFeature, subscriptionForSession } from '@/server/subscription';
@@ -51,7 +51,9 @@ export async function uploadClothImages(formData: FormData): Promise<ActionResul
     if (buffer.length > MAX_UPLOAD_BYTES) {
       return fail('حجم هر تصویر حداکثر ۸ مگابایت است');
     }
-    const url = await saveClothImage(buffer, extensionForMime(mime));
+    const sniffed = sniffImageExt(buffer);
+    if (!sniffed) return fail('فقط فایل‌های JPG، PNG، WEBP و GIF مجاز هستند');
+    const url = await saveClothImage(buffer, sniffed);
     urls.push(url);
   }
 

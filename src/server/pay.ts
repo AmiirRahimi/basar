@@ -36,6 +36,16 @@ type SubscriptionSnapshot = {
   userId: string;
 };
 
+type ImageTokenSnapshot = {
+  userId: string;
+  packId: string;
+  tokens: number;
+  price: number;
+  originalPrice: number;
+  discountCode: string;
+  discountId: string;
+};
+
 async function expireStaleIntents() {
   const now = new Date();
   const stale = await (M().PaymentIntent.find({ status: 'pending', expiresAt: { $lt: now } }) as any).lean();
@@ -49,7 +59,7 @@ async function expireStaleIntents() {
 }
 
 async function createIntent(input: {
-  kind: 'storefront' | 'subscription';
+  kind: 'storefront' | 'subscription' | 'image-tokens';
   amount: number;
   snapshot: unknown;
   shareToken?: string;
@@ -174,7 +184,11 @@ async function fulfillPaidIntent(intentId: string, refId: string): Promise<Actio
       {
         invoices,
         redirectUrl:
-          row.kind === 'subscription' ? '/counting/profile?tab=subscription&paid=1' : undefined,
+          row.kind === 'subscription'
+            ? '/counting/profile?tab=subscription&paid=1'
+            : row.kind === 'image-tokens'
+              ? '/counting/images?paid=1'
+              : undefined,
       },
       'پرداخت قبلاً ثبت شده',
     );
@@ -205,6 +219,18 @@ async function fulfillPaidIntent(intentId: string, refId: string): Promise<Actio
       { status: 'paid', refId, paidAt: new Date(), snapshot: { ...snap, invoices } },
     );
     return ok({ invoices }, fulfilled.message || 'پرداخت انجام شد');
+  }
+
+  if (row.kind === 'image-tokens') {
+    const snap = row.snapshot as ImageTokenSnapshot;
+    const { grantImageTokens } = await import('./image-ai');
+    const granted = await grantImageTokens(snap);
+    if (!granted.ok) {
+      await M().PaymentIntent.updateOne({ _id: intentId }, { status: 'failed' });
+      return granted;
+    }
+    await M().PaymentIntent.updateOne({ _id: intentId }, { status: 'paid', refId, paidAt: new Date() });
+    return ok({ redirectUrl: '/counting/images?paid=1' }, granted.message || 'توکن به حساب اضافه شد');
   }
 
   const sub = row.snapshot as SubscriptionSnapshot;
@@ -246,10 +272,20 @@ export async function completeGatewayPayment(input: {
       if (row.status === 'pending') await M().PaymentIntent.updateOne({ _id: row._id }, { status: 'failed' });
       return fail('پرداخت لغو شد یا ناموفق بود');
     }
+    const driver = String(row.driver || '').trim();
+    const driverOk = driver === 'zarinpal' || (process.env.NODE_ENV !== 'production' && driver === 'mock');
+    if (!driverOk) {
+      if (row.kind === 'storefront' && row.status === 'pending') {
+        const snap = row.snapshot as StorefrontSnapshot;
+        if (snap?.soldItems?.length) await releaseStorefrontReservation(snap.soldItems);
+      }
+      if (row.status === 'pending') await M().PaymentIntent.updateOne({ _id: row._id }, { status: 'failed' });
+      return fail('تایید پرداخت نامعتبر است');
+    }
     const verified = await verifyGatewayPayment({
       authority,
       amountToman: Number(row.amount || 0),
-      driver: (row.driver || 'mock') as GatewayDriver,
+      driver: driver as GatewayDriver,
     });
     if (!verified.ok) {
       if (row.kind === 'storefront' && row.status === 'pending') {
@@ -274,7 +310,49 @@ export async function completeMockPayment(authority: string, success: boolean) {
   });
 }
 
+export async function startImageTokenPayment(input: ImageTokenSnapshot & { mobile?: string }): Promise<
+  ActionResult<{ redirectUrl?: string }>
+> {
+  try {
+    await db();
+    const amount = Math.max(0, Math.round(Number(input.price) || 0));
+    const intent = await createIntent({
+      kind: 'image-tokens',
+      amount,
+      userId: input.userId,
+      snapshot: {
+        userId: input.userId,
+        packId: input.packId,
+        tokens: input.tokens,
+        price: amount,
+        originalPrice: input.originalPrice,
+        discountCode: input.discountCode,
+        discountId: input.discountId,
+      } satisfies ImageTokenSnapshot,
+    });
+    const intentId = String(intent._id);
+    if (amount <= 0) return fulfillPaidIntent(intentId, 'free');
+    const pay = await requestGatewayPayment({
+      amountToman: amount,
+      description: 'بسته توکن تصویر باسار',
+      callbackPath: CALLBACK_PATH,
+      mobile: input.mobile,
+      orderId: intentId,
+    });
+    if (!pay.ok) {
+      await M().PaymentIntent.updateOne({ _id: intentId }, { status: 'failed' });
+      return fail(pay.message);
+    }
+    await M().PaymentIntent.updateOne({ _id: intentId }, { authority: pay.authority, driver: pay.driver });
+    if (!pay.redirectUrl) return fulfillPaidIntent(intentId, pay.authority);
+    return ok({ redirectUrl: pay.redirectUrl }, 'در حال انتقال به درگاه پرداخت');
+  } catch {
+    return failDb();
+  }
+}
+
 export async function getMockPayment(authority: string) {
+  if (process.env.NODE_ENV === 'production') return fail('پرداخت پیدا نشد', 404);
   await db();
   const row = await (M().PaymentIntent.findOne({ authority: String(authority || '').trim() }) as any).lean();
   if (!row) return fail('پرداخت پیدا نشد', 404);

@@ -20,11 +20,11 @@ const REFRESH_MAX_AGE = SESSION_DAYS * 24 * 60 * 60;
 function requiredSecret(name: 'JWT_ACCESS_SECRET' | 'JWT_REFRESH_SECRET') {
   const value = (process.env[name] || '').trim();
   if (value) return value;
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(`${name} must be set`);
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(`[basar] ${name} is missing; using a development fallback`);
+    return name === 'JWT_ACCESS_SECRET' ? 'dev-access-secret' : 'dev-refresh-secret';
   }
-  console.warn(`[basar] ${name} is missing; using a development fallback`);
-  return name === 'JWT_ACCESS_SECRET' ? 'dev-access-secret' : 'dev-refresh-secret';
+  throw new Error(`${name} must be set`);
 }
 
 function accessSecret() {
@@ -120,11 +120,23 @@ export async function getSession(): Promise<Session | null> {
   if (!session) return null;
   const user = await userForRefresh(session, refresh);
   if (!user) return null;
+  const tokens = signTokens(session);
+  const { dbEngine } = await import('./db');
+  const mongo = await import('./models');
+  const { fileModels } = await import('./file-db');
+  const models = (dbEngine() === 'file' ? fileModels : mongo) as any;
+  const fileDb = dbEngine() === 'file';
+  const updated = await models.User.updateOne(
+    fileDb ? { _id: session._id } : { _id: session._id, refreshToken: refresh },
+    { refreshToken: tokens.refreshToken },
+  );
+  if (!fileDb && !Number(updated?.matchedCount ?? updated?.modifiedCount ?? 0)) return null;
   try {
-    await setAuthCookies({ accessToken: signTokens(session).accessToken });
+    await setAuthCookies(tokens);
   } catch {
-    // Server Components are not allowed to write cookies. The refresh cookie still
-    // carries the session, so this request succeeds and the next Server Action refreshes it.
+    // Server Components cannot write cookies. Put the previous refresh token back
+    // so the browser cookie still matches the database.
+    await models.User.updateOne({ _id: session._id, refreshToken: tokens.refreshToken }, { refreshToken: refresh });
   }
   return session;
 }

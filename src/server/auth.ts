@@ -40,6 +40,9 @@ function envFlag(name: string) {
   return value === '1' || value === 'true' || value === 'yes';
 }
 
+// TEMP: return the login code to the client on purpose (SHOW_LOGIN_NUMBER).
+// Remove this function, both `کد ورود` returns in sendOtp, and the env flag
+// when the code must stay off the client.
 function revealLoginCode() {
   return envFlag('SHOW_LOGIN_NUMBER');
 }
@@ -71,7 +74,7 @@ export async function sendOtp(phonenumber: string): Promise<ActionResult> {
       return fail('شماره موبایل معتبر نیست');
     }
     const ip = await clientIp();
-    if (!rateLimit(`otp:send:phone:${phonenumber}`, 3, 10 * 60 * 1000) || !rateLimit(`otp:send:ip:${ip}`, 10, 10 * 60 * 1000)) {
+    if (!(await rateLimit(`otp:send:phone:${phonenumber}`, 3, 10 * 60 * 1000)) || !(await rateLimit(`otp:send:ip:${ip}`, 10, 10 * 60 * 1000))) {
       return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
     }
     const code = String(randomInt(100000, 1000000));
@@ -118,7 +121,7 @@ export async function loginWithOtp(form: {
     const { phonenumber, code, password } = form;
     if (!phonenumber || !PHONE_RE.test(phonenumber) || !code) return fail('شماره و کد الزامی است');
     const ip = await clientIp();
-    if (!rateLimit(`otp:login:phone:${phonenumber}`, 8, 10 * 60 * 1000) || !rateLimit(`otp:login:ip:${ip}`, 20, 10 * 60 * 1000)) {
+    if (!(await rateLimit(`otp:login:phone:${phonenumber}`, 8, 10 * 60 * 1000)) || !(await rateLimit(`otp:login:ip:${ip}`, 20, 10 * 60 * 1000))) {
       return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
     }
 

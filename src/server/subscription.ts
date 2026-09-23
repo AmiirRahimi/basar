@@ -203,9 +203,13 @@ export async function buyPlan(
   const startDate = new Date(startMs);
   const endDate = new Date(startMs + cycleDays(cycle) * 24 * 60 * 60 * 1000);
   const originalPrice = planPrice(plan, cycle, catalog.annualDiscount);
-  const { consumeDiscountCode } = await import('./admin');
+  const { consumeDiscountCode, commitDiscountUse } = await import('./admin');
   const discounted = await consumeDiscountCode(discountCode, originalPrice, session._id);
   if (!discounted.ok) return fail(discounted.message);
+  if (discounted.id) {
+    const committed = await commitDiscountUse(discounted.id);
+    if (!committed.ok) return fail(committed.message);
+  }
   const created = await M().UserSubscription.create({
     _userId: oid(session._id),
     planId: plan.id,
@@ -217,10 +221,6 @@ export async function buyPlan(
     startDate,
     endDate,
   });
-  if (discounted.id) {
-    const row = await M().DiscountCode.findById(discounted.id).lean();
-    await M().DiscountCode.updateOne({ _id: oid(discounted.id) }, { usedCount: Number(row?.usedCount || 0) + 1 });
-  }
   return ok(
     serialize({
       remainingDaysOfSubscription: snapshotFromRow(created.toObject ? created.toObject() : created).remainingDays,

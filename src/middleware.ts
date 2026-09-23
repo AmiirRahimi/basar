@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '@/lib/constants';
-import { jwtHs256Valid } from '@/lib/jwt-edge';
+import { jwtHs256Payload } from '@/lib/jwt-edge';
+
+function edgeSecret(name: 'JWT_ACCESS_SECRET' | 'JWT_REFRESH_SECRET') {
+  const value = (process.env[name] || '').trim();
+  if (value) return value;
+  if (process.env.NODE_ENV === 'development') {
+    return name === 'JWT_ACCESS_SECRET' ? 'dev-access-secret' : 'dev-refresh-secret';
+  }
+  return '';
+}
 
 const SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
@@ -30,14 +39,23 @@ export async function middleware(request: NextRequest) {
   }
   const access = request.cookies.get(ACCESS_COOKIE)?.value || '';
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value || '';
-  const accessSecret = process.env.JWT_ACCESS_SECRET || '';
-  const refreshSecret = process.env.JWT_REFRESH_SECRET || '';
-  const accessOk = access && accessSecret ? await jwtHs256Valid(access, accessSecret) : false;
-  const refreshOk = refresh && refreshSecret ? await jwtHs256Valid(refresh, refreshSecret) : false;
-  if (!accessOk && !refreshOk) {
+  const accessSecret = edgeSecret('JWT_ACCESS_SECRET');
+  const refreshSecret = edgeSecret('JWT_REFRESH_SECRET');
+  const accessSession = access && accessSecret ? await jwtHs256Payload(access, accessSecret) : null;
+  const refreshSession = refresh && refreshSecret ? await jwtHs256Payload(refresh, refreshSecret) : null;
+  if (!accessSession && !refreshSession) {
     const url = request.nextUrl.clone();
     url.pathname = '/counting/login';
     return withHeaders(NextResponse.redirect(url));
+  }
+  if (pathname.startsWith('/counting/admin')) {
+    const admin = (process.env.ADMIN_PHONENUMBER || '').trim();
+    const phone = accessSession?.phonenumber || refreshSession?.phonenumber || '';
+    if (!admin || phone !== admin) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/counting/dashboard';
+      return withHeaders(NextResponse.redirect(url));
+    }
   }
   return withHeaders(NextResponse.next());
 }

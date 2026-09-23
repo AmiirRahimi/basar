@@ -87,6 +87,11 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
       const res = await buyImageTokens(selectedPack.id, discountCode.trim());
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
+        const redirectUrl = (res.data as { redirectUrl?: string } | null)?.redirectUrl;
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
         toast.success(res.message || 'توکن اضافه شد');
         setCheckoutOpen(false);
         setDiscountCode('');

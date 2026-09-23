@@ -147,7 +147,7 @@ export async function sendAdminSms(payload: {
   if ('error' in access) return access.error;
 
   const ip = await clientIp();
-  if (!rateLimit(`admin-sms:${access.session._id}`, 8, 10 * 60 * 1000) || !rateLimit(`admin-sms-ip:${ip}`, 20, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`admin-sms:${access.session._id}`, 8, 10 * 60 * 1000)) || !(await rateLimit(`admin-sms-ip:${ip}`, 20, 10 * 60 * 1000))) {
     return fail('تعداد ارسال‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
   }
 

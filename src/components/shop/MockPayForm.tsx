@@ -29,6 +29,10 @@ export function MockPayForm({
         window.location.href = res.data?.redirectUrl || '/counting/profile?tab=subscription&paid=1';
         return;
       }
+      if (kind === 'image-tokens' || res.data?.kind === 'image-tokens') {
+        window.location.href = res.data?.redirectUrl || '/counting/images?paid=1';
+        return;
+      }
       const ids = (res.data?.invoices || []).map((invoice) => invoice.id).join(',');
       window.location.href = `/order/success?paid=1&ids=${encodeURIComponent(ids)}`;
     });

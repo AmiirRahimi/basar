@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import mongoose from 'mongoose';
 import { fabricLotTotal, fabricUnitCost, clothFinishedUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
 import { sanitizeClothExtras } from '@/lib/cloth-extras';
@@ -802,9 +802,9 @@ export async function createResource(resource: string, payload: unknown): Promis
     const sold = await sellItems(auth.session, items);
     if (!sold.ok) return sold;
     const soldItems = sold.data || [];
-    let invoiceNumber = Math.floor(10000 + Math.random() * 9000);
+    let invoiceNumber = randomInt(10000, 100000);
     while (await M().Invoice.exists({ invoiceNumber })) {
-      invoiceNumber = Math.floor(10000 + Math.random() * 9000);
+      invoiceNumber = randomInt(10000, 100000);
     }
     const created = await M().Invoice.create({
       ...preparePayload(auth.session, resource, { ...body, items: undefined }),
@@ -1059,7 +1059,7 @@ export async function getPublicClothById(id: string): Promise<ActionResult> {
 }
 
 export async function getShopClothById(id: string): Promise<ActionResult> {
-  const row = await loadPublicCloth({ _id: oid(id), isDeleted: false });
+  const row = await loadPublicCloth({ _id: oid(id), isDeleted: false, published: true });
   if (!row) return fail('لباس پیدا نشد', 404);
   return ok(serialize(row));
 }
@@ -1267,8 +1267,8 @@ async function dispatchShareSms(session: Session, token: string, phone: string, 
   if (!PHONE_RE.test(phone)) return { ok: false, message: 'شماره موبایل معتبر نیست' };
   const ip = await clientIp();
   if (
-    !rateLimit(`share-sms:${session._storeId}:${phone}`, 8, 60 * 60 * 1000) ||
-    !rateLimit(`share-sms-ip:${ip}`, 30, 60 * 60 * 1000)
+    !(await rateLimit(`share-sms:${session._storeId}:${phone}`, 8, 60 * 60 * 1000)) ||
+    !(await rateLimit(`share-sms-ip:${ip}`, 30, 60 * 60 * 1000))
   ) {
     return { ok: false, message: 'تعداد پیامک‌ها زیاد است. کمی بعد دوباره تلاش کنید' };
   }
@@ -1303,7 +1303,7 @@ async function notifyCustomersOfNewCloth(session: Session, cloth: any) {
     for (const person of customers as any[]) {
       const phone = String(person.phoneNumber || '').trim();
       if (!PHONE_RE.test(phone)) continue;
-      if (!rateLimit(`new-product-sms:${session._storeId}:${phone}`, 3, 24 * 60 * 60 * 1000)) continue;
+      if (!(await rateLimit(`new-product-sms:${session._storeId}:${phone}`, 3, 24 * 60 * 60 * 1000))) continue;
       await sendSmsText(phone, `محصولات جدید رسید. برای دیدن و سفارش عمده به این لینک سر بزنید:\n${url}`);
     }
   } catch {
@@ -1424,13 +1424,15 @@ async function shareCheckoutContext(shareToken?: string) {
   };
 }
 
-async function sellPublicPacks(items: any[]): Promise<ActionResult<any[]>> {
+async function sellPublicPacks(items: any[], requirePublished = false): Promise<ActionResult<any[]>> {
   const needed = new Map<string, ClothPack[]>();
   const prepared: any[] = [];
   for (const item of items) {
     const id = lineClothId(item);
     if (!id) continue;
-    const cloth = await (M().Cloth.findOne({ _id: oid(id), isDeleted: false }) as any).lean();
+    const clothFilter: Record<string, unknown> = { _id: oid(id), isDeleted: false };
+    if (requirePublished) clothFilter.published = true;
+    const cloth = await (M().Cloth.findOne(clothFilter) as any).lean();
     if (!cloth) return fail('لباس پیدا نشد');
     const stock = packsFromCloth(cloth);
     const taken = linePacks(item, stock.packSize);
@@ -1452,7 +1454,7 @@ async function sellPublicPacks(items: any[]): Promise<ActionResult<any[]>> {
   }
   const nextById = new Map<string, ClothPack[]>();
   for (const [id, taken] of needed) {
-    const cloth = await (M().Cloth.findOne({ _id: oid(id), isDeleted: false }) as any).lean();
+    const cloth = await (M().Cloth.findOne(requirePublished ? { _id: oid(id), isDeleted: false, published: true } : { _id: oid(id), isDeleted: false }) as any).lean();
     if (!cloth) return fail('لباس پیدا نشد');
     const next = subtractPacks(packsFromCloth(cloth).packs, taken);
     if (!next) return fail('موجودی این لباس کافی نیست');
@@ -1469,10 +1471,7 @@ async function findOrCreateWholesaleCustomer(storeId: string, input: { fullName:
   const existing =
     (await (M().Person.findOne({ _storeId: oid(storeId), isDeleted: false, role: '1', phoneNumber: phone }) as any).lean()) ||
     (await (M().Person.findOne({ _storeId: oid(storeId), isDeleted: false, role: '1', phoneNumber: Number(phone) }) as any).lean());
-  if (existing) {
-    await (M().Person as any).updateOne({ _id: existing._id }, { fullName: input.fullName, address: input.address, phoneNumber: phone });
-    return existing._id;
-  }
+  if (existing) return existing._id;
   const created = await M().Person.create({
     _storeId: oid(storeId),
     fullName: input.fullName,
@@ -1524,7 +1523,7 @@ export async function reserveStorefrontCheckout(input: {
   if (!fullName || !phone || !address) return fail('نام، موبایل و آدرس را کامل کنید');
   if (!PHONE_RE.test(phone)) return fail('شماره موبایل معتبر نیست');
   const ip = await clientIp();
-  if (!rateLimit(`checkout:ip:${ip}`, 5, 10 * 60 * 1000) || !rateLimit(`checkout:phone:${phone}`, 5, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`checkout:ip:${ip}`, 5, 10 * 60 * 1000)) || !(await rateLimit(`checkout:phone:${phone}`, 5, 10 * 60 * 1000))) {
     return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
   }
   const items = Array.isArray(input.items) ? input.items.filter((item) => item?.productId).slice(0, 20) : [];
@@ -1582,9 +1581,9 @@ async function invoicesFromSoldGroups(input: {
   for (const [storeId, soldItems] of grouped) {
     const store = await (M().Store.findOne({ _id: oid(storeId) }) as any).lean();
     const clientId = await findOrCreateWholesaleCustomer(storeId, { fullName, phone, address });
-    let invoiceNumber = Math.floor(10000 + Math.random() * 9000);
+    let invoiceNumber = randomInt(10000, 100000);
     while (await M().Invoice.exists({ invoiceNumber })) {
-      invoiceNumber = Math.floor(10000 + Math.random() * 9000);
+      invoiceNumber = randomInt(10000, 100000);
     }
     const invoiceTotal = soldItems.reduce(
       (sum: number, item: any) => sum + Number(item.count || 0) * Number(item.price || 0),
@@ -1689,7 +1688,7 @@ export async function placeWholesaleOrder(input: {
   if (!fullName || !phone || !address) return fail('نام، موبایل و آدرس را کامل کنید');
   if (!PHONE_RE.test(phone)) return fail('شماره موبایل معتبر نیست');
   const ip = await clientIp();
-  if (!rateLimit(`checkout:ip:${ip}`, 5, 10 * 60 * 1000) || !rateLimit(`checkout:phone:${phone}`, 5, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`checkout:ip:${ip}`, 5, 10 * 60 * 1000)) || !(await rateLimit(`checkout:phone:${phone}`, 5, 10 * 60 * 1000))) {
     return fail('تعداد درخواست‌ها زیاد است. کمی بعد دوباره تلاش کنید', 429);
   }
   const items = Array.isArray(input.items) ? input.items.filter((item) => item?.productId).slice(0, 20) : [];
@@ -1697,7 +1696,7 @@ export async function placeWholesaleOrder(input: {
 
   const grouped = new Map<string, any[]>();
   for (const item of items) {
-    const cloth = await (M().Cloth.findOne({ _id: oid(item.productId), isDeleted: false }) as any).lean();
+    const cloth = await (M().Cloth.findOne({ _id: oid(item.productId), isDeleted: false, published: true }) as any).lean();
     if (!cloth) return fail('لباس پیدا نشد');
     const storeId = storeIdOf(cloth);
     if (!storeId) return fail('فروشگاه این لباس مشخص نیست');
@@ -1714,7 +1713,7 @@ export async function placeWholesaleOrder(input: {
   const written: Array<{ clothId: string; packs: ClothPack[] }> = [];
   try {
     for (const [, storeItems] of grouped) {
-      const sold = await sellPublicPacks(storeItems);
+      const sold = await sellPublicPacks(storeItems, true);
       if (!sold.ok) {
         for (const row of written) {
           const cloth = await (M().Cloth.findOne({ _id: oid(row.clothId), isDeleted: false }) as any).lean();

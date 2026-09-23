@@ -14,6 +14,9 @@ export default async function PayCallbackPage({
   if (result.ok && result.data?.kind === 'subscription') {
     redirect(result.data.redirectUrl || '/counting/profile?tab=subscription&paid=1');
   }
+  if (result.ok && result.data?.kind === 'image-tokens') {
+    redirect(result.data.redirectUrl || '/counting/images?paid=1');
+  }
   if (result.ok) {
     await clearShopCheckout();
     const invoices = result.data?.invoices || [];

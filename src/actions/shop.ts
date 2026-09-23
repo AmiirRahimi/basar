@@ -122,6 +122,7 @@ export async function getCartItems(catalog?: CatalogProduct[]): Promise<Wholesal
 
 export async function saveCart(items: WholesaleCartItem[]) {
   (await cookies()).set(CART_COOKIE, JSON.stringify(items.slice(0, 20)), {
+    httpOnly: true,
     path: '/',
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 14,
@@ -181,6 +182,7 @@ export async function rememberShareToken(token: string) {
   const value = String(token || '').trim();
   if (!value) return { ok: false as const };
   (await cookies()).set(SHARE_TOKEN_COOKIE, value, {
+    httpOnly: true,
     path: '/',
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 14,
