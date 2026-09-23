@@ -9,7 +9,13 @@ import { persianYearMonth } from '@/lib/checks';
 import { GATEWAY_FEE_PERCENT } from '@/lib/storefront';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { StorefrontOrder, StorefrontOrderBoard } from '@/lib/types';
-import { Button, Input, toast } from '@/ui';
+import { Button, Checkbox, Input, Select, toast } from '@/ui';
+
+const selectLabels = {
+  search: 'جستجو',
+  remove: 'حذف انتخاب',
+  noOptionsFound: 'موردی یافت نشد',
+};
 
 function Money({ amount }: { amount: number }) {
   return <span className="font-medium tabular-nums">{toman(amount)}</span>;
@@ -131,52 +137,48 @@ export function StorefrontOrdersPanel({ board }: { board: StorefrontOrderBoard }
 
       <div className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-5">
         <Input label="جستجو" value={q} onChange={(e) => setQ(e.target.value)} />
-        <label className="block text-sm">
-          <span className="mb-1 block text-gray-600">فروشنده</span>
-          <select
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-            value={seller}
-            onChange={(e) => setSeller(e.target.value)}
-          >
-            <option value="">همه</option>
-            {sellers.map(([key, name]) => (
-              <option key={key} value={key}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block text-gray-600">ماه</span>
-          <select
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-          >
-            <option value="">همه ماه‌ها</option>
-            {months.map((key) => (
-              <option key={key} value={key}>
-                {key}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block text-gray-600">واریز</span>
-          <select
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-            value={payout}
-            onChange={(e) => setPayout(e.target.value as 'all' | 'pending' | 'paid')}
-          >
-            <option value="all">همه</option>
-            <option value="pending">باید واریز شود</option>
-            <option value="paid">واریز شده</option>
-          </select>
-        </label>
-        <label className="flex items-end gap-2 pb-2 text-sm">
-          <input type="checkbox" checked={grouped} onChange={(e) => setGrouped(e.target.checked)} />
-          گروه‌بندی بر اساس لینک
-        </label>
+        <Select
+          label="فروشنده"
+          value={seller}
+          onChange={(value) => setSeller(String(value ?? ''))}
+          options={[
+            { value: '', label: 'همه' },
+            ...sellers.map(([key, name]) => ({ value: key, label: name })),
+          ]}
+          searchable
+          labels={selectLabels}
+        />
+        <Select
+          label="ماه"
+          value={month}
+          onChange={(value) => setMonth(String(value ?? ''))}
+          options={[
+            { value: '', label: 'همه ماه‌ها' },
+            ...months.map((key) => ({ value: key, label: key })),
+          ]}
+          labels={selectLabels}
+        />
+        <Select
+          label="واریز"
+          value={payout === 'all' ? '' : payout}
+          onChange={(value) => {
+            const next = String(value || 'all');
+            setPayout(next === 'pending' || next === 'paid' ? next : 'all');
+          }}
+          options={[
+            { value: '', label: 'همه' },
+            { value: 'pending', label: 'باید واریز شود' },
+            { value: 'paid', label: 'واریز شده' },
+          ]}
+          labels={selectLabels}
+        />
+        <div className="flex items-end pb-2">
+          <Checkbox
+            checked={grouped}
+            onChange={(e) => setGrouped(e.target.checked)}
+            label="گروه‌بندی بر اساس لینک"
+          />
+        </div>
       </div>
 
       {filtered.length ? (
