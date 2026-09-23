@@ -38,6 +38,7 @@ export const countingMenuSections: CountingMenuSection[] = [
       { name: 'اشتراک و توکن', href: '/counting/admin/usage' },
       { name: 'طرح‌های اشتراک', href: '/counting/admin/plans' },
       { name: 'سفارش‌های ویترین', href: '/counting/admin/storefront' },
+      { name: 'انتشار در وب‌سایت', href: '/counting/admin/website' },
       { name: 'پیامک', href: '/counting/admin/sms' },
       { name: 'تلگرام', href: '/counting/admin/telegram' },
       { name: 'لیست‌های کمکی', href: '/counting/admin/dropdowns' },

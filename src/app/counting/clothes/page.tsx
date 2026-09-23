@@ -55,7 +55,8 @@ export default async function ClothesPage() {
       openingSummary: formatPacksFa(opening.packs),
       saleLabel: sale.active ? `${sale.percent}٪` : '—',
       collectionLabel: row.newCollection ? 'جدید' : '—',
-      publishLabel: row.published ? 'منتشر' : '—',
+      published: Boolean(row.published || row.publishRequested),
+      publishLabel: row.published ? 'منتشر' : row.publishRequested ? 'در انتظار تایید' : '—',
       shareLabel: clothShareLabel(row, brands, stores),
     };
   });
@@ -75,6 +76,12 @@ export default async function ClothesPage() {
     allowPartners: data?.subscription?.allowPartners,
   });
   const allowClothImages = Boolean(data?.isPlatformAdmin || data?.subscription?.allowClothImages);
+  const canRequestWebsite = Boolean(
+    data?.isPlatformAdmin ||
+      data?.user?.websiteListing ||
+      (data?.brands || []).some((brand) => brand.websiteListing || brand.ownerWebsiteListing) ||
+      (data?.stores || []).some((store) => store.websiteListing),
+  );
   const allowWrite = canWriteResource(workspace.data?.storeRole || 'owner', 'cloth', workspace.data?.isPlatformAdmin);
   return (
     <CountingShell title="البسه" error={errorMessage(res)}>
@@ -328,11 +335,11 @@ export default async function ClothesPage() {
             group: 'وضعیت فروشگاه',
             row: true,
           },
-          ...(workspace.data?.isPlatformAdmin || workspace.data?.subscription?.allowProductShare
+          ...(canRequestWebsite
             ? [
                 {
                   name: 'published',
-                  label: 'انتشار در وب‌سایت',
+                  label: data?.isPlatformAdmin ? 'انتشار در وب‌سایت' : 'درخواست انتشار در وب‌سایت',
                   type: 'boolean' as const,
                   group: 'وضعیت فروشگاه',
                   row: true,

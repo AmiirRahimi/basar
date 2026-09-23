@@ -277,7 +277,7 @@ export function ShareLinksBoard({
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-gray-900">لینک همه محصولات</h2>
         <p className="mt-1 text-sm text-gray-500">
-          یک نام انگلیسی یکتا انتخاب کنید. مشتری با این آدرس همه لباس‌های منتشرشده شما را می‌بیند.
+          یک نام انگلیسی یکتا انتخاب کنید. مشتری با این آدرس لباس‌های شما را می‌بیند، جدا از انتشار در وب‌سایت.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <Input

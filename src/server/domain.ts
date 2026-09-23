@@ -636,12 +636,91 @@ async function restrictClothImages(
   return null;
 }
 
-async function restrictClothPublish(session: Session, body: Record<string, unknown>, isCreate: boolean) {
-  if (session.isPlatformAdmin) return;
-  const sub = await subscriptionForSession(session);
-  if (sub.allowProductShare) return;
-  delete body.published;
-  if (isCreate) body.published = false;
+async function websiteListingAllowed(body: Record<string, unknown>) {
+  const brandIds = [
+    ...new Set(
+      convertIdList(body._brandIds)
+        .map((id) => String(id))
+        .concat(body._brandId ? [String(body._brandId)] : []),
+    ),
+  ].filter(Boolean);
+  const storeIds = [
+    ...new Set(
+      convertIdList(body._storeIds)
+        .map((id) => String(id))
+        .concat(body._storeId ? [String(body._storeId)] : []),
+    ),
+  ].filter(Boolean);
+  if (brandIds.length) {
+    const brand = await M()
+      .Brand.findOne({ _id: { $in: brandIds.map((id) => oid(id)) }, websiteListing: true, isDeleted: false })
+      .select('_id')
+      .lean();
+    if (brand) return true;
+  }
+  let parentIds: unknown[] = [];
+  if (storeIds.length) {
+    const stores = await M()
+      .Store.find({ _id: { $in: storeIds.map((id) => oid(id)) }, isDeleted: false })
+      .select('_id _brandId websiteListing')
+      .lean();
+    if ((stores as any[]).some((store) => store.websiteListing)) return true;
+    parentIds = (stores as any[]).map((store) => store._brandId).filter(Boolean);
+  }
+  const relatedBrandIds = [...new Set([...brandIds, ...parentIds.map((id) => String(id))])].filter(Boolean);
+  if (!relatedBrandIds.length) return false;
+  const relatedBrands = await M()
+    .Brand.find({ _id: { $in: relatedBrandIds.map((id) => oid(id)) }, isDeleted: false })
+    .select('_id _userId websiteListing')
+    .lean();
+  if ((relatedBrands as any[]).some((brand) => brand.websiteListing)) return true;
+  const ownerIds = (relatedBrands as any[]).map((brand) => brand._userId).filter(Boolean);
+  if (!ownerIds.length) return false;
+  const owner = await M()
+    .User.findOne({ _id: { $in: ownerIds }, websiteListing: true })
+    .select('_id')
+    .lean();
+  return Boolean(owner);
+}
+
+async function restrictClothPublish(
+  session: Session,
+  body: Record<string, unknown>,
+  previous: Record<string, unknown> | null,
+) {
+  if (session.isPlatformAdmin) {
+    if (body.published !== undefined) {
+      body.published = isTruthyFlag(body.published);
+      body.publishRequested = false;
+    }
+    return;
+  }
+  if (body.published === undefined) {
+    if (!previous) {
+      body.published = false;
+      body.publishRequested = false;
+    }
+    return;
+  }
+  const wants = isTruthyFlag(body.published);
+  const allowed = await websiteListingAllowed(body);
+  if (!allowed) {
+    if (previous) {
+      body.published = Boolean(previous.published);
+      body.publishRequested = Boolean(previous.publishRequested);
+    } else {
+      body.published = false;
+      body.publishRequested = false;
+    }
+    return;
+  }
+  if (wants) {
+    body.publishRequested = true;
+    body.published = Boolean(previous?.published);
+    return;
+  }
+  body.publishRequested = false;
+  body.published = false;
 }
 
 function linePacks(item: any, packSize: number): ClothPack[] {
@@ -862,7 +941,7 @@ export async function createResource(resource: string, payload: unknown): Promis
     next = inventoried.data || next;
     const imagesBlocked = await restrictClothImages(auth.session, next, null);
     if (imagesBlocked) return imagesBlocked;
-    await restrictClothPublish(auth.session, next, true);
+    await restrictClothPublish(auth.session, next, null);
     next = await applyClothCost(auth.session, next);
   }
   if (resource === 'check') {
@@ -968,7 +1047,7 @@ export async function updateResource(resource: string, id: string, payload: unkn
     body = inventoried.data || body;
     const imagesBlocked = await restrictClothImages(auth.session, body, previous as Record<string, unknown> | null);
     if (imagesBlocked) return imagesBlocked;
-    await restrictClothPublish(auth.session, body, false);
+    await restrictClothPublish(auth.session, body, previous as Record<string, unknown> | null);
     body = await applyClothCost(auth.session, body);
   }
   if (resource === 'check') {
@@ -1043,7 +1122,7 @@ const PUBLIC_CLOTH_POPULATE = [
 ];
 
 const PUBLIC_CLOTH_SELECT =
-  '_id code count packSize packs description images onSale discountPercent saleEndsAt newCollection published _type _style _size _color _storeId';
+  '_id code count packSize packs description images onSale discountPercent saleEndsAt newCollection published _type _style _size _color _storeId isProduced amountUsed boughtFee tailorFee washFee trimFee printFee extras';
 
 async function loadPublicCloth(filter: Record<string, unknown>) {
   await db();
@@ -1387,7 +1466,7 @@ export async function getPublicSharedClothes(token: string): Promise<ActionResul
       _brandId: String(share._brandId || ''),
     } as Session;
     const rows = await M()
-      .Cloth.find({ ...clothVisibleFilter(session), published: true })
+      .Cloth.find(clothVisibleFilter(session))
       .select(PUBLIC_CLOTH_SELECT)
       .populate(PUBLIC_CLOTH_POPULATE)
       .sort('code')

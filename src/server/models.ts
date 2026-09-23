@@ -25,6 +25,8 @@ const UserSchema = defineSchema(
     password: { type: String, default: null },
     refreshToken: { type: String, default: null },
     imageTokens: { type: Number, default: 0 },
+    /** Admin allows every brand and store of this user to request website publishing. */
+    websiteListing: { type: Boolean, default: false },
     timeStamp: { type: Date, default: Date.now },
   },
   { collection: 'users' },
@@ -77,6 +79,8 @@ const BrandSchema = defineSchema(
     logo: { type: String, default: '' },
     color: { type: String, default: '#0f766e' },
     description: { type: String, default: '' },
+    /** Admin allows this brand to request clothes on the public website. */
+    websiteListing: { type: Boolean, default: false },
     timeStamp: { type: Date, required: true, default: Date.now },
     isDeleted: { type: Boolean, required: true, default: false },
   },
@@ -108,6 +112,8 @@ const StoreSchema = defineSchema(
     city: { type: Schema.Types.Mixed, default: '' },
     isMain: { type: Boolean, required: true, default: false },
     catalogSlug: { type: String, default: '', index: true },
+    /** Admin allows this store to request clothes on the public website. */
+    websiteListing: { type: Boolean, default: false },
     timeStamp: { type: Date, required: true, default: Date.now },
     isDeleted: { type: Boolean, required: true, default: false },
   },
@@ -286,6 +292,8 @@ const ClothSchema = defineSchema(
     },
     description: String,
     published: { type: Boolean, default: false },
+    /** Seller asked for the public website. Admin publishes separately. */
+    publishRequested: { type: Boolean, default: false },
     images: {
       type: [String],
       default: [],

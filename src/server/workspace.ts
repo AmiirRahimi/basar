@@ -276,6 +276,7 @@ function storeView(store: any, members: ReturnType<typeof memberView>[] = []) {
     warehouses,
     city: store.city ?? '',
     isMain: Boolean(store.isMain),
+    websiteListing: Boolean(store.websiteListing),
     members,
   };
 }
@@ -326,11 +327,25 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       logo: brand.logo || '',
       color: brand.color || BRAND_COLORS[0],
       description: brand.description || '',
+      websiteListing: Boolean(brand.websiteListing),
       _userId: idOf(brand._userId),
       storeCount: brandStores.length,
       memberCount: brandStores.reduce((sum, s) => sum + s.members.length, 0),
     };
   });
+  const listingOwnerIds = [...new Set(brands.map((brand) => brand._userId).filter(Boolean))];
+  if (listingOwnerIds.length) {
+    const owners = await M()
+      .User.find({ _id: { $in: listingOwnerIds.map((id) => oid(id)) } })
+      .select('_id websiteListing')
+      .lean();
+    const listedOwners = new Set(
+      (owners as any[]).filter((owner) => owner.websiteListing).map((owner) => String(owner._id)),
+    );
+    for (const brand of brands) {
+      brand.ownerWebsiteListing = listedOwners.has(String(brand._userId || ''));
+    }
+  }
 
   const brandIds = [...brandMap.keys()].map((id) => oid(id));
   const ownerIds = [
@@ -378,6 +393,7 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
         _id: String(user._id),
         fullName: user.fullName || '',
         phonenumber: String(user.phonenumber),
+        websiteListing: Boolean(user.websiteListing),
       },
       brands,
       stores: workspaceStores,

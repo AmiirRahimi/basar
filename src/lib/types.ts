@@ -50,6 +50,9 @@ export type Brand = {
   color?: string;
   description?: string;
   _userId?: string;
+  websiteListing?: boolean;
+  /** True when the brand owner was granted website publishing for all of their brands. */
+  ownerWebsiteListing?: boolean;
 };
 
 export type StoreWarehouse = {
@@ -82,6 +85,7 @@ export type StoreRecord = {
   city?: string | number;
   isMain?: boolean;
   catalogSlug?: string;
+  websiteListing?: boolean;
 };
 
 export type StoreMember = {
@@ -123,6 +127,7 @@ export type Workspace = {
     _id: string;
     fullName?: string;
     phonenumber: string;
+    websiteListing?: boolean;
   };
   brands: WorkspaceBrand[];
   stores: WorkspaceStore[];
@@ -185,6 +190,7 @@ export type Cloth = {
   printFee?: number;
   extras?: { kind?: string; price?: number; description?: string }[];
   published?: boolean;
+  publishRequested?: boolean;
   description?: string;
   images?: string[];
   onSale?: boolean;
