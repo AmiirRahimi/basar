@@ -19,6 +19,8 @@ export function ChatPanel({
   headerRight,
   className,
   composerPlaceholder = 'پیام خود را بنویسید…',
+  readOnly = false,
+  readOnlyHint = 'این گفتگو بسته شده است.',
 }: {
   title: string;
   subtitle?: string;
@@ -31,6 +33,8 @@ export function ChatPanel({
   headerRight?: React.ReactNode;
   className?: string;
   composerPlaceholder?: string;
+  readOnly?: boolean;
+  readOnlyHint?: string;
 }) {
   const [draft, setDraft] = useState('');
   const [pending, start] = useTransition();
@@ -45,7 +49,7 @@ export function ChatPanel({
 
   function submit() {
     const body = draft.trim();
-    if (!body || busy) return;
+    if (!body || busy || readOnly) return;
     start(async () => {
       await onSend(body);
       setDraft('');
@@ -72,41 +76,47 @@ export function ChatPanel({
         )}
       </div>
 
-      <form
-        className="shrink-0 border-t border-zinc-200/80 p-3 dark:border-zinc-700"
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }}
-      >
-        <div className="flex items-end gap-2">
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value.slice(0, CHAT_MESSAGE_MAX))}
-            rows={2}
-            placeholder={composerPlaceholder}
-            disabled={busy}
-            className="min-h-[2.75rem] flex-1 resize-none rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm leading-6 text-zinc-900 outline-none ring-teal-600/30 placeholder:text-zinc-400 focus:ring-2 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                submit();
-              }
-            }}
-          />
-          <button
-            type="submit"
-            disabled={busy || !draft.trim()}
-            aria-label="ارسال"
-            className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white transition disabled:opacity-40',
-              accent === 'saffron' ? 'bg-shop-saffron text-shop-ink' : 'bg-teal-700 hover:bg-teal-800',
-            )}
-          >
-            <Send className="h-4 w-4 -scale-x-100" />
-          </button>
+      {readOnly ? (
+        <div className="shrink-0 border-t border-zinc-200/80 px-4 py-3 text-center text-xs text-zinc-500 dark:border-zinc-700">
+          {readOnlyHint}
         </div>
-      </form>
+      ) : (
+        <form
+          className="shrink-0 border-t border-zinc-200/80 p-3 dark:border-zinc-700"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value.slice(0, CHAT_MESSAGE_MAX))}
+              rows={2}
+              placeholder={composerPlaceholder}
+              disabled={busy}
+              className="min-h-[2.75rem] flex-1 resize-none rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm leading-6 text-zinc-900 outline-none ring-teal-600/30 placeholder:text-zinc-400 focus:ring-2 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  submit();
+                }
+              }}
+            />
+            <button
+              type="submit"
+              disabled={busy || !draft.trim()}
+              aria-label="ارسال"
+              className={cn(
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white transition disabled:opacity-40',
+                accent === 'saffron' ? 'bg-shop-saffron text-shop-ink' : 'bg-teal-700 hover:bg-teal-800',
+              )}
+            >
+              <Send className="h-4 w-4 -scale-x-100" />
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

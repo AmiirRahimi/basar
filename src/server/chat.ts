@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
+import mongoose from 'mongoose';
 import { cookies } from 'next/headers';
 import {
   CHAT_COOKIE,
@@ -22,8 +23,18 @@ import { fail, ok, type ActionResult } from './result';
 import { normalizeMobile } from './sms';
 import { withWorkspace } from './workspace';
 
-function M() {
+function M(): any {
   return dbEngine() === 'file' ? fileModels : mongo;
+}
+
+function failDto<T>(message: string, status = 400): ActionResult<T> {
+  return fail(message, status) as ActionResult<T>;
+}
+
+function oid(value: unknown) {
+  const s = String(value || '').trim();
+  if (!s) return s;
+  return mongoose.Types.ObjectId.isValid(s) ? new mongoose.Types.ObjectId(s) : s;
 }
 
 function hashToken(token: string) {
@@ -121,7 +132,7 @@ function toMessageDto(row: any): ChatMessageDto {
     body: String(row.body || ''),
     sender: (['admin', 'user', 'visitor'].includes(row.sender) ? row.sender : 'user') as ChatSender,
     senderUserId: row.senderUserId ? String(row.senderUserId) : undefined,
-    createdAt: iso(row.createdAt),
+    createdAt: iso(row.createdAt || row.timeStamp),
   };
 }
 
@@ -129,8 +140,9 @@ async function loadUserNames(userIds: string[]) {
   const ids = [...new Set(userIds.filter(Boolean))];
   const map = new Map<string, { fullName: string; phonenumber: string }>();
   if (!ids.length) return map;
+  const queryIds = ids.map(oid);
   const users = await M()
-    .User.find({ _id: { $in: ids } })
+    .User.find({ _id: { $in: queryIds } })
     .select('_id fullName phonenumber')
     .lean();
   for (const user of users as any[]) {
@@ -148,7 +160,7 @@ async function findGuestConversation() {
   const hash = hashToken(cookie.token);
   const row = await M()
     .Conversation.findOne({
-      _id: cookie.conversationId,
+      _id: oid(cookie.conversationId),
       channel: 'shop',
       guestTokenHash: hash,
     })
@@ -163,34 +175,38 @@ async function insertMessage(input: {
   senderUserId?: string;
 }) {
   await M().ChatMessage.create({
-    conversationId: input.conversationId,
+    conversationId: oid(input.conversationId),
     body: input.body,
     sender: input.sender,
-    senderUserId: input.senderUserId || null,
+    senderUserId: input.senderUserId ? oid(input.senderUserId) : null,
     createdAt: new Date(),
   });
 }
 
+/** Never auto-reopens a closed conversation — closed stays in history. */
 async function bumpConversation(conversationId: string, body: string, forAdmin: boolean) {
-  const row = await M().Conversation.findById(conversationId).lean();
+  const row = await M().Conversation.findById(oid(conversationId)).lean();
   if (!row) return null;
   const patch: Record<string, unknown> = {
     lastMessageAt: new Date(),
     lastMessagePreview: previewOf(body),
-    status: 'open',
   };
   if (forAdmin) {
     patch.unreadForAdmin = Number((row as any).unreadForAdmin || 0) + 1;
   } else {
     patch.unreadForVisitor = Number((row as any).unreadForVisitor || 0) + 1;
   }
-  await M().Conversation.updateOne({ _id: conversationId }, patch);
+  await M().Conversation.updateOne({ _id: oid(conversationId) }, patch);
   return { ...(row as object), ...patch };
 }
 
-async function messagesFor(conversationId: string, limit = 200): Promise<ChatMessageDto[]> {
+async function messagesFor(conversationId: string, limit = 500): Promise<ChatMessageDto[]> {
+  const id = oid(conversationId);
+  const asString = String(conversationId);
   const rows = await M()
-    .ChatMessage.find({ conversationId })
+    .ChatMessage.find({
+      $or: [{ conversationId: id }, { conversationId: asString }],
+    })
     .sort({ createdAt: 1 })
     .limit(limit)
     .lean();
@@ -217,36 +233,74 @@ async function countingExtras(session: { _id: string; phonenumber: string }) {
   };
 }
 
-export async function getCountingThread(): Promise<ActionResult<ChatThreadDto>> {
+async function createCountingConversation(session: {
+  _id: string;
+  _storeId: string;
+  _brandId: string;
+}) {
+  const created = await M().Conversation.create({
+    channel: 'counting',
+    status: 'open',
+    userId: oid(session._id),
+    storeId: session._storeId ? oid(session._storeId) : null,
+    brandId: session._brandId ? oid(session._brandId) : null,
+    lastMessageAt: new Date(),
+    lastMessagePreview: '',
+    unreadForAdmin: 0,
+    unreadForVisitor: 0,
+    timeStamp: new Date(),
+  });
+  return created.toObject ? created.toObject() : created;
+}
+
+/** Latest open thread, or most recent closed (history) — never creates empty chats. */
+export async function getCountingThread(): Promise<ActionResult<ChatThreadDto | null>> {
   const access = await withWorkspace();
-  if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
+  if ('error' in access) return access.error as ActionResult<ChatThreadDto | null>;
   await db();
 
   const session = access.session;
+  const userKey = oid(session._id);
   let row = await M()
     .Conversation.findOne({
       channel: 'counting',
-      userId: session._id,
+      userId: userKey,
       status: 'open',
     })
+    .sort({ lastMessageAt: -1 })
     .lean();
 
   if (!row) {
-    const created = await M().Conversation.create({
-      channel: 'counting',
-      status: 'open',
-      userId: session._id,
-      storeId: session._storeId || null,
-      brandId: session._brandId || null,
-      lastMessageAt: new Date(),
-      lastMessagePreview: '',
-      unreadForAdmin: 0,
-      unreadForVisitor: 0,
-      timeStamp: new Date(),
-    });
-    row = created.toObject ? created.toObject() : created;
+    row = await M()
+      .Conversation.findOne({
+        channel: 'counting',
+        userId: userKey,
+      })
+      .sort({ lastMessageAt: -1 })
+      .lean();
   }
 
+  if (!row) {
+    row = await M()
+      .Conversation.findOne({
+        channel: 'counting',
+        userId: session._id,
+        status: 'open',
+      })
+      .sort({ lastMessageAt: -1 })
+      .lean();
+  }
+  if (!row) {
+    row = await M()
+      .Conversation.findOne({
+        channel: 'counting',
+        userId: session._id,
+      })
+      .sort({ lastMessageAt: -1 })
+      .lean();
+  }
+
+  if (!row) return ok(null);
   return ok(await threadFor(row, await countingExtras(session)));
 }
 
@@ -254,31 +308,50 @@ export async function sendCountingMessage(bodyRaw: unknown): Promise<ActionResul
   const access = await withWorkspace();
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   const body = clipBody(bodyRaw);
-  if (!body) return fail('متن پیام خالی است');
+  if (!body) return failDto('متن پیام خالی است');
   if (!(await allowSend(`user:${access.session._id}`))) {
-    return fail('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
+    return failDto('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
   }
   await db();
 
-  const existing = await getCountingThread();
-  if (!existing.ok || !existing.data) return existing;
-  const conversationId = existing.data.conversation._id;
+  const session = access.session;
+  const userKey = oid(session._id);
+  let row =
+    (await M()
+      .Conversation.findOne({ channel: 'counting', userId: userKey, status: 'open' })
+      .sort({ lastMessageAt: -1 })
+      .lean()) ||
+    (await M()
+      .Conversation.findOne({ channel: 'counting', userId: session._id, status: 'open' })
+      .sort({ lastMessageAt: -1 })
+      .lean());
 
+  // Closed thread stays in history — start a fresh open conversation
+  if (!row) {
+    row = await createCountingConversation(session);
+  }
+
+  const conversationId = String((row as any)._id);
   await insertMessage({
     conversationId,
     body,
     sender: 'user',
-    senderUserId: access.session._id,
+    senderUserId: session._id,
   });
   await bumpConversation(conversationId, body, true);
 
-  return getCountingThread();
+  const refreshed = await M().Conversation.findById(oid(conversationId)).lean();
+  return ok(await threadFor(refreshed || row, await countingExtras(session)));
 }
 
 export async function markCountingRead(): Promise<ActionResult<{ unread: number }>> {
   const access = await withWorkspace();
   if ('error' in access) return access.error as ActionResult<{ unread: number }>;
   await db();
+  await M().Conversation.updateMany(
+    { channel: 'counting', userId: oid(access.session._id) },
+    { unreadForVisitor: 0 },
+  );
   await M().Conversation.updateMany(
     { channel: 'counting', userId: access.session._id },
     { unreadForVisitor: 0 },
@@ -291,7 +364,10 @@ export async function countingUnread(): Promise<ActionResult<{ unread: number }>
   if ('error' in access) return access.error as ActionResult<{ unread: number }>;
   await db();
   const rows = await M()
-    .Conversation.find({ channel: 'counting', userId: access.session._id })
+    .Conversation.find({
+      channel: 'counting',
+      $or: [{ userId: oid(access.session._id) }, { userId: access.session._id }],
+    })
     .select('unreadForVisitor')
     .lean();
   const unread = (rows as any[]).reduce((sum, row) => sum + Number(row.unreadForVisitor || 0), 0);
@@ -305,6 +381,35 @@ export async function getShopThread(): Promise<ActionResult<ChatThreadDto | null
   return ok(await threadFor(row));
 }
 
+async function createShopConversation(input: {
+  name: string;
+  phone: string;
+  body: string;
+}) {
+  const token = newGuestToken();
+  const created = await M().Conversation.create({
+    channel: 'shop',
+    status: 'open',
+    visitorName: input.name,
+    visitorPhone: input.phone,
+    guestTokenHash: hashToken(token),
+    lastMessageAt: new Date(),
+    lastMessagePreview: previewOf(input.body),
+    unreadForAdmin: 1,
+    unreadForVisitor: 0,
+    timeStamp: new Date(),
+  });
+  const conversationId = String(created._id);
+  await insertMessage({
+    conversationId,
+    body: input.body,
+    sender: 'visitor',
+  });
+  await setChatCookie(conversationId, token);
+  const row = created.toObject ? created.toObject() : created;
+  return threadFor(row);
+}
+
 export async function startShopThread(input: {
   name?: string;
   phone?: string;
@@ -313,67 +418,58 @@ export async function startShopThread(input: {
   const name = String(input.name || '').trim().slice(0, 80);
   const phone = normalizeMobile(input.phone);
   const body = clipBody(input.body);
-  if (!name) return fail('نام را وارد کنید');
-  if (!PHONE_RE.test(phone)) return fail('شماره موبایل معتبر نیست');
-  if (!body) return fail('متن پیام خالی است');
+  if (!name) return failDto('نام را وارد کنید');
+  if (!PHONE_RE.test(phone)) return failDto('شماره موبایل معتبر نیست');
+  if (!body) return failDto('متن پیام خالی است');
   if (!(await allowSend(`guest:${phone}`))) {
-    return fail('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
+    return failDto('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
   }
 
   await db();
 
   const existing = await findGuestConversation();
-  if (existing) {
+  if (existing && (existing as any).status !== 'closed') {
     await insertMessage({
       conversationId: String(existing._id),
       body,
       sender: 'visitor',
     });
     await bumpConversation(String(existing._id), body, true);
-    const refreshed = await M().Conversation.findById(existing._id).lean();
+    const refreshed = await M().Conversation.findById(oid(existing._id)).lean();
     return ok(await threadFor(refreshed || existing));
   }
 
-  const token = newGuestToken();
-  const created = await M().Conversation.create({
-    channel: 'shop',
-    status: 'open',
-    visitorName: name,
-    visitorPhone: phone,
-    guestTokenHash: hashToken(token),
-    lastMessageAt: new Date(),
-    lastMessagePreview: previewOf(body),
-    unreadForAdmin: 1,
-    unreadForVisitor: 0,
-    timeStamp: new Date(),
-  });
-  const conversationId = String(created._id);
-  await insertMessage({
-    conversationId,
-    body,
-    sender: 'visitor',
-  });
-  await setChatCookie(conversationId, token);
-  const row = created.toObject ? created.toObject() : created;
-  return ok(await threadFor(row));
+  // Closed cookie thread stays archived — start a new conversation
+  return ok(await createShopConversation({ name, phone, body }));
 }
 
 export async function sendShopMessage(bodyRaw: unknown): Promise<ActionResult<ChatThreadDto>> {
   const body = clipBody(bodyRaw);
-  if (!body) return fail('متن پیام خالی است');
+  if (!body) return failDto('متن پیام خالی است');
   await db();
   const row = await findGuestConversation();
-  if (!row) return fail('گفتگو پیدا نشد؛ دوباره شروع کنید', 404);
+  if (!row) return failDto('گفتگو پیدا نشد؛ دوباره شروع کنید', 404);
   if (!(await allowSend(`guest:${row.visitorPhone || row._id}`))) {
-    return fail('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
+    return failDto('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
   }
+
+  if ((row as any).status === 'closed') {
+    return ok(
+      await createShopConversation({
+        name: String(row.visitorName || 'مهمان'),
+        phone: String(row.visitorPhone || ''),
+        body,
+      }),
+    );
+  }
+
   await insertMessage({
     conversationId: String(row._id),
     body,
     sender: 'visitor',
   });
   await bumpConversation(String(row._id), body, true);
-  const refreshed = await M().Conversation.findById(row._id).lean();
+  const refreshed = await M().Conversation.findById(oid(row._id)).lean();
   return ok(await threadFor(refreshed || row));
 }
 
@@ -381,7 +477,7 @@ export async function markShopRead(): Promise<ActionResult<{ unread: number }>> 
   await db();
   const row = await findGuestConversation();
   if (!row) return ok({ unread: 0 });
-  await M().Conversation.updateOne({ _id: row._id }, { unreadForVisitor: 0 });
+  await M().Conversation.updateOne({ _id: oid(row._id) }, { unreadForVisitor: 0 });
   return ok({ unread: 0 });
 }
 
@@ -394,6 +490,7 @@ export async function shopUnread(): Promise<ActionResult<{ unread: number }>> {
 
 export async function listAdminConversations(
   channel?: ChatChannel | 'all',
+  status?: 'open' | 'closed' | 'all',
 ): Promise<ActionResult<{ conversations: ChatConversationDto[]; unread: number }>> {
   const access = await requirePlatformAdmin();
   if ('error' in access) {
@@ -403,8 +500,9 @@ export async function listAdminConversations(
 
   const filter: Record<string, unknown> = {};
   if (channel === 'counting' || channel === 'shop') filter.channel = channel;
+  if (status === 'open' || status === 'closed') filter.status = status;
 
-  const rows = await M().Conversation.find(filter).sort({ lastMessageAt: -1 }).limit(200).lean();
+  const rows = await M().Conversation.find(filter).sort({ lastMessageAt: -1 }).limit(300).lean();
 
   const userIds = (rows as any[])
     .filter((row) => row.channel === 'counting' && row.userId)
@@ -419,7 +517,11 @@ export async function listAdminConversations(
     });
   });
 
-  const unread = conversations.reduce((sum, c) => sum + c.unreadForAdmin, 0);
+  const allForUnread = await M()
+    .Conversation.find({ status: { $ne: 'closed' } })
+    .select('unreadForAdmin')
+    .lean();
+  const unread = (allForUnread as any[]).reduce((sum, c) => sum + Number(c.unreadForAdmin || 0), 0);
   return ok({ conversations, unread });
 }
 
@@ -428,8 +530,8 @@ export async function getAdminThread(conversationId: string): Promise<ActionResu
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   await db();
 
-  const row = await M().Conversation.findById(conversationId).lean();
-  if (!row) return fail('گفتگو پیدا نشد', 404);
+  const row = await M().Conversation.findById(oid(conversationId)).lean();
+  if (!row) return failDto('گفتگو پیدا نشد', 404);
 
   let extras: { userFullName?: string; contactPhone?: string } | undefined;
   if ((row as any).userId) {
@@ -441,7 +543,7 @@ export async function getAdminThread(conversationId: string): Promise<ActionResu
     };
   }
 
-  await M().Conversation.updateOne({ _id: conversationId }, { unreadForAdmin: 0 });
+  await M().Conversation.updateOne({ _id: oid(conversationId) }, { unreadForAdmin: 0 });
   return ok(await threadFor({ ...(row as object), unreadForAdmin: 0 }, extras));
 }
 
@@ -452,14 +554,17 @@ export async function sendAdminMessage(
   const access = await requirePlatformAdmin();
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   const body = clipBody(bodyRaw);
-  if (!body) return fail('متن پیام خالی است');
+  if (!body) return failDto('متن پیام خالی است');
   if (!(await allowSend(`admin:${access.session._id}`))) {
-    return fail('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
+    return failDto('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
   }
   await db();
 
-  const row = await M().Conversation.findById(conversationId).lean();
-  if (!row) return fail('گفتگو پیدا نشد', 404);
+  const row = await M().Conversation.findById(oid(conversationId)).lean();
+  if (!row) return failDto('گفتگو پیدا نشد', 404);
+  if ((row as any).status === 'closed') {
+    return failDto('این گفتگو بسته است. برای پاسخ، ابتدا از سرگیری کنید.', 400);
+  }
 
   await insertMessage({
     conversationId,
@@ -468,7 +573,7 @@ export async function sendAdminMessage(
     senderUserId: access.session._id,
   });
   await bumpConversation(conversationId, body, false);
-  await M().Conversation.updateOne({ _id: conversationId }, { unreadForAdmin: 0 });
+  await M().Conversation.updateOne({ _id: oid(conversationId) }, { unreadForAdmin: 0 });
 
   return getAdminThread(conversationId);
 }
@@ -477,9 +582,19 @@ export async function closeAdminConversation(conversationId: string): Promise<Ac
   const access = await requirePlatformAdmin();
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   await db();
-  const row = await M().Conversation.findById(conversationId).lean();
-  if (!row) return fail('گفتگو پیدا نشد', 404);
-  await M().Conversation.updateOne({ _id: conversationId }, { status: 'closed' });
+  const row = await M().Conversation.findById(oid(conversationId)).lean();
+  if (!row) return failDto('گفتگو پیدا نشد', 404);
+  await M().Conversation.updateOne({ _id: oid(conversationId) }, { status: 'closed' });
+  return getAdminThread(conversationId);
+}
+
+export async function reopenAdminConversation(conversationId: string): Promise<ActionResult<ChatThreadDto>> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
+  await db();
+  const row = await M().Conversation.findById(oid(conversationId)).lean();
+  if (!row) return failDto('گفتگو پیدا نشد', 404);
+  await M().Conversation.updateOne({ _id: oid(conversationId) }, { status: 'open' });
   return getAdminThread(conversationId);
 }
 
@@ -487,7 +602,10 @@ export async function adminUnread(): Promise<ActionResult<{ unread: number }>> {
   const access = await requirePlatformAdmin();
   if ('error' in access) return access.error as ActionResult<{ unread: number }>;
   await db();
-  const rows = await M().Conversation.find({}).select('unreadForAdmin').lean();
+  const rows = await M()
+    .Conversation.find({ status: { $ne: 'closed' } })
+    .select('unreadForAdmin')
+    .lean();
   const unread = (rows as any[]).reduce((sum, row) => sum + Number(row.unreadForAdmin || 0), 0);
   return ok({ unread });
 }

@@ -11,6 +11,7 @@ import {
   listAdminConversations as listAdminConversationsServer,
   markCountingRead as markCountingReadServer,
   markShopRead as markShopReadServer,
+  reopenAdminConversation as reopenAdminConversationServer,
   sendAdminMessage as sendAdminMessageServer,
   sendCountingMessage as sendCountingMessageServer,
   sendShopMessage as sendShopMessageServer,
@@ -54,8 +55,11 @@ export async function shopUnread() {
   return shopUnreadServer();
 }
 
-export async function listAdminConversations(channel?: ChatChannel | 'all') {
-  return listAdminConversationsServer(channel);
+export async function listAdminConversations(
+  channel?: ChatChannel | 'all',
+  status?: 'open' | 'closed' | 'all',
+) {
+  return listAdminConversationsServer(channel, status);
 }
 
 export async function getAdminThread(conversationId: string) {
@@ -68,6 +72,10 @@ export async function sendAdminMessage(conversationId: string, body: string) {
 
 export async function closeAdminConversation(conversationId: string) {
   return closeAdminConversationServer(conversationId);
+}
+
+export async function reopenAdminConversation(conversationId: string) {
+  return reopenAdminConversationServer(conversationId);
 }
 
 export async function adminUnread() {

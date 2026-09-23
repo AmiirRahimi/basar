@@ -53,10 +53,14 @@ export function ChatWidget({
   const refreshThread = useCallback(async () => {
     if (variant === 'counting') {
       const res = await getCountingThread();
-      if (res.ok && res.data) {
-        maybeToastNewReply(res.data);
-        setThread(res.data);
-        setUnread(res.data.conversation.unreadForVisitor);
+      if (res.ok) {
+        if (res.data) {
+          maybeToastNewReply(res.data);
+          setThread(res.data);
+          setUnread(res.data.conversation.unreadForVisitor);
+        } else {
+          setThread(null);
+        }
       }
       return;
     }
@@ -232,15 +236,22 @@ export function ChatWidget({
               <ChatPanel
                 title={variant === 'shop' ? 'پشتیبانی فروشگاه' : 'پشتیبانی شمارش'}
                 subtitle={
-                  variant === 'shop'
-                    ? 'پاسخ معمولاً در ساعات کاری ارسال می‌شود'
-                    : 'پیام به ادمین پلتفرم'
+                  thread?.conversation.status === 'closed'
+                    ? 'گفتگوی قبلی بسته شده — پیام جدید گفتگوی تازه می‌سازد'
+                    : variant === 'shop'
+                      ? 'پاسخ معمولاً در ساعات کاری ارسال می‌شود'
+                      : 'پیام به ادمین پلتفرم'
                 }
                 messages={thread?.messages || []}
                 viewer={variant === 'shop' ? 'visitor' : 'user'}
                 accent={accent}
                 sending={pending}
                 onSend={handleSend}
+                composerPlaceholder={
+                  thread?.conversation.status === 'closed'
+                    ? 'پیام جدید برای شروع گفتگوی تازه…'
+                    : undefined
+                }
                 headerRight={
                   <button
                     type="button"
