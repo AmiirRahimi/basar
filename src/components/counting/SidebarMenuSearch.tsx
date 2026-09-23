@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { getRecentMenuSearches, recordMenuSearch } from '@/actions/menu-search';
 import { MENU_KEYWORDS, searchMenuItems, type RecentMenuSearch } from '@/lib/menu-search';
-import { cn, Modal } from '@/ui';
+import { cn, Input, Modal } from '@/ui';
 import type { CountingMenuSection } from './CountingSidebar';
 
 function flattenMenu(sections: CountingMenuSection[]) {
@@ -116,16 +116,16 @@ export function SidebarMenuSearch({
         rounded="lg"
       >
         <div className="px-4 pb-4 pt-1" dir="rtl" onKeyDown={onKeyDown}>
-          <label className="relative block">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="مثلاً لباس، فروش، فاکتور…"
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pe-3 ps-9 text-sm outline-none focus:border-teal-600 focus:bg-white"
-            />
-          </label>
+          <Input
+            ref={inputRef}
+            fullWidth
+            size="md"
+            icon={<Search className="h-4 w-4" />}
+            iconPosition="right"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="مثلاً لباس، فروش، فاکتور…"
+          />
 
           {query.trim() ? (
             <ul className="mt-3 max-h-72 overflow-y-auto">

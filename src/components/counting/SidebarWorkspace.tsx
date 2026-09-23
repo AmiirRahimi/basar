@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Check, Loader2, Settings2, Store, User } from 'lucide-react';
+import { Check, ChevronDown, Loader2, Settings2, Store, User } from 'lucide-react';
 import { logout } from '@/actions/auth';
 import { switchWorkspace } from '@/actions/workspace';
 import { STORE_STAFF_ROLES } from '@/lib/constants';
@@ -70,6 +70,7 @@ export function SidebarWorkspace({ compact = false, expanded = true }: { compact
   const [brandId, setBrandId] = useState(workspace?.activeBrandId || '');
   const [storeId, setStoreId] = useState(workspace?.activeStoreId || '');
   const [openPanel, setOpenPanel] = useState<'brand' | 'store' | ''>('');
+  const [sectionOpen, setSectionOpen] = useState(false);
 
   useEffect(() => {
     setBrandId(workspace?.activeBrandId || '');
@@ -77,8 +78,31 @@ export function SidebarWorkspace({ compact = false, expanded = true }: { compact
   }, [workspace?.activeBrandId, workspace?.activeStoreId]);
 
   useEffect(() => {
-    if (!expanded) setOpenPanel('');
+    try {
+      setSectionOpen(localStorage.getItem('basar.workspaceOpen') === '1');
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!expanded) {
+      setOpenPanel('');
+    }
   }, [expanded]);
+
+  function toggleSection() {
+    setSectionOpen((current) => {
+      const next = !current;
+      if (!next) setOpenPanel('');
+      try {
+        localStorage.setItem('basar.workspaceOpen', next ? '1' : '0');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
 
   const brands = workspace?.brands || [];
   const stores = useMemo(
@@ -146,24 +170,38 @@ export function SidebarWorkspace({ compact = false, expanded = true }: { compact
 
   return (
     <section className="overflow-hidden rounded-2xl bg-white/[0.06] ring-1 ring-white/10">
-      <div className="flex items-center gap-2 px-2 pt-2">
+      <button
+        type="button"
+        aria-expanded={sectionOpen}
+        onClick={toggleSection}
+        className="flex w-full items-center gap-2 px-2 py-2 text-right transition hover:bg-white/[0.04]"
+      >
         <BrandMark name={activeBrand?.name} color={activeBrand?.color} logo={activeBrand?.logo} size="sm" />
         <SidebarReveal show={expanded} className="flex-1">
-          <p className="text-[10px] tracking-wide text-white/40">فضای کار</p>
+          <p className="text-[10px] tracking-wide text-white/40">برند و فروشگاه</p>
           <p className="truncate text-[12px] font-medium leading-4 text-white">
             {[activeBrand?.name, activeStore?.name].filter(Boolean).join(' · ') || 'انتخاب نشده'}
           </p>
         </SidebarReveal>
-        {pending ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-shop-bone/40" /> : null}
-      </div>
+        {pending ? (
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-white/40" />
+        ) : (
+          <ChevronDown
+            className={cn(
+              'h-3.5 w-3.5 shrink-0 text-white/45 transition-transform duration-300',
+              sectionOpen ? 'rotate-180' : 'rotate-0',
+            )}
+          />
+        )}
+      </button>
       <div
         className={cn(
           'grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-          expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+          sectionOpen && expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >
         <div className="min-h-0 overflow-hidden">
-      <div className="mt-1 flex flex-col px-1 pb-1">
+      <div className="mt-0.5 flex flex-col px-1 pb-1">
         <SidebarCollapsible
           label="برند"
           subtitle={activeBrand?.name || 'برندی نیست'}
