@@ -3,7 +3,7 @@
 import type { ComponentType, ElementType, ReactNode } from 'react';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '../lib/cn';
-import { IconButton } from './Button';
+import { ButtonGroup, IconButton } from './Button';
 import { HintPopover } from './HintPopover';
 import {
   DeleteConfirmationTrigger,
@@ -58,7 +58,7 @@ const DEFAULT_LABELS: Required<TableActionButtonsLabels> = {
 };
 
 const iconClass =
-  'h-7 w-7 shrink-0 rounded-lg border-gray-200/80 text-gray-600 transition-all duration-200 dark:border-gray-700/50 dark:text-gray-400';
+  'group-action h-7 w-7 shrink-0 border-gray-200/80 text-gray-600 transition-all duration-200 dark:border-gray-700/50 dark:text-gray-400';
 
 export function TableActionButtons({
   item = {},
@@ -84,61 +84,80 @@ export function TableActionButtons({
   const copy = { ...DEFAULT_LABELS, ...labels };
 
   return (
-    <div
+    <ButtonGroup
+      attached
+      dir={dir}
+      className={cn('flex-nowrap whitespace-nowrap', className)}
       data-stop-row-click="true"
-      className={cn('inline-flex flex-nowrap items-center gap-1 whitespace-nowrap', className)}
     >
       {showView ? (
-        <ActionHit
-          label={copy.view}
-          icon={viewIcon}
-          href={viewUrl}
-          LinkComponent={LinkComponent}
-          className={`${iconClass} hover:border-blue-500/50 hover:bg-blue-50 hover:text-blue-600 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10 dark:hover:text-blue-400`}
-          onClick={onViewClick ? () => onViewClick(item) : undefined}
-        />
+        <GroupSlot>
+          <ActionHit
+            label={copy.view}
+            icon={viewIcon}
+            href={viewUrl}
+            LinkComponent={LinkComponent}
+            className={`${iconClass} hover:border-blue-500/50 hover:bg-blue-50 hover:text-blue-600 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10 dark:hover:text-blue-400`}
+            onClick={onViewClick ? () => onViewClick(item) : undefined}
+          />
+        </GroupSlot>
       ) : null}
 
       {showEdit ? (
-        <ActionHit
-          label={copy.edit}
-          icon={editIcon}
-          href={editUrl}
-          LinkComponent={LinkComponent}
-          className={`${iconClass} hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-600 dark:hover:border-amber-500/30 dark:hover:bg-amber-500/10 dark:hover:text-amber-400`}
-          onClick={onEditClick ? () => onEditClick(item) : undefined}
-        />
+        <GroupSlot>
+          <ActionHit
+            label={copy.edit}
+            icon={editIcon}
+            href={editUrl}
+            LinkComponent={LinkComponent}
+            className={`${iconClass} hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-600 dark:hover:border-amber-500/30 dark:hover:bg-amber-500/10 dark:hover:text-amber-400`}
+            onClick={onEditClick ? () => onEditClick(item) : undefined}
+          />
+        </GroupSlot>
       ) : null}
 
       {extraActions.map((action) => (
-        <ActionHit
-          key={action.label}
-          label={action.label}
-          icon={action.icon}
-          className={`${iconClass} hover:border-teal-500/50 hover:bg-teal-50 hover:text-teal-700 dark:hover:border-teal-500/30 dark:hover:bg-teal-500/10 dark:hover:text-teal-400`}
-          onClick={action.onClick}
-        />
+        <GroupSlot key={action.label}>
+          <ActionHit
+            label={action.label}
+            icon={action.icon}
+            className={`${iconClass} hover:border-teal-500/50 hover:bg-teal-50 hover:text-teal-700 dark:hover:border-teal-500/30 dark:hover:bg-teal-500/10 dark:hover:text-teal-400`}
+            onClick={action.onClick}
+          />
+        </GroupSlot>
       ))}
 
       {showDelete ? (
-        <div className="inline-flex shrink-0">
-          <DeleteConfirmationTrigger
-            item={item}
-            onDelete={onDelete}
-            deleteIcon={deleteIcon}
-            title={copy.deleteTitle}
-            description={copy.deleteDescription}
-            tooltipLabel={copy.deleteTitle}
-            confirmationComponent={deleteConfirmation}
-            dir={dir}
-            yesLabel={copy.yes}
-            noLabel={copy.no}
-          />
-        </div>
+        <GroupSlot>
+          <HintPopover content={copy.deleteTitle}>
+            <span className="inline-flex">
+              <DeleteConfirmationTrigger
+                item={item}
+                onDelete={onDelete}
+                deleteIcon={deleteIcon}
+                title={copy.deleteTitle}
+                description={copy.deleteDescription}
+                tooltipLabel={copy.deleteTitle}
+                confirmationComponent={deleteConfirmation}
+                dir={dir}
+                yesLabel={copy.yes}
+                noLabel={copy.no}
+              />
+            </span>
+          </HintPopover>
+        </GroupSlot>
       ) : null}
 
-      {extraButtons}
-    </div>
+      {extraButtons ? <GroupSlot>{extraButtons}</GroupSlot> : null}
+    </ButtonGroup>
+  );
+}
+
+function GroupSlot({ children }: { children: ReactNode }) {
+  return (
+    <span data-stop-row-click="true" className="inline-flex">
+      {children}
+    </span>
   );
 }
 

@@ -45,7 +45,7 @@ export function DeletePopover({
           size="sm"
           variant="outline"
           aria-label={copy.deleteAriaLabel}
-          className="h-7 w-7 rounded-lg border-gray-200/80 text-gray-400 transition-all duration-200 hover:border-red-500/50 hover:bg-red-50 hover:text-red-600 hover:shadow-md hover:shadow-red-500/10 dark:border-gray-700/50 dark:text-gray-500 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+          className="group-action h-7 w-7 border-gray-200/80 text-gray-400 transition-all duration-200 hover:border-red-500/50 hover:bg-red-50 hover:text-red-600 dark:border-gray-700/50 dark:text-gray-500 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
         >
           {icon}
         </IconButton>

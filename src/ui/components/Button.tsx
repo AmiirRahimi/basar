@@ -234,15 +234,26 @@ interface ButtonGroupProps {
   children: React.ReactNode;
   className?: string;
   attached?: boolean;
+  dir?: 'ltr' | 'rtl';
 }
 
-export function ButtonGroup({ children, className, attached = false }: ButtonGroupProps) {
+export function ButtonGroup({
+  children,
+  className,
+  attached = false,
+  dir,
+  ...props
+}: ButtonGroupProps & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      dir={dir}
+      {...props}
       className={cn(
         'inline-flex items-center',
-        attached ? 'gap-0 [&>button]:rounded-none [&>button:first-child]:rounded-l-lg [&>button:last-child]:rounded-r-lg [&>button:not(:first-child)]:border-l-0' : 'gap-2',
-        className
+        attached
+          ? 'gap-0 [&_.group-action]:rounded-none [&_.group-action]:shadow-none [&>span:first-child_.group-action]:rounded-s-lg [&>span:last-child_.group-action]:rounded-e-lg [&>span:not(:first-child)_.group-action]:border-s-0'
+          : 'gap-2',
+        className,
       )}
     >
       {children}
