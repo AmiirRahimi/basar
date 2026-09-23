@@ -1,5 +1,6 @@
 import { getSession } from '@/server/session';
 import { getWorkspace } from '@/server/workspace';
+import { CountingFrame } from '@/components/counting/CountingFrame';
 import { WorkspaceProvider } from '@/components/counting/WorkspaceProvider';
 
 export default async function CountingLayout({ children }: { children: React.ReactNode }) {
@@ -8,7 +9,7 @@ export default async function CountingLayout({ children }: { children: React.Rea
   const workspace = await getWorkspace();
   return (
     <WorkspaceProvider workspace={workspace.ok ? workspace.data : null}>
-      {children}
+      <CountingFrame>{children}</CountingFrame>
     </WorkspaceProvider>
   );
 }
