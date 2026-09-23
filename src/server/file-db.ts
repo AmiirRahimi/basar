@@ -376,4 +376,5 @@ export const fileModels = {
   SmsCampaign: new FileModel('smscampaigns'),
   Conversation: new FileModel('conversations'),
   ChatMessage: new FileModel('chatmessages'),
+  MenuSearch: new FileModel('menusearches'),
 };

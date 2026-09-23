@@ -598,6 +598,24 @@ const ChatMessageSchema = defineSchema(
   { collection: 'chatmessages' },
 );
 
+const MenuSearchSchema = defineSchema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
+    items: {
+      type: [
+        {
+          query: { type: String, default: '' },
+          href: { type: String, default: '' },
+          label: { type: String, default: '' },
+          at: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
+  },
+  { collection: 'menusearches' },
+);
+
 const AttachmentSchema = defineSchema(
   {
     size: Number,
@@ -649,6 +667,7 @@ export const TelegramInvite = modelOf<any>('TelegramInvite', TelegramInviteSchem
 export const SmsCampaign = modelOf<any>('SmsCampaign', SmsCampaignSchema);
 export const Conversation = modelOf<any>('Conversation', ConversationSchema);
 export const ChatMessage = modelOf<any>('ChatMessage', ChatMessageSchema);
+export const MenuSearch = modelOf<any>('MenuSearch', MenuSearchSchema);
 export const Attachment = modelOf<any>('Attachment', AttachmentSchema);
 
 export const PERSON_POPULATE = personSelect;

@@ -7,6 +7,7 @@ import { AdminChatUnreadBadge } from '@/components/chat/AdminChatUnreadBadge';
 import { Pin, PinOff } from 'lucide-react';
 import { cn } from '@/ui';
 import { SidebarReveal } from './SidebarCollapsible';
+import { SidebarMenuSearch } from './SidebarMenuSearch';
 import { SidebarUser, SidebarWorkspace } from './SidebarWorkspace';
 
 export type CountingMenuItem = {
@@ -186,6 +187,7 @@ export function CountingSidebar({
             ) : null}
           </div>
           <SidebarWorkspace expanded={expanded} />
+          <SidebarMenuSearch sections={menuSections} expanded={expanded} onNavigate={onClose} />
         </div>
 
         <nav
@@ -213,16 +215,25 @@ export function CountingSidebar({
                 {group.items.map((section) => {
                   const children = section.menuItems?.filter((item) => item.href) || [];
                   if (!section.href && children.length) {
+                    const sectionActive = children.some((item) => isActivePath(pathname, item.href));
+                    const SectionIcon = section.icon;
                     return (
-                      <div key={section.id} className="pt-0.5">
-                        <NavLink
-                          href={children[0].href!}
-                          name={section.name}
-                          icon={section.icon}
-                          active={children.some((item) => isActivePath(pathname, item.href))}
-                          expanded={expanded}
-                          onNavigate={onClose}
-                        />
+                      <div key={section.id} className={expanded ? 'pt-1' : 'pt-0.5'}>
+                        <div
+                          className={cn(
+                            'flex items-center text-[13px] font-medium',
+                            expanded ? 'gap-2.5 rounded-xl px-2.5 py-2' : 'mx-auto h-11 w-11 justify-center rounded-xl',
+                            sectionActive ? 'text-white' : 'text-white/55',
+                          )}
+                          title={section.name}
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                            <SectionIcon className="h-4 w-4" />
+                          </span>
+                          <SidebarReveal show={expanded}>
+                            <span className="truncate">{section.name}</span>
+                          </SidebarReveal>
+                        </div>
                         <div
                           className={cn(
                             'grid transition-[grid-template-rows,opacity]',
@@ -231,21 +242,23 @@ export function CountingSidebar({
                           )}
                         >
                           <div className="min-h-0 overflow-hidden">
-                            {children.map((item) => (
-                              <NavLink
-                                key={item.href}
-                                href={item.href!}
-                                name={item.name}
-                                active={isActivePath(pathname, item.href)}
-                                expanded={expanded}
-                                onNavigate={onClose}
-                                badge={
-                                  item.href === '/counting/admin/messages' ? (
-                                    <AdminChatUnreadBadge />
-                                  ) : undefined
-                                }
-                              />
-                            ))}
+                            <div className={cn('flex flex-col', expanded ? 'mt-1 gap-1 border-s border-white/15 ps-2 ms-4' : 'mt-1.5 gap-1.5')}>
+                              {children.map((item) => (
+                                <NavLink
+                                  key={item.href}
+                                  href={item.href!}
+                                  name={item.name}
+                                  active={isActivePath(pathname, item.href)}
+                                  expanded={expanded}
+                                  onNavigate={onClose}
+                                  badge={
+                                    item.href === '/counting/admin/messages' ? (
+                                      <AdminChatUnreadBadge />
+                                    ) : undefined
+                                  }
+                                />
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
