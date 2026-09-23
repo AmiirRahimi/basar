@@ -46,6 +46,7 @@ const menuSections = [
     menuItems: [
       { name: 'پیام‌ها', href: '/counting/admin/messages' },
       { name: 'کاربران و اشتراک', href: '/counting/admin/users' },
+      { name: 'اشتراک و توکن', href: '/counting/admin/usage' },
       { name: 'طرح‌های اشتراک', href: '/counting/admin/plans' },
       { name: 'سفارش‌های ویترین', href: '/counting/admin/storefront' },
       { name: 'پیامک', href: '/counting/admin/sms' },

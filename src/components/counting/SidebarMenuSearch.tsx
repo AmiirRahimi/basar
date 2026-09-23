@@ -47,8 +47,25 @@ export function SidebarMenuSearch({
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const catalog = useMemo(() => flattenMenu(sections), [sections]);
+  const [shortcut, setShortcut] = useState('Ctrl K');
 
   const suggestions = useMemo(() => searchMenuItems(query, catalog), [query, catalog]);
+
+  useEffect(() => {
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform) || /Mac/.test(navigator.userAgent);
+    setShortcut(mac ? '⌘K' : 'Ctrl K');
+  }, []);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setOpen((current) => !current);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -96,8 +113,8 @@ export function SidebarMenuSearch({
     <>
       <button
         type="button"
-        title="جستجوی منو"
-        aria-label="جستجوی منو"
+        title={`جستجوی منو (${shortcut})`}
+        aria-label={`جستجوی منو، ${shortcut}`}
         onClick={() => setOpen(true)}
         className={cn(
           'mt-2 flex items-center border border-white/10 bg-white/[0.06] text-[13px] text-white/75 transition hover:bg-white/10 hover:text-white',
@@ -105,7 +122,14 @@ export function SidebarMenuSearch({
         )}
       >
         <Search className="h-4 w-4 shrink-0 text-white/70" />
-        {expanded ? <span className="truncate text-white/50">جستجو در منو</span> : null}
+        {expanded ? (
+          <>
+            <span className="min-w-0 flex-1 truncate text-start text-white/50">جستجو در منو</span>
+            <kbd className="shrink-0 rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white/70" dir="ltr">
+              {shortcut}
+            </kbd>
+          </>
+        ) : null}
       </button>
 
       <Modal
@@ -116,16 +140,25 @@ export function SidebarMenuSearch({
         rounded="lg"
       >
         <div className="px-4 pb-4 pt-1" dir="rtl" onKeyDown={onKeyDown}>
-          <Input
-            ref={inputRef}
-            fullWidth
-            size="md"
-            icon={<Search className="h-4 w-4" />}
-            iconPosition="right"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="مثلاً لباس، فروش، فاکتور…"
-          />
+          <div className="relative">
+            <Input
+              ref={inputRef}
+              fullWidth
+              size="md"
+              icon={<Search className="h-4 w-4" />}
+              iconPosition="right"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="مثلاً لباس، فروش، فاکتور…"
+              className="pl-16"
+            />
+            <kbd
+              className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-500"
+              dir="ltr"
+            >
+              {shortcut}
+            </kbd>
+          </div>
 
           {query.trim() ? (
             <ul className="mt-3 max-h-72 overflow-y-auto">
