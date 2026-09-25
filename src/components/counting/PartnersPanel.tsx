@@ -2,14 +2,14 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Handshake, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { createPartner, deletePartner, updatePartner } from '@/actions/workspace';
 import { partnerAppliesToStore, partnerScopeLabel, partnersForStore, sharePercentTotal } from '@/lib/partners';
 import { faNumber } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Partner, WorkspaceBrand, WorkspaceStore } from '@/lib/types';
-import { Button, Input, Modal, MultiSelect, toast } from '@/ui';
-import { AddPlusButton } from './PageAction';
+import { Button, ButtonGroup, HintPopover, IconButton, Input, Modal, MultiSelect, toast } from '@/ui';
+import { usePageAddButton } from './PageAction';
 import { useWorkspace } from './WorkspaceProvider';
 import { useWritable } from './useWritable';
 import { PlanCapacityBanner, PlanLocked } from './PlanLocked';
@@ -55,6 +55,12 @@ export function PartnersPanel({
   const allowPartners = Boolean(workspace?.isPlatformAdmin || workspace?.subscription?.allowPartners);
   const canManage = Boolean((canManageBrand || canManageStore) && writable && allowPartners);
   const showPlanLock = Boolean(writable && !allowPartners);
+
+  usePageAddButton({
+    label: 'ثبت شریک',
+    enabled: canManage,
+    onClick: openCreate,
+  });
 
   const storePartners = useMemo(
     () =>
@@ -156,20 +162,6 @@ export function PartnersPanel({
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <Handshake className="h-5 w-5 text-teal-700" />
-            شرکای درآمد
-          </h2>
-          <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-            اول برندها را انتخاب کنید؛ بعد فروشگاه‌های همان برندها. اگر فروشگاهی انتخاب نشود، سهم روی همه فروشگاه‌های
-            برندهای انتخاب‌شده اعمال می‌شود.
-          </p>
-        </div>
-        {canManage ? <AddPlusButton label="ثبت شریک" onClick={openCreate} /> : null}
-      </div>
-
       <div className="mb-4">
         <PlanCapacityBanner />
       </div>
@@ -213,18 +205,43 @@ export function PartnersPanel({
                   </span>
                 </div>
                 {canEdit(row) ? (
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => openEdit(row)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={pending}
-                      onClick={() => run(() => deletePartner(row._id), 'شریک حذف شد')}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                  <div className="mt-3">
+                    <ButtonGroup attached dir="rtl" className="flex-nowrap whitespace-nowrap">
+                      <span className="inline-flex">
+                        <HintPopover content="ویرایش شریک">
+                          <span className="inline-flex">
+                            <IconButton
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              aria-label="ویرایش شریک"
+                              disabled={pending}
+                              className="group-action h-8 w-8 shrink-0 border-gray-200/80 text-gray-600 hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-600"
+                              onClick={() => openEdit(row)}
+                            >
+                              <Pencil className="size-3.5" />
+                            </IconButton>
+                          </span>
+                        </HintPopover>
+                      </span>
+                      <span className="inline-flex">
+                        <HintPopover content="حذف شریک">
+                          <span className="inline-flex">
+                            <IconButton
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              aria-label="حذف شریک"
+                              disabled={pending}
+                              className="group-action h-8 w-8 shrink-0 border-gray-200/80 text-gray-600 hover:border-red-500/50 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => run(() => deletePartner(row._id), 'شریک حذف شد')}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </IconButton>
+                          </span>
+                        </HintPopover>
+                      </span>
+                    </ButtonGroup>
                   </div>
                 ) : null}
               </div>

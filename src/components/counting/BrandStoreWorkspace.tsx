@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, MapPin, Phone, Plus, Store, Trash2 } from 'lucide-react';
+import { Building2, MapPin, Pencil, Phone, Plus, Store, Trash2 } from 'lucide-react';
 import {
   createBrand,
   createStore,
@@ -15,11 +15,15 @@ import { BRAND_COLORS } from '@/lib/constants';
 import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import { asStringList, emptyWarehouse, storePhones, type StoreWarehouse } from '@/lib/store-contacts';
 import type { WorkspaceBrand, WorkspaceStore } from '@/lib/types';
-import { Button, EmptyState, IconButton, Input, Modal, Select, toast } from '@/ui';
+import { Button, ButtonGroup, EmptyState, HintPopover, IconButton, Input, Modal, Select, toast } from '@/ui';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { usePageAddButton } from './PageAction';
 import { useWorkspace } from './WorkspaceProvider';
 import { useWritable } from './useWritable';
 import { PlanCapacityBanner } from './PlanLocked';
+
+const groupActionClass =
+  'group-action h-8 w-8 shrink-0 border-gray-200/80 text-gray-600 transition-all duration-200 dark:border-gray-700/50 dark:text-gray-400';
 
 const selectLabels = {
   search: 'جستجو',
@@ -280,6 +284,16 @@ export function BrandStoreWorkspace() {
   );
   const selectedStore = brandStores.find((store) => store._id === storeId) || brandStores[0];
 
+  function openBrandCreate() {
+    setBrandForm({
+      name: '',
+      description: '',
+      color: BRAND_COLORS[brands.length % BRAND_COLORS.length],
+      logo: '',
+    });
+    setBrandModal('create');
+  }
+
   function openStoreModal() {
     if (!canAddStore) {
       toast.error('طرح فعلی فروشگاه بیشتری نمی‌دهد. طرح را ارتقا دهید.');
@@ -288,6 +302,12 @@ export function BrandStoreWorkspace() {
     setStoreForm(emptyStoreForm());
     setStoreModal(true);
   }
+
+  usePageAddButton({
+    label: 'برند جدید',
+    enabled: canAddBrand,
+    onClick: openBrandCreate,
+  });
 
   function run(action: () => Promise<{ ok: boolean; message?: string; status?: number }>, success?: string) {
     start(async () => {
@@ -330,27 +350,8 @@ export function BrandStoreWorkspace() {
       </div>
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
-          <div className="mb-2 flex items-center justify-between px-1">
+          <div className="mb-2 px-1">
             <p className="text-xs font-medium text-gray-500">برندها</p>
-            {canAddBrand ? (
-              <IconButton
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="برند جدید"
-                onClick={() => {
-                  setBrandForm({
-                    name: '',
-                    description: '',
-                    color: BRAND_COLORS[brands.length % BRAND_COLORS.length],
-                    logo: '',
-                  });
-                  setBrandModal('create');
-                }}
-              >
-                <Plus className="h-4 w-4" />
-              </IconButton>
-            ) : null}
           </div>
           {brands.length ? (
             <div className="space-y-1">
@@ -398,51 +399,75 @@ export function BrandStoreWorkspace() {
                     </p>
                   </div>
                 </div>
-                {writable ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setBrandForm({
-                          name: selectedBrand.name,
-                          description: selectedBrand.description || '',
-                          color: selectedBrand.color || BRAND_COLORS[0],
-                          logo: selectedBrand.logo || '',
-                        });
-                        setBrandModal('edit');
-                      }}
-                    >
-                      ویرایش برند
-                    </Button>
-                    {canAddStore ? (
-                    <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={openStoreModal}>
-                      فروشگاه
-                    </Button>
-                    ) : null}
-                    {brands.length > 1 ? (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        disabled={pending}
-                        onClick={() => run(() => deleteBrand(selectedBrand._id), 'برند حذف شد')}
-                      >
-                        حذف
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
+                <ButtonGroup attached dir="rtl" className="flex-nowrap whitespace-nowrap">
+                  <span className="inline-flex">
+                    <HintPopover content="ویرایش برند">
+                      <span className="inline-flex">
+                        <IconButton
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          aria-label="ویرایش برند"
+                          disabled={!writable}
+                          className={`${groupActionClass} hover:border-amber-500/50 hover:bg-amber-50 hover:text-amber-600`}
+                          onClick={() => {
+                            setBrandForm({
+                              name: selectedBrand.name,
+                              description: selectedBrand.description || '',
+                              color: selectedBrand.color || BRAND_COLORS[0],
+                              logo: selectedBrand.logo || '',
+                            });
+                            setBrandModal('edit');
+                          }}
+                        >
+                          <Pencil className="size-3.5" />
+                        </IconButton>
+                      </span>
+                    </HintPopover>
+                  </span>
+                  <span className="inline-flex">
+                    <HintPopover content="افزودن فروشگاه">
+                      <span className="inline-flex">
+                        <IconButton
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          aria-label="افزودن فروشگاه"
+                          disabled={!canAddStore}
+                          className={`${groupActionClass} hover:border-teal-500/50 hover:bg-teal-50 hover:text-teal-700`}
+                          onClick={openStoreModal}
+                        >
+                          <Plus className="size-3.5" />
+                        </IconButton>
+                      </span>
+                    </HintPopover>
+                  </span>
+                  {brands.length > 1 ? (
+                    <span className="inline-flex">
+                      <HintPopover content="حذف برند">
+                        <span className="inline-flex">
+                          <IconButton
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            aria-label="حذف برند"
+                            disabled={pending || !writable}
+                            className={`${groupActionClass} hover:border-red-500/50 hover:bg-red-50 hover:text-red-600`}
+                            onClick={() => run(() => deleteBrand(selectedBrand._id), 'برند حذف شد')}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </IconButton>
+                        </span>
+                      </HintPopover>
+                    </span>
+                  ) : null}
+                </ButtonGroup>
               </div>
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+              <div className="border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-semibold text-gray-900">فروشگاه‌ها</p>
-                {canAddStore ? (
-                  <Button size="sm" variant="outline" icon={<Plus className="h-4 w-4" />} onClick={openStoreModal}>
-                    فروشگاه
-                  </Button>
-                ) : null}
               </div>
               {brandStores.length ? (
                 <ul className="divide-y divide-gray-100">
@@ -482,13 +507,6 @@ export function BrandStoreWorkspace() {
               ) : (
                 <div className="p-6">
                   <EmptyState icon={<Store className="h-6 w-6" />} message="این برند هنوز فروشگاهی ندارد." />
-                  {canAddStore ? (
-                    <div className="mt-3 flex justify-center">
-                      <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={openStoreModal}>
-                        فروشگاه
-                      </Button>
-                    </div>
-                  ) : null}
                 </div>
               )}
             </section>

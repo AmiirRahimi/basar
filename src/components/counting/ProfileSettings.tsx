@@ -7,8 +7,9 @@ import { updateProfile } from '@/actions/auth';
 import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import { STORE_STAFF_ROLES } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { Button, Input, Select, toast } from '@/ui';
+import { Button, Input, Select, Tabs, toast } from '@/ui';
 import { BrandStoreWorkspace } from './BrandStoreWorkspace';
+import { PageActionOutlet, usePageMeta } from './PageAction';
 import { PartnersPanel } from './PartnersPanel';
 import { SubscriptionPanel } from './SubscriptionPanel';
 import { TeamInviteInbox } from './TeamInviteInbox';
@@ -22,11 +23,11 @@ const selectLabels = {
 };
 
 const TABS = [
-  { id: 'account', label: 'حساب کاربری', icon: UserRound },
-  { id: 'workspace', label: 'برند و فروشگاه', icon: Building2 },
-  { id: 'teams', label: 'اعضا', icon: UsersRound },
-  { id: 'partners', label: 'شرکای درآمد', icon: Handshake },
-  { id: 'subscription', label: 'اشتراک', icon: BadgePercent },
+  { id: 'account', label: 'حساب کاربری', description: 'نام، شهر و حساب بانکی برای واریز سهم فروش', icon: UserRound },
+  { id: 'workspace', label: 'برند و فروشگاه', description: 'برندها و فروشگاه‌هایی که با آن‌ها کار می‌کنید', icon: Building2 },
+  { id: 'teams', label: 'اعضا', description: 'کسانی که به برند یا فروشگاه شما دسترسی دارند', icon: UsersRound },
+  { id: 'partners', label: 'شرکای درآمد', description: 'سهم درآمد شرکا از فروش', icon: Handshake },
+  { id: 'subscription', label: 'اشتراک', description: 'طرح فعلی، تمدید و خرید اشتراک', icon: BadgePercent },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -75,6 +76,9 @@ export function ProfileSettings({
     return true;
   });
   const activeTab = visibleTabs.some((item) => item.id === tab) ? tab : 'account';
+  const activeMeta = visibleTabs.find((item) => item.id === activeTab) || visibleTabs[0];
+
+  usePageMeta({ hasTabs: true });
 
   const selectedBrand = workspace?.brands.find((brand) => brand._id === workspace.activeBrandId);
   const selectedStore = workspace?.stores.find((store) => store._id === workspace.activeStoreId);
@@ -87,44 +91,46 @@ export function ProfileSettings({
   return (
     <div className="space-y-5">
       <TeamInviteInbox />
-      <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
-        {visibleTabs.map((item) => {
-          const Icon = item.icon;
-              const active = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => changeTab(item.id)}
-              className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                active ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-
-      {activeTab === 'account' ? <AccountSection user={user} /> : null}
-      {activeTab === 'workspace' ? <BrandStoreWorkspace /> : null}
-      {activeTab === 'teams' && ownsBrand ? <TeamsPanel /> : null}
-      {activeTab === 'partners' &&
-      (canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.view'))) ? (
-        <PartnersPanel
-          brands={workspace?.brands || []}
-          stores={workspace?.stores || []}
-          selectedBrand={selectedBrand}
-          selectedStore={selectedStore}
-          partners={workspace?.partners || []}
-          canManageBrand={canManageBrand}
-          canManageStore={canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.write'))}
-        />
-      ) : null}
-      {activeTab === 'subscription' ? (
-        <SubscriptionPanel subscription={workspace?.subscription} purchases={workspace?.purchases} />
-      ) : null}
+      <Tabs
+        value={activeTab}
+        onChange={(next) => {
+          if (isTab(next)) changeTab(next);
+        }}
+        tabs={visibleTabs.map((item) => ({
+          value: item.id,
+          label: item.label,
+          icon: <item.icon className="h-4 w-4" />,
+        }))}
+      />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-gray-900">{activeMeta?.label}</h3>
+          {activeMeta?.description ? (
+            <p className="mt-1 text-sm text-muted-foreground">{activeMeta.description}</p>
+          ) : null}
+        </div>
+        <PageActionOutlet />
+      </div>
+      <div>
+        {activeTab === 'account' ? <AccountSection user={user} /> : null}
+        {activeTab === 'workspace' ? <BrandStoreWorkspace /> : null}
+        {activeTab === 'teams' && ownsBrand ? <TeamsPanel /> : null}
+        {activeTab === 'partners' &&
+        (canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.view'))) ? (
+          <PartnersPanel
+            brands={workspace?.brands || []}
+            stores={workspace?.stores || []}
+            selectedBrand={selectedBrand}
+            selectedStore={selectedStore}
+            partners={workspace?.partners || []}
+            canManageBrand={canManageBrand}
+            canManageStore={canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.write'))}
+          />
+        ) : null}
+        {activeTab === 'subscription' ? (
+          <SubscriptionPanel subscription={workspace?.subscription} purchases={workspace?.purchases} />
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -174,7 +180,6 @@ function AccountSection({
         </div>
       </aside>
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-        <h3 className="mb-4 text-base font-semibold text-gray-900">اطلاعات حساب</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <Input label="نام کامل" value={fullName} onChange={(e) => setFullName(e.target.value)} />
           <Input label="موبایل" value={phone} disabled />

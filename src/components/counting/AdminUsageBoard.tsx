@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { BadgePercent, Sparkles } from 'lucide-react';
 import { faDate, faNumber, toman } from '@/lib/format';
-import { cn } from '@/ui';
+import { Tabs } from '@/ui';
 import { SearchableTable } from './SearchableTable';
 
 export type UsageReport = {
@@ -73,41 +73,20 @@ export function AdminUsageBoard({ report }: { report: UsageReport }) {
 
   return (
     <div className="space-y-4" dir="rtl">
-      <nav className="flex gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
-        <TabButton active={tab === 'subscriptions'} onClick={() => setTab('subscriptions')} icon={BadgePercent} label="اشتراک‌ها" />
-        <TabButton active={tab === 'tokens'} onClick={() => setTab('tokens')} icon={Sparkles} label="توکن تصویر" />
-      </nav>
+      <Tabs
+        value={tab}
+        onChange={(next) => setTab(next as 'subscriptions' | 'tokens')}
+        tabs={[
+          { value: 'subscriptions', label: 'اشتراک‌ها', icon: <BadgePercent className="h-4 w-4" /> },
+          { value: 'tokens', label: 'توکن تصویر', icon: <Sparkles className="h-4 w-4" /> },
+        ]}
+      />
 
       {tab === 'subscriptions' ? <SubscriptionsView report={report} /> : <TokensView report={report} />}
     </div>
   );
 }
 
-function TabButton({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: typeof BadgePercent;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition',
-        active ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50',
-      )}
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-    </button>
-  );
-}
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (

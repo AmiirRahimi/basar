@@ -6,6 +6,7 @@ import { cn } from '../lib/cn';
 export type TabItem = {
   value: string;
   label: ReactNode;
+  icon?: ReactNode;
   content?: ReactNode | (() => ReactNode);
 };
 
@@ -22,7 +23,7 @@ export type TabsProps = {
 };
 
 /**
- * Pure tabs — routing / resource switching belongs in the host app via `onChange`.
+ * Segmented pill tabs. Routing / resource switching belongs in the host app via `onChange`.
  */
 export function Tabs({
   tabs,
@@ -51,58 +52,48 @@ export function Tabs({
 
   if (!normalizedTabs.length) return null;
 
+  const hasContent = normalizedTabs.some((tab) => tab.content != null);
+
   return (
     <div className={cn('w-full', className)}>
-      <div
+      <nav
         className={cn(
-          'z-20 border-b border-gray-200/90 py-0 font-medium text-gray-500 dark:border-gray-700/60',
-          navClassName
+          'flex gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-800 dark:bg-gray-950',
+          navClassName,
         )}
       >
-        <div className="custom-scrollbar overflow-x-auto scroll-smooth">
-          <div className="inline-grid grid-flow-col gap-5 md:gap-7 lg:gap-10">
-            {normalizedTabs.map((tab) => {
-              const isActive = activeTab === tab.value;
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => handleChange(tab.value)}
-                  className={cn(
-                    'relative cursor-pointer whitespace-nowrap py-4 transition-colors duration-200',
-                    'hover:text-gray-800 dark:hover:text-gray-200',
-                    isActive
-                      ? 'font-semibold text-gray-1000 dark:text-white'
-                      : 'text-gray-500'
-                  )}
-                >
-                  {tab.label}
-                  <span
-                    className={cn(
-                      'absolute bottom-0 left-0 h-0.5 w-full origin-left rounded-full bg-gray-1000 transition-transform duration-200 ease-out dark:bg-white',
-                      isActive ? 'scale-x-100' : 'scale-x-0'
-                    )}
-                  />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      <div className={cn('mt-6 min-h-[60vh] rounded-xl', contentClassName)}>
         {normalizedTabs.map((tab) => {
           const isActive = activeTab === tab.value;
           return (
-            <div
+            <button
               key={tab.value}
-              className={cn(isActive ? 'block' : 'hidden')}
-              aria-hidden={!isActive}
+              type="button"
+              onClick={() => handleChange(tab.value)}
+              className={cn(
+                'flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition',
+                isActive
+                  ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-900'
+                  : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900',
+              )}
             >
-              {typeof tab.content === 'function' ? tab.content() : tab.content}
-            </div>
+              {tab.icon ? <span className="inline-flex shrink-0">{tab.icon}</span> : null}
+              <span className="truncate">{tab.label}</span>
+            </button>
           );
         })}
-      </div>
+      </nav>
+      {hasContent ? (
+        <div className={cn('mt-5', contentClassName)}>
+          {normalizedTabs.map((tab) => {
+            const isActive = activeTab === tab.value;
+            return (
+              <div key={tab.value} className={cn(isActive ? 'block' : 'hidden')} aria-hidden={!isActive}>
+                {typeof tab.content === 'function' ? tab.content() : tab.content}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

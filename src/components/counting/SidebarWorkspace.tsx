@@ -357,7 +357,7 @@ export function SidebarUser({ expanded = true }: { expanded?: boolean }) {
             onClick={() => setOpen(false)}
             className="flex w-full rounded-lg px-2.5 py-1.5 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
           >
-            تنظیمات
+            پروفایل
           </Link>
           <button
             type="button"

@@ -5,6 +5,49 @@ import { Plus } from 'lucide-react';
 import { IconButton, HintPopover } from '@/ui';
 
 const PageActionContext = createContext<Dispatch<SetStateAction<ReactNode>> | null>(null);
+const PageActionNodeContext = createContext<ReactNode>(null);
+
+type PageMetaApi = {
+  setTitle: (title: string | null) => void;
+  setDescription: (description: string | null) => void;
+  setHasTabs: (value: boolean) => void;
+};
+
+const PageMetaContext = createContext<PageMetaApi | null>(null);
+
+export function PageMetaProvider({
+  children,
+  api,
+}: {
+  children: ReactNode;
+  api: PageMetaApi;
+}) {
+  return <PageMetaContext.Provider value={api}>{children}</PageMetaContext.Provider>;
+}
+
+export function usePageMeta({
+  title,
+  description,
+  hasTabs = false,
+}: {
+  title?: string | null;
+  description?: string | null;
+  hasTabs?: boolean;
+}) {
+  const api = useContext(PageMetaContext);
+
+  useEffect(() => {
+    if (!api) return;
+    api.setTitle(title || null);
+    api.setDescription(description || null);
+    api.setHasTabs(hasTabs);
+    return () => {
+      api.setTitle(null);
+      api.setDescription(null);
+      api.setHasTabs(false);
+    };
+  }, [api, description, hasTabs, title]);
+}
 
 export function AddPlusButton({
   label,
@@ -36,11 +79,21 @@ export function AddPlusButton({
 export function PageActionProvider({
   children,
   onAction,
+  action,
 }: {
   children: ReactNode;
   onAction: Dispatch<SetStateAction<ReactNode>>;
+  action?: ReactNode;
 }) {
-  return <PageActionContext.Provider value={onAction}>{children}</PageActionContext.Provider>;
+  return (
+    <PageActionContext.Provider value={onAction}>
+      <PageActionNodeContext.Provider value={action ?? null}>{children}</PageActionNodeContext.Provider>
+    </PageActionContext.Provider>
+  );
+}
+
+export function PageActionOutlet() {
+  return useContext(PageActionNodeContext);
 }
 
 export function usePageAddButton({

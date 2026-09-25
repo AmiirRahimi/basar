@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { MainWrapper, PageHeader } from '@/ui';
@@ -8,7 +8,7 @@ import { canAccessMenu, pathMenuId } from '@/lib/roles';
 import { countingMenuSections } from './counting-menu';
 import { ResultToast } from './ResultToast';
 import { useWorkspace } from './WorkspaceProvider';
-import { PageActionProvider } from './PageAction';
+import { PageActionProvider, PageMetaProvider } from './PageAction';
 
 export function CountingShell({
   children,
@@ -25,6 +25,13 @@ export function CountingShell({
   const router = useRouter();
   const workspace = useWorkspace();
   const [headerAction, setHeaderAction] = useState<ReactNode>(null);
+  const [pageTitle, setPageTitle] = useState<string | null>(null);
+  const [pageDescription, setPageDescription] = useState<string | null>(null);
+  const [hasTabs, setHasTabs] = useState(false);
+  const pageMeta = useMemo(
+    () => ({ setTitle: setPageTitle, setDescription: setPageDescription, setHasTabs }),
+    [],
+  );
   const role = workspace?.storeRole || 'owner';
   const menuId = pathMenuId(pathname) || 'dashboard';
   const allowed = pathname.startsWith('/admin')
@@ -45,10 +52,12 @@ export function CountingShell({
 
   return (
     <MainWrapper className="min-h-0 flex-1 rounded-[22px] bg-content-gradient shadow-lg">
-      <PageHeader title={title} subtitle={contextLabel || undefined}>
-        {headerAction}
+      <PageHeader title={pageTitle || title} subtitle={contextLabel || undefined} divider={!hasTabs}>
+        {hasTabs ? null : headerAction}
       </PageHeader>
-      {description ? <p className="mb-4 text-sm text-muted-foreground">{description}</p> : null}
+      {!hasTabs && (pageDescription ?? description) ? (
+        <p className="mb-4 text-sm text-muted-foreground">{pageDescription ?? description}</p>
+      ) : null}
       {workspace && !workspace.isPlatformAdmin && workspace.subscriptionActive === false ? (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           اشتراک تمام شده است. جدول‌ها را می‌بینید اما ثبت، ویرایش و حذف ممکن نیست.{' '}
@@ -62,9 +71,11 @@ export function CountingShell({
         </div>
       ) : null}
       <ResultToast message={error} />
-      <PageActionProvider onAction={setHeaderAction}>
-        {allowed ? children : null}
-      </PageActionProvider>
+      <PageMetaProvider api={pageMeta}>
+        <PageActionProvider onAction={setHeaderAction} action={headerAction}>
+          {allowed ? children : null}
+        </PageActionProvider>
+      </PageMetaProvider>
     </MainWrapper>
   );
 }

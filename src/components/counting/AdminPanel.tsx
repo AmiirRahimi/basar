@@ -10,7 +10,7 @@ import { faDate, faNumber, toman } from '@/lib/format';
 import { persianYearMonth } from '@/lib/checks';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { recordViewPath } from '@/lib/record-view';
-import { Button, Input, MultiSelect, toast } from '@/ui';
+import { Button, Input, MultiSelect, Tabs, toast } from '@/ui';
 import { AdminUserEditor, type EditableAdminUser } from './AdminUserEditor';
 import { RowActions } from './RowActions';
 import { SearchableTable } from './SearchableTable';
@@ -163,25 +163,15 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
         <Stat label="کل خرید اشتراک" value={overview.stats.purchases} />
       </div>
 
-      <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
-        {TABS.map((item) => {
-          const Icon = item.icon;
-          const active = tab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                active ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <Tabs
+        value={tab}
+        onChange={(next) => setTab(next as TabId)}
+        tabs={TABS.map((item) => ({
+          value: item.id,
+          label: item.label,
+          icon: <item.icon className="h-4 w-4" />,
+        }))}
+      />
 
       {tab === 'lapsed' ? (
         <div className="w-40">

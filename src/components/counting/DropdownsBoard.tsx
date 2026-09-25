@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Palette, Pencil, Plus, Ruler, Search, Shirt, SwatchBook, Trash2 } from 'lucide-react';
-import { Button, DeleteConfirmationTrigger, IconButton, Input, Select, toast } from '@/ui';
+import { Button, DeleteConfirmationTrigger, IconButton, Input, Select, Tabs, toast } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
 import { displayName } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
@@ -144,36 +144,24 @@ export function DropdownsBoard({
 
   return (
     <div className="flex max-h-[calc(100dvh-11rem)] min-h-[28rem] flex-col gap-4">
-      <nav className="grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 p-1.5 sm:grid-cols-4">
-        {TABS.map((item) => {
-          const Icon = item.icon;
-          const selected = tab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setTab(item.id);
-                setQuery('');
-                resetForm();
-              }}
-              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                selected ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Icon className="size-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[11px] ${
-                  selected ? 'bg-primary/10 text-primary' : 'bg-white/80 text-gray-500'
-                }`}
-              >
-                {rowsByTab[item.id].length}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+      <Tabs
+        value={tab}
+        onChange={(next) => {
+          setTab(next as TabId);
+          setQuery('');
+          resetForm();
+        }}
+        tabs={TABS.map((item) => ({
+          value: item.id,
+          icon: <item.icon className="size-4" />,
+          label: (
+            <span className="inline-flex items-center gap-2">
+              {item.label}
+              <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[11px]">{rowsByTab[item.id].length}</span>
+            </span>
+          ),
+        }))}
+      />
 
       <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-sm">
         <div className="border-b border-gray-100 px-4 py-4 sm:px-5">

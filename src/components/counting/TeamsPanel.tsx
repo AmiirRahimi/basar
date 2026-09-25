@@ -3,12 +3,12 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Send, Trash2 } from 'lucide-react';
-import { AddPlusButton } from './PageAction';
+import { usePageAddButton } from './PageAction';
 import { addTeamPerson, removeTeamMember, sendTeamInviteLink, updateTeamMember } from '@/actions/teams';
 import { OWNER_PERMISSIONS, PERMISSION_GROUPS, PERMISSION_PRESETS } from '@/lib/permissions';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { TeamMember } from '@/lib/types';
-import { Button, Checkbox, DatePicker, Input, Modal, toast } from '@/ui';
+import { Button, ButtonGroup, Checkbox, DatePicker, HintPopover, IconButton, Input, Modal, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 
 const emptyForm = () => ({
@@ -36,6 +36,12 @@ export function TeamsPanel() {
   const [brandIds, setBrandIds] = useState<string[]>([]);
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [form, setForm] = useState(emptyForm());
+
+  usePageAddButton({
+    label: 'افزودن عضو',
+    enabled: Boolean(brands.length),
+    onClick: openAdd,
+  });
 
   function openAdd() {
     setForm(emptyForm());
@@ -76,16 +82,6 @@ export function TeamsPanel() {
   return (
     <div className="space-y-4">
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-3">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-gray-900">اعضا</h3>
-            <p className="mt-1 text-xs leading-5 text-gray-500">
-              اعضا کسانی هستند که به فروشگاه یا برند شما دسترسی می‌دهید. هر عضو فقط در همان فروشگاه‌ها و برندهایی که برایش
-              انتخاب کنید کار می‌کند و سطح دسترسی‌اش را شما تعیین می‌کنید.
-            </p>
-          </div>
-          <AddPlusButton label="افزودن عضو به فروشگاه" onClick={openAdd} />
-        </div>
         <div className="divide-y divide-gray-100">
           {people.length ? (
             people.map((person) => (
@@ -234,14 +230,42 @@ function PersonRow({
             عضو {scope || 'بدون فروشگاه'} · {status}
           </p>
         </button>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={pending} icon={<Send className="h-3.5 w-3.5" />} onClick={onInvite}>
-            ارسال لینک دعوت
-          </Button>
-          <Button size="sm" variant="danger" disabled={pending} icon={<Trash2 className="h-3.5 w-3.5" />} onClick={onRemove}>
-            حذف
-          </Button>
-        </div>
+        <ButtonGroup attached dir="rtl" className="flex-nowrap whitespace-nowrap">
+          <span className="inline-flex">
+            <HintPopover content="ارسال لینک دعوت">
+              <span className="inline-flex">
+                <IconButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  aria-label="ارسال لینک دعوت"
+                  disabled={pending}
+                  className="group-action h-8 w-8 shrink-0 border-gray-200/80 text-gray-600 hover:border-teal-500/50 hover:bg-teal-50 hover:text-teal-700"
+                  onClick={onInvite}
+                >
+                  <Send className="size-3.5" />
+                </IconButton>
+              </span>
+            </HintPopover>
+          </span>
+          <span className="inline-flex">
+            <HintPopover content="حذف عضو">
+              <span className="inline-flex">
+                <IconButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  aria-label="حذف عضو"
+                  disabled={pending}
+                  className="group-action h-8 w-8 shrink-0 border-gray-200/80 text-gray-600 hover:border-red-500/50 hover:bg-red-50 hover:text-red-600"
+                  onClick={onRemove}
+                >
+                  <Trash2 className="size-3.5" />
+                </IconButton>
+              </span>
+            </HintPopover>
+          </span>
+        </ButtonGroup>
       </div>
       {person.inviteLink ? (
         <p className="mt-2 break-all text-[11px] text-gray-500" dir="ltr">
