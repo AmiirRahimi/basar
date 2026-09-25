@@ -36,7 +36,7 @@ export async function requirePlatformAdmin(): Promise<{ session: Session } | { e
   const access = await withWorkspace();
   if ('error' in access) return { error: access.error };
   if (!access.session.isPlatformAdmin) {
-    return { error: fail('فقط ادمین اصلی به این بخش دسترسی دارد', 403) };
+    return { error: fail('فقط سوپریوزر به این بخش دسترسی دارد', 403) };
   }
   return { session: access.session };
 }

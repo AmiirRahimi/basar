@@ -11,7 +11,7 @@ export default async function AdminDashboardPage() {
   guardSession(overview, usage);
   return (
     <CountingShell
-      title="داشبورد ادمین"
+      title="داشبورد سوپریوزر"
       description="کاربران، وضعیت اشتراک و توکن ساخت تصویر."
       error={errorMessage(overview) || errorMessage(usage)}
     >

@@ -32,7 +32,7 @@ function CountingChrome({ children }: { children: ReactNode }) {
   const sidebarExpanded = sidebarPinned || sidebarHovered || mobileOpen;
   const role = workspace?.storeRole || 'owner';
   const visibleMenu = countingMenuSections.filter((section) =>
-    canAccessMenu(role, section.id, workspace?.isPlatformAdmin),
+    canAccessMenu(role, section.id, workspace?.isPlatformAdmin, workspace?.permissions),
   );
 
   useEffect(() => {

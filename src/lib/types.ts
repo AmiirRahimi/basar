@@ -101,6 +101,44 @@ export type StoreMember = {
 
 export type WorkspaceMember = StoreMember;
 
+export type TeamMember = {
+  _id: string;
+  phonenumber: string;
+  fullName?: string;
+  address?: string;
+  birthdate?: string;
+  postalCode?: string;
+  permissions: string[];
+  status: 'pending' | 'accepted' | 'declined';
+  _brandIds: string[];
+  _storeIds: string[];
+  inviteToken?: string;
+  inviteLink?: string;
+};
+
+export type WorkspaceTeam = {
+  _id: string;
+  name: string;
+  _brandIds: string[];
+  _storeIds: string[];
+  members: TeamMember[];
+};
+
+export type TeamInvite = {
+  _id: string;
+  teamId: string;
+  teamName: string;
+  ownerName?: string;
+  brandNames: string[];
+  storeNames: string[];
+  permissions: string[];
+  status: 'pending' | 'accepted' | 'declined';
+  invitedAt?: string | Date;
+  inviteLink?: string;
+};
+
+export type AccessSource = 'superuser' | 'owner' | 'staff' | 'team';
+
 export type Partner = {
   _id: string;
   _userId?: string;
@@ -136,6 +174,12 @@ export type Workspace = {
   activeStoreId: string;
   storeRole: StoreRole;
   isPlatformAdmin: boolean;
+  isSuperuser: boolean;
+  permissions: string[];
+  accessSource: AccessSource;
+  teams: WorkspaceTeam[];
+  teamPeople: TeamMember[];
+  pendingInvites: TeamInvite[];
   subscriptionActive: boolean;
   subscription?: {
     active?: boolean;

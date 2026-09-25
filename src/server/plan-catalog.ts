@@ -26,7 +26,7 @@ function catalogFilter() {
 async function requireAdmin() {
   const access = await withWorkspace();
   if ('error' in access) return { error: (access.error || fail('وارد شوید', 401)) as ActionResult };
-  if (!access.session.isPlatformAdmin) return { error: fail('فقط ادمین اصلی به این بخش دسترسی دارد', 403) };
+  if (!access.session.isPlatformAdmin) return { error: fail('فقط سوپریوزر به این بخش دسترسی دارد', 403) };
   return { session: access.session };
 }
 

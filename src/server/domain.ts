@@ -207,14 +207,14 @@ async function withSession() {
 const PLATFORM_WRITE = new Set(['color', 'size', 'cloth-kind', 'cloth-style', 'permision', 'change']);
 
 function denyRead(session: Session, resource: string) {
-  if (!canReadResource(session.storeRole, resource, session.isPlatformAdmin)) {
+  if (!canReadResource(session.storeRole, resource, session.isPlatformAdmin, session.permissions)) {
     return fail('اجازه این کار را ندارید', 403);
   }
   return null;
 }
 
 function denyMenu(session: Session, menuId: string) {
-  if (!canAccessMenu(session.storeRole, menuId, session.isPlatformAdmin)) {
+  if (!canAccessMenu(session.storeRole, menuId, session.isPlatformAdmin, session.permissions)) {
     return fail('اجازه این کار را ندارید', 403);
   }
   return null;
@@ -225,13 +225,13 @@ function denyWrite(session: Session, resource: string) {
   if (read) return read;
   if (session.isPlatformAdmin) return null;
   if (PLATFORM_WRITE.has(resource)) {
-    return fail('فقط ادمین اصلی می‌تواند این بخش را ویرایش کند', 403);
+    return fail('فقط سوپریوزر می‌تواند این بخش را ویرایش کند', 403);
   }
   const subscriptionActive = session.subscriptionActive !== false;
   if (!subscriptionActive) {
     return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
   }
-  if (!canWriteResource(session.storeRole, resource, session.isPlatformAdmin, subscriptionActive)) {
+  if (!canWriteResource(session.storeRole, resource, session.isPlatformAdmin, subscriptionActive, session.permissions)) {
     return fail('اجازه این کار را ندارید', 403);
   }
   return null;
@@ -1991,7 +1991,7 @@ function storefrontTotals(orders: StorefrontOrder[]) {
 export async function listStorefrontOrders(): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
-  if (!access.session.isPlatformAdmin) return fail('فقط ادمین اصلی به این بخش دسترسی دارد', 403);
+  if (!access.session.isPlatformAdmin) return fail('فقط سوپریوزر به این بخش دسترسی دارد', 403);
   await db();
   const rows = await (M().Invoice.find({ channel: STOREFRONT_CHANNEL, isDeleted: false }) as any)
     .populate('_client', 'fullName phoneNumber')
@@ -2017,7 +2017,7 @@ export async function markStorefrontPayout(
 ): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
-  if (!access.session.isPlatformAdmin) return fail('فقط ادمین اصلی به این بخش دسترسی دارد', 403);
+  if (!access.session.isPlatformAdmin) return fail('فقط سوپریوزر به این بخش دسترسی دارد', 403);
   await db();
   const row = await (
     M().Invoice.findOne({ _id: oid(invoiceId), channel: STOREFRONT_CHANNEL, isDeleted: false }) as any

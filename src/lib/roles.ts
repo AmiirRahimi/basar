@@ -1,4 +1,10 @@
 import type { StoreRole } from './constants';
+import {
+  hasPermission,
+  menuPermission,
+  resourceViewPermission,
+  resourceWritePermission,
+} from './permissions';
 
 const ALL: StoreRole[] = ['owner', 'admin', 'seller', 'other'];
 
@@ -44,11 +50,21 @@ const ADMIN_MENU_IDS = new Set([
   'dropdowns',
 ]);
 
-export function canAccessMenu(role: StoreRole, menuId: string, isPlatformAdmin = false) {
+export function canAccessMenu(
+  role: StoreRole,
+  menuId: string,
+  isPlatformAdmin = false,
+  permissions?: string[] | null,
+) {
   if (ADMIN_MENU_IDS.has(menuId)) return isPlatformAdmin;
-  if (isPlatformAdmin) return true;
+  if (isPlatformAdmin || role === 'owner') return true;
+  if (permissions) {
+    const need = menuPermission(menuId);
+    if (!need) return false;
+    return hasPermission(permissions, need);
+  }
   const allowed = MENU_ACCESS[menuId];
-  if (!allowed) return role === 'owner';
+  if (!allowed) return false;
   return allowed.includes(role);
 }
 
@@ -57,11 +73,18 @@ export function canWriteResource(
   resource: string,
   isPlatformAdmin = false,
   subscriptionActive = true,
+  permissions?: string[] | null,
 ) {
   if (isPlatformAdmin) return true;
   if (!subscriptionActive) return false;
+  if (role === 'owner') return true;
+  if (permissions) {
+    const need = resourceWritePermission(resource);
+    if (!need) return false;
+    return hasPermission(permissions, need);
+  }
   const allowed = RESOURCE_WRITE_ROLES[resource];
-  if (!allowed) return role === 'owner' || role === 'admin';
+  if (!allowed) return role === 'admin';
   return allowed.includes(role);
 }
 
@@ -81,12 +104,21 @@ const RESOURCE_READ_MENU: Record<string, string> = {
 
 const LOOKUP_RESOURCES = new Set(['color', 'size', 'cloth-kind', 'cloth-style']);
 
-export function canReadResource(role: StoreRole, resource: string, isPlatformAdmin = false) {
+export function canReadResource(
+  role: StoreRole,
+  resource: string,
+  isPlatformAdmin = false,
+  permissions?: string[] | null,
+) {
   if (isPlatformAdmin) return true;
   if (LOOKUP_RESOURCES.has(resource)) return true;
+  if (permissions) {
+    const need = resourceViewPermission(resource);
+    if (need) return hasPermission(permissions, need);
+  }
   const menu = RESOURCE_READ_MENU[resource];
   if (!menu) return role === 'owner' || role === 'admin';
-  return canAccessMenu(role, menu, isPlatformAdmin);
+  return canAccessMenu(role, menu, isPlatformAdmin, permissions);
 }
 
 export function pathMenuId(pathname: string) {

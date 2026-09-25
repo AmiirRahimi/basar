@@ -6,6 +6,7 @@ import { CHECK_DIRECTIONS, CHECK_STATUSES, checkStatus, persianMonthLabel } from
 import { displayName, faNumber, toman } from '@/lib/format';
 import type { Check } from '@/lib/types';
 import { Price } from './Price';
+import { TeamInviteInbox } from './TeamInviteInbox';
 
 type SalesPeriod = { amount?: number; count?: number };
 
@@ -48,6 +49,7 @@ export function DashboardBoard({
 
   return (
     <div className="space-y-6">
+      <TeamInviteInbox />
       <section>
         <h2 className="mb-3 text-sm font-semibold text-gray-700">فروش</h2>
         <div className="grid gap-4 md:grid-cols-3">

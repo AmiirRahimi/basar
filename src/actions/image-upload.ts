@@ -21,6 +21,7 @@ export async function uploadClothImages(formData: FormData): Promise<ActionResul
     'cloth',
     access.session.isPlatformAdmin,
     access.session.subscriptionActive !== false,
+    access.session.permissions,
   );
   if (!writable) return fail('دسترسی ثبت تصویر ندارید', 403);
 

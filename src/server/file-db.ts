@@ -346,6 +346,8 @@ export const fileModels = {
   Brand: new FileModel('brands'),
   Store: new FileModel('stores'),
   StoreMember: new FileModel('storemembers'),
+  Team: new FileModel('teams'),
+  TeamMember: new FileModel('teammembers'),
   Partner: new FileModel('partners'),
   StoreBranch: new FileModel('storebranches'),
   Person: new FileModel('people'),

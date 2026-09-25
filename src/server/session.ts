@@ -11,6 +11,8 @@ export type Session = {
   _brandId: string;
   storeRole: StoreRole;
   isPlatformAdmin?: boolean;
+  isSuperuser?: boolean;
+  permissions?: string[];
   subscriptionActive?: boolean;
 };
 

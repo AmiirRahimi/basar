@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Input, SignInShell, toast } from '@/ui';
 import { loginWithOtp, sendOtp } from '@/actions/auth';
 import { OTP_TTL_MS } from '@/lib/constants';
@@ -21,6 +21,8 @@ function formatRemaining(totalSeconds: number) {
 
 export function CountingLogin() {
   const router = useRouter();
+  const search = useSearchParams();
+  const inviteToken = search.get('invite') || '';
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phonenumber, setPhonenumber] = useState('');
   const [code, setCode] = useState('');
@@ -104,7 +106,7 @@ export function CountingLogin() {
               password: password.trim() ? password : undefined,
             });
             if (res.ok) {
-              router.push('/counting/dashboard');
+              router.push(inviteToken ? `/counting/invite/${inviteToken}` : '/counting/dashboard');
               return;
             }
             if (res.message === 'رمز ادمین لازم است') {

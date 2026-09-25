@@ -27,7 +27,7 @@ export function CountingShell({
   const menuId = pathMenuId(pathname) || 'dashboard';
   const allowed = pathname.startsWith('/admin')
     ? Boolean(workspace?.isPlatformAdmin)
-    : canAccessMenu(role, menuId, workspace?.isPlatformAdmin);
+    : canAccessMenu(role, menuId, workspace?.isPlatformAdmin, workspace?.permissions);
   const activeBrand = workspace?.brands.find((brand) => brand._id === workspace.activeBrandId);
   const activeStore = workspace?.stores.find((store) => store._id === workspace.activeStoreId);
   const contextLabel = [activeBrand?.name, activeStore?.name].filter(Boolean).join(' · ');

@@ -44,8 +44,8 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         menuSections={adminMenuSections}
         groups={adminMenuGroups}
         hideWorkspace
-        caption="پنل ادمین"
-        navLabel="منوی ادمین"
+        caption="پنل سوپریوزر"
+        navLabel="منوی سوپریوزر"
         mobileOpen={mobileOpen}
         expanded={sidebarExpanded}
         pinned={sidebarPinned}
@@ -67,7 +67,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
           >
             <Menu className="h-4 w-4" />
           </button>
-          <p className="min-w-0 flex-1 truncate text-sm font-medium">پنل ادمین</p>
+          <p className="min-w-0 flex-1 truncate text-sm font-medium">پنل سوپریوزر</p>
         </div>
         {children}
       </div>

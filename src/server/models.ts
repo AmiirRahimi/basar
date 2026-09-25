@@ -137,6 +137,40 @@ const StoreMemberSchema = defineSchema(
   { collection: 'storemembers' },
 );
 
+const TeamSchema = defineSchema(
+  {
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    name: { type: String, required: true },
+    _brandIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Brand' }], default: [] },
+    _storeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Store' }], default: [] },
+    timeStamp: { type: Date, required: true, default: Date.now },
+    isDeleted: { type: Boolean, required: true, default: false },
+  },
+  { collection: 'teams' },
+);
+
+const TeamMemberSchema = defineSchema(
+  {
+    _teamId: { type: Schema.Types.ObjectId, ref: 'Team', default: null, index: true },
+    _userId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    phonenumber: { type: String, required: true, index: true },
+    fullName: { type: String, default: '' },
+    address: { type: String, default: '' },
+    birthdate: { type: String, default: '' },
+    postalCode: { type: String, default: '' },
+    inviteToken: { type: String, default: '', index: true },
+    _brandIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Brand' }], default: [] },
+    _storeIds: { type: [{ type: Schema.Types.ObjectId, ref: 'Store' }], default: [] },
+    permissions: { type: [String], default: [] },
+    status: { type: String, required: true, enum: ['pending', 'accepted', 'declined'], default: 'pending' },
+    invitedBy: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    timeStamp: { type: Date, required: true, default: Date.now },
+    respondedAt: { type: Date, default: null },
+    isDeleted: { type: Boolean, required: true, default: false },
+  },
+  { collection: 'teammembers' },
+);
+
 const PartnerSchema = defineSchema(
   {
     _userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
@@ -646,6 +680,8 @@ export const OTP = modelOf<any>('OTP', OTPSchema);
 export const Brand = modelOf<any>('Brand', BrandSchema);
 export const Store = modelOf<any>('Store', StoreSchema);
 export const StoreMember = modelOf<any>('StoreMember', StoreMemberSchema);
+export const Team = modelOf<any>('Team', TeamSchema);
+export const TeamMember = modelOf<any>('TeamMember', TeamMemberSchema);
 export const Partner = modelOf<any>('Partner', PartnerSchema);
 export const StoreBranch = modelOf<any>('StoreBranch', StoreBranchSchema);
 export const Person = modelOf<any>('Person', PersonSchema);

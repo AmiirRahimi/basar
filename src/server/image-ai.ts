@@ -58,6 +58,7 @@ export async function listImageStudio(): Promise<ActionResult> {
         'cloth',
         Boolean(access.session.isPlatformAdmin),
         access.session.subscriptionActive !== false,
+        access.session.permissions,
       ),
       purchases: (purchases as any[]).map((row) => ({
         _id: String(row._id),
@@ -177,6 +178,7 @@ export async function editProductImage(payload: {
     'cloth',
     Boolean(access.session.isPlatformAdmin),
     access.session.subscriptionActive !== false,
+    access.session.permissions,
   );
   if (!canEdit) return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
   const imagePlan = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');
@@ -258,6 +260,7 @@ export async function generateClothOnModel(payload: {
     'cloth',
     Boolean(access.session.isPlatformAdmin),
     access.session.subscriptionActive !== false,
+    access.session.permissions,
   );
   if (!canEdit) return fail('اجازه ساخت تصویر این لباس را ندارید', 403);
   const imagePlan = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');

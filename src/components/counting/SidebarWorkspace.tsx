@@ -112,11 +112,18 @@ export function SidebarWorkspace({ compact = false, expanded = true }: { compact
   const activeBrand = brands.find((brand) => brand._id === brandId);
   const activeStore = stores.find((store) => store._id === storeId) || stores[0];
   const canManage =
-    workspace?.storeRole === 'owner' || workspace?.storeRole === 'admin' || Boolean(workspace?.isPlatformAdmin);
+    workspace?.storeRole === 'owner' ||
+    workspace?.storeRole === 'admin' ||
+    Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin) ||
+    Boolean(workspace?.permissions?.includes('workspace.write'));
   const roleLabel =
-    workspace?.storeRole === 'owner'
-      ? 'صاحب برند'
-      : STORE_STAFF_ROLES[workspace?.storeRole as keyof typeof STORE_STAFF_ROLES] || '';
+    workspace?.isSuperuser || workspace?.isPlatformAdmin
+      ? 'سوپریوزر'
+      : workspace?.storeRole === 'owner'
+        ? 'صاحب برند'
+        : workspace?.accessSource === 'team'
+          ? 'عضو تیم'
+          : STORE_STAFF_ROLES[workspace?.storeRole as keyof typeof STORE_STAFF_ROLES] || '';
 
   function apply(nextBrandId: string, nextStoreId: string) {
     if (!nextStoreId || (nextBrandId === brandId && nextStoreId === storeId)) return;
@@ -330,7 +337,7 @@ export function SidebarUser({ expanded = true }: { expanded?: boolean }) {
                 onClick={() => setOpen(false)}
                 className="flex w-full rounded-lg px-2.5 py-1.5 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
               >
-                پنل ادمین
+                پنل سوپریوزر
               </Link>
               <Link
                 href="/counting/dashboard"

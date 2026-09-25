@@ -16,6 +16,17 @@ import { fail, failAuth, failDb, ok, type ActionResult } from './result';
 import { requireSession, setAuthCookies, signTokens, type Session } from './session';
 import { livePlanCatalog } from './plan-catalog';
 import { listPurchases, subscriptionForSession } from './subscription';
+import {
+  acceptedTeamRows,
+  activateTeamMemberships,
+  isSuperuserPhone,
+  ownedPeopleFor,
+  ownedTeamsFor,
+  pendingInvitesFor,
+  permissionsForStore,
+  storesForTeams,
+} from './teams';
+import { OWNER_PERMISSIONS } from '@/lib/permissions';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -34,7 +45,7 @@ function idOf(value: unknown) {
 }
 
 function isPlatformAdmin(phonenumber: string) {
-  return Boolean(process.env.ADMIN_PHONENUMBER) && phonenumber === process.env.ADMIN_PHONENUMBER;
+  return isSuperuserPhone(phonenumber);
 }
 
 async function dropLegacyStoreUniqueIndex() {
@@ -108,6 +119,7 @@ export async function activateMemberships(userId: string, phonenumber: string) {
       { _userId: oid(userId), status: 'active' },
     );
   }
+  await activateTeamMemberships(userId, phonenumber);
 }
 
 export async function ensureOwnerWorkspace(userId: string, fullName?: string, phonenumber?: string) {
@@ -163,9 +175,11 @@ export async function accessibleStores(userId: string, phonenumber: string) {
   const memberStores = memberStoreIds.length
     ? await M().Store.find({ _id: { $in: memberStoreIds }, isDeleted: false }).lean()
     : [];
+  const teamAccess = await acceptedTeamRows(userId, phonenumber);
+  const teamStores = await storesForTeams(teamAccess.teams, teamAccess.members);
   const byId = new Map<string, any>();
-  for (const store of [...ownedStores, ...memberStores]) byId.set(String(store._id), store);
-  return { ownedBrands, stores: [...byId.values()], memberships };
+  for (const store of [...ownedStores, ...memberStores, ...teamStores]) byId.set(String(store._id), store);
+  return { ownedBrands, stores: [...byId.values()], memberships, teamAccess };
 }
 
 export async function resolveStoreRole(session: Session): Promise<StoreRole | null> {
@@ -193,12 +207,15 @@ export async function resolveStoreRole(session: Session): Promise<StoreRole | nu
     status: 'active',
     $or: [{ _userId: oid(session._id) }, { phonenumber: session.phonenumber }],
   }).lean();
-  if (!member) return null;
-  return member.role as StoreStaffRole;
+  if (member) return member.role as StoreStaffRole;
+  const teamAccess = await acceptedTeamRows(session._id, session.phonenumber);
+  const perms = permissionsForStore(teamAccess.members, teamAccess.teamById, String(session._storeId), brandId);
+  if (perms.length) return 'other';
+  return null;
 }
 
 export async function resolveLoginContext(userId: string, phonenumber: string, preferred?: Partial<Session>) {
-  const { ownedBrands, stores, memberships } = await accessibleStores(userId, phonenumber);
+  const { ownedBrands, stores, memberships, teamAccess } = await accessibleStores(userId, phonenumber);
   if (!stores.length) return null;
   const preferredStore = preferred?._storeId
     ? stores.find((s: any) => String(s._id) === String(preferred._storeId))
@@ -207,12 +224,49 @@ export async function resolveLoginContext(userId: string, phonenumber: string, p
   const brandId = idOf(store._brandId);
   const owned = ownedBrands.some((b: any) => String(b._id) === brandId);
   const member = memberships.find((m: any) => String(m._storeId) === String(store._id));
-  const storeRole: StoreRole = owned || isPlatformAdmin(phonenumber) ? 'owner' : ((member?.role as StoreStaffRole) || 'other');
+  const teamPerms = permissionsForStore(
+    teamAccess?.members || [],
+    teamAccess?.teamById || new Map(),
+    String(store._id),
+    brandId,
+  );
+  const storeRole: StoreRole = owned || isPlatformAdmin(phonenumber)
+    ? 'owner'
+    : ((member?.role as StoreStaffRole) || (teamPerms.length ? 'other' : 'other'));
   return {
     _storeId: String(store._id),
     _brandId: brandId,
     storeRole,
   };
+}
+
+async function resolveAccessMeta(session: Session, role: StoreRole) {
+  const superuser = isPlatformAdmin(session.phonenumber);
+  if (superuser) {
+    return { permissions: [...OWNER_PERMISSIONS], accessSource: 'superuser' as const, isSuperuser: true };
+  }
+  const store = session._storeId
+    ? await M().Store.findOne({ _id: oid(session._storeId), isDeleted: false }).lean()
+    : null;
+  const brandId = session._brandId || idOf(store?._brandId);
+  const brand = brandId ? await M().Brand.findOne({ _id: oid(brandId), isDeleted: false }).lean() : null;
+  if (brand && String(brand._userId) === session._id) {
+    return { permissions: [...OWNER_PERMISSIONS], accessSource: 'owner' as const, isSuperuser: false };
+  }
+  const teamAccess = await acceptedTeamRows(session._id, session.phonenumber);
+  const teamPerms = permissionsForStore(
+    teamAccess.members,
+    teamAccess.teamById,
+    String(session._storeId || ''),
+    brandId,
+  );
+  if (role === 'owner') {
+    return { permissions: [...OWNER_PERMISSIONS], accessSource: 'owner' as const, isSuperuser: false };
+  }
+  if (teamPerms.length) {
+    return { permissions: teamPerms, accessSource: 'team' as const, isSuperuser: false };
+  }
+  return { permissions: [] as string[], accessSource: 'staff' as const, isSuperuser: false };
 }
 
 export async function withWorkspace() {
@@ -228,12 +282,15 @@ export async function withWorkspace() {
   const role = await resolveStoreRole(auth.session);
   if (!role) return { error: fail('به این فروشگاه دسترسی ندارید', 403) as ActionResult };
   const isAdmin = isPlatformAdmin(auth.session.phonenumber);
+  const meta = await resolveAccessMeta(auth.session, role);
   const subscription = await subscriptionForSession({ ...auth.session, storeRole: role, isPlatformAdmin: isAdmin });
   return {
     session: {
       ...auth.session,
       storeRole: role,
       isPlatformAdmin: isAdmin,
+      isSuperuser: meta.isSuperuser,
+      permissions: meta.permissions,
       subscriptionActive: subscription.active,
     },
   };
@@ -370,6 +427,12 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
 
   const role = await resolveStoreRole({ ...auth.session, ...context });
   const isAdmin = isPlatformAdmin(String(user.phonenumber));
+  const meta = await resolveAccessMeta({ ...auth.session, ...context }, role || context.storeRole);
+  const [teams, teamPeople, pendingInvites] = await Promise.all([
+    ownedTeamsFor(String(user._id)),
+    ownedPeopleFor(String(user._id)),
+    pendingInvitesFor(String(user._id), String(user.phonenumber)),
+  ]);
   const subscription = await subscriptionForSession({
     ...auth.session,
     ...context,
@@ -402,6 +465,12 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       activeStoreId: context._storeId,
       storeRole: role || context.storeRole,
       isPlatformAdmin: isAdmin,
+      isSuperuser: meta.isSuperuser,
+      permissions: meta.permissions,
+      accessSource: meta.accessSource,
+      teams,
+      teamPeople,
+      pendingInvites,
       subscriptionActive: subscription.active,
       subscription,
       planCatalog,
@@ -434,6 +503,12 @@ export async function switchWorkspace(payload: { brandId: string; storeId: strin
   await M().User.updateOne({ _id: session._id }, { refreshToken: tokens.refreshToken });
   await setAuthCookies(tokens);
   return ok({ _brandId: session._brandId, _storeId: session._storeId, storeRole: session.storeRole }, 'فروشگاه فعال شد');
+}
+
+function hasGranted(session: Session, permission: string) {
+  return Boolean(
+    session.isPlatformAdmin || session.storeRole === 'owner' || session.permissions?.includes(permission),
+  );
 }
 
 function denyExpired(session: Session) {
@@ -507,7 +582,7 @@ export async function updateBrand(id: string, payload: Record<string, unknown>):
   if (expired) return expired;
   const brand = await M().Brand.findOne({ _id: oid(id), isDeleted: false }).lean();
   if (!brand) return fail('برند پیدا نشد', 404);
-  if (String(brand._userId) !== access.session._id && !access.session.isPlatformAdmin) {
+  if (String(brand._userId) !== access.session._id && !hasGranted(access.session, 'workspace.write')) {
     return fail('اجازه ویرایش این برند را ندارید', 403);
   }
   const next: Record<string, unknown> = {};
@@ -578,7 +653,9 @@ export async function updateStore(id: string, payload: Record<string, unknown>):
   if (!store) return fail('فروشگاه پیدا نشد', 404);
   const owned = String((await M().Brand.findOne({ _id: store._brandId }).lean())?._userId) === access.session._id;
   const adminHere = access.session.storeRole === 'admin' && access.session._storeId === String(store._id);
-  if (!owned && !adminHere && !access.session.isPlatformAdmin) return fail('اجازه ویرایش این فروشگاه را ندارید', 403);
+  if (!owned && !adminHere && !hasGranted(access.session, 'workspace.write')) {
+    return fail('اجازه ویرایش این فروشگاه را ندارید', 403);
+  }
   const next: Record<string, unknown> = {};
   for (const key of ['name', 'address', 'city'] as const) {
     if (payload[key] != null) next[key] = payload[key];
@@ -744,7 +821,9 @@ async function assertCanSavePartner(session: Session, scope: { allStores: boolea
       session.storeRole === 'admin' &&
       session._storeId === storeId &&
       scope.storeIds.every((id) => id === session._storeId);
-    if (!brandOwner && !adminHere) return fail('اجازه تعیین شریک برای این فروشگاه را ندارید', 403);
+    if (!brandOwner && !adminHere && !hasGranted(session, 'partners.write')) {
+      return fail('اجازه تعیین شریک برای این فروشگاه را ندارید', 403);
+    }
   }
   return null;
 }

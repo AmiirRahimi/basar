@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { BadgePercent, Building2, Handshake, UserRound } from 'lucide-react';
+import { BadgePercent, Building2, Handshake, UserRound, UsersRound } from 'lucide-react';
 import { updateProfile } from '@/actions/auth';
 import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import { STORE_STAFF_ROLES } from '@/lib/constants';
@@ -11,6 +11,8 @@ import { Button, Input, Select, toast } from '@/ui';
 import { BrandStoreWorkspace } from './BrandStoreWorkspace';
 import { PartnersPanel } from './PartnersPanel';
 import { SubscriptionPanel } from './SubscriptionPanel';
+import { TeamInviteInbox } from './TeamInviteInbox';
+import { TeamsPanel } from './TeamsPanel';
 import { useWorkspace } from './WorkspaceProvider';
 
 const selectLabels = {
@@ -22,6 +24,7 @@ const selectLabels = {
 const TABS = [
   { id: 'account', label: 'حساب کاربری', icon: UserRound },
   { id: 'workspace', label: 'برند و فروشگاه', icon: Building2 },
+  { id: 'teams', label: 'اعضا', icon: UsersRound },
   { id: 'partners', label: 'شرکای درآمد', icon: Handshake },
   { id: 'subscription', label: 'اشتراک', icon: BadgePercent },
 ] as const;
@@ -53,12 +56,22 @@ export function ProfileSettings({
   const workspace = useWorkspace();
   const [tab, setTab] = useState<TabId>(isTab(initialTab) ? initialTab : 'account');
   const canManageWorkspace =
-    workspace?.storeRole === 'owner' || workspace?.storeRole === 'admin' || Boolean(workspace?.isPlatformAdmin);
-  const canManageBrand = workspace?.storeRole === 'owner' || Boolean(workspace?.isPlatformAdmin);
+    workspace?.storeRole === 'owner' ||
+    workspace?.storeRole === 'admin' ||
+    Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin) ||
+    Boolean(workspace?.permissions?.includes('workspace.write'));
+  const canManageBrand =
+    workspace?.storeRole === 'owner' || Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin);
+  const ownsBrand = Boolean(
+    workspace?.brands.some((brand) => brand._userId === workspace.user._id) ||
+      workspace?.isSuperuser ||
+      workspace?.isPlatformAdmin,
+  );
 
   const visibleTabs = TABS.filter((item) => {
-    if (item.id === 'partners') return canManageWorkspace;
-    if (item.id === 'subscription') return workspace?.storeRole === 'owner' || Boolean(workspace?.isPlatformAdmin);
+    if (item.id === 'teams') return ownsBrand;
+    if (item.id === 'partners') return canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.view'));
+    if (item.id === 'subscription') return workspace?.storeRole === 'owner' || Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin);
     return true;
   });
   const activeTab = visibleTabs.some((item) => item.id === tab) ? tab : 'account';
@@ -73,6 +86,7 @@ export function ProfileSettings({
 
   return (
     <div className="space-y-5">
+      <TeamInviteInbox />
       <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
         {visibleTabs.map((item) => {
           const Icon = item.icon;
@@ -95,7 +109,9 @@ export function ProfileSettings({
 
       {activeTab === 'account' ? <AccountSection user={user} /> : null}
       {activeTab === 'workspace' ? <BrandStoreWorkspace /> : null}
-      {activeTab === 'partners' && canManageWorkspace ? (
+      {activeTab === 'teams' && ownsBrand ? <TeamsPanel /> : null}
+      {activeTab === 'partners' &&
+      (canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.view'))) ? (
         <PartnersPanel
           brands={workspace?.brands || []}
           stores={workspace?.stores || []}
@@ -103,7 +119,7 @@ export function ProfileSettings({
           selectedStore={selectedStore}
           partners={workspace?.partners || []}
           canManageBrand={canManageBrand}
-          canManageStore={canManageWorkspace}
+          canManageStore={canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.write'))}
         />
       ) : null}
       {activeTab === 'subscription' ? (
@@ -137,9 +153,11 @@ function AccountSection({
   const [pending, start] = useTransition();
   const phone = String(user?.phonenumber || user?.phoneNumber || workspace?.user.phonenumber || '');
   const roleLabel = useMemo(() => {
-    if (workspace?.storeRole === 'owner') return 'صاحب برند';
+    if (workspace?.isSuperuser || workspace?.isPlatformAdmin) return 'سوپریوزر';
+    if (workspace?.storeRole === 'owner') return 'صاحب برند / فروشگاه';
+    if (workspace?.accessSource === 'team') return 'عضو تیم';
     return STORE_STAFF_ROLES[workspace?.storeRole as keyof typeof STORE_STAFF_ROLES] || 'کاربر';
-  }, [workspace?.storeRole]);
+  }, [workspace?.storeRole, workspace?.isSuperuser, workspace?.isPlatformAdmin, workspace?.accessSource]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">

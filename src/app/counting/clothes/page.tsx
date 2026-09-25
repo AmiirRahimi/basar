@@ -82,7 +82,13 @@ export default async function ClothesPage() {
       (data?.brands || []).some((brand) => brand.websiteListing || brand.ownerWebsiteListing) ||
       (data?.stores || []).some((store) => store.websiteListing),
   );
-  const allowWrite = canWriteResource(workspace.data?.storeRole || 'owner', 'cloth', workspace.data?.isPlatformAdmin);
+  const allowWrite = canWriteResource(
+    workspace.data?.storeRole || 'owner',
+    'cloth',
+    workspace.data?.isPlatformAdmin,
+    true,
+    workspace.data?.permissions,
+  );
   return (
     <CountingShell title="البسه" error={errorMessage(res)}>
       <CrudPage
