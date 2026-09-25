@@ -12,4 +12,3 @@ export default async function DropdownRecordPage({
   if (!DROPDOWNS.has(resource)) notFound();
   return <RecordDetailPage resource={resource} id={id} />;
 }
-

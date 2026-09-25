@@ -26,8 +26,10 @@ export type CountingMenuSection = {
 const GROUPS: { label: string; ids: string[] }[] = [
   { label: 'کار روزانه', ids: ['dashboard', 'invoice', 'cloth', 'share', 'images', 'check', 'returned'] },
   { label: 'اطلاعات', ids: ['person', 'fabric', 'account'] },
-  { label: 'سازمان', ids: ['profile', 'admin'] },
+  { label: 'سازمان', ids: ['profile'] },
 ];
+
+const ROOT_ONLY = new Set(['/counting/dashboard', '/admin']);
 
 const EASE = 'duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]';
 
@@ -42,8 +44,7 @@ function isActivePath(pathname: string, href?: string) {
   const path = normalizePath(pathname);
   const target = normalizePath(href);
   if (path === target) return true;
-  // Dashboard should not stay active on every /counting/* page
-  if (target === '/counting/dashboard') return false;
+  if (ROOT_ONLY.has(target)) return false;
   return path.startsWith(`${target}/`);
 }
 
@@ -106,6 +107,10 @@ export function CountingSidebar({
   onExpandedChange,
   onPinnedChange,
   onClose,
+  groups = GROUPS,
+  hideWorkspace = false,
+  caption = 'نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی',
+  navLabel = 'منوی شمارش',
 }: {
   pathname: string;
   menuSections: CountingMenuSection[];
@@ -115,15 +120,19 @@ export function CountingSidebar({
   onExpandedChange: (expanded: boolean) => void;
   onPinnedChange: (pinned: boolean) => void;
   onClose: () => void;
+  groups?: { label: string; ids: string[] }[];
+  hideWorkspace?: boolean;
+  caption?: string;
+  navLabel?: string;
 }) {
-  const grouped = GROUPS.map((group) => ({
+  const grouped = groups.map((group) => ({
     ...group,
     items: group.ids
       .map((id) => menuSections.find((section) => section.id === id))
       .filter(Boolean) as CountingMenuSection[],
   })).filter((group) => group.items.length);
 
-  const leftover = menuSections.filter((section) => !GROUPS.some((group) => group.ids.includes(section.id)));
+  const leftover = menuSections.filter((section) => !groups.some((group) => group.ids.includes(section.id)));
   const navGroups = leftover.length ? [...grouped, { label: 'سایر', items: leftover }] : grouped;
 
   return (
@@ -138,7 +147,7 @@ export function CountingSidebar({
       ) : null}
       <aside
         role="navigation"
-        aria-label="منوی شمارش"
+        aria-label={navLabel}
         onMouseEnter={() => onExpandedChange(true)}
         onMouseLeave={() => {
           if (!pinned) onExpandedChange(false);
@@ -165,7 +174,7 @@ export function CountingSidebar({
               <>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-semibold leading-5 tracking-tight">باسار</p>
-                  <p className="text-[10px] leading-4 text-white/45">نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی</p>
+                  <p className="text-[10px] leading-4 text-white/45">{caption}</p>
                 </div>
                 <button
                   type="button"
@@ -186,7 +195,7 @@ export function CountingSidebar({
               </>
             ) : null}
           </div>
-          <SidebarWorkspace expanded={expanded} />
+          {hideWorkspace ? null : <SidebarWorkspace expanded={expanded} />}
           <SidebarMenuSearch sections={menuSections} expanded={expanded} onNavigate={onClose} />
         </div>
 
@@ -252,7 +261,7 @@ export function CountingSidebar({
                                   expanded={expanded}
                                   onNavigate={onClose}
                                   badge={
-                                    item.href === '/counting/admin/messages' ? (
+                                    item.href === '/admin/messages' || item.href.endsWith('/messages') ? (
                                       <AdminChatUnreadBadge />
                                     ) : undefined
                                   }
@@ -274,6 +283,11 @@ export function CountingSidebar({
                           active={isActivePath(pathname, section.href)}
                           expanded={expanded}
                           onNavigate={onClose}
+                          badge={
+                            section.href === '/admin/messages' || section.href.endsWith('/messages') ? (
+                              <AdminChatUnreadBadge />
+                            ) : undefined
+                          }
                         />
                       ) : null}
                     </div>

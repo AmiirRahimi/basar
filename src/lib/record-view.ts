@@ -14,13 +14,13 @@ export const RECORD_LIST_HREF: Record<string, string> = {
   check: '/counting/checks',
   fabric: '/counting/fabric',
   returned: '/counting/returned',
-  color: '/counting/admin/dropdowns',
-  size: '/counting/admin/dropdowns',
-  'cloth-kind': '/counting/admin/dropdowns',
-  'cloth-style': '/counting/admin/dropdowns',
-  'admin-user': '/counting/admin/users',
-  'admin-purchase': '/counting/admin/users',
-  'admin-code': '/counting/admin/users',
+  color: '/admin/dropdowns',
+  size: '/admin/dropdowns',
+  'cloth-kind': '/admin/dropdowns',
+  'cloth-style': '/admin/dropdowns',
+  'admin-user': '/admin/users',
+  'admin-purchase': '/admin/users',
+  'admin-code': '/admin/users',
 };
 
 export const RECORD_TYPE_LABEL: Record<string, string> = {
@@ -66,10 +66,10 @@ export function recordViewPath(resource: string, id: string) {
   if (resource === 'check') return `/counting/checks/${key}`;
   if (resource === 'fabric') return `/counting/fabric/${key}`;
   if (resource === 'returned') return `/counting/returned/${key}`;
-  if (DROPDOWN_RESOURCES.has(resource)) return `/counting/admin/dropdowns/${resource}/${key}`;
-  if (resource === 'admin-user') return `/counting/admin/records/users/${key}`;
-  if (resource === 'admin-purchase') return `/counting/admin/records/purchases/${key}`;
-  if (resource === 'admin-code') return `/counting/admin/records/codes/${key}`;
+  if (DROPDOWN_RESOURCES.has(resource)) return `/admin/dropdowns/${resource}/${key}`;
+  if (resource === 'admin-user') return `/admin/records/users/${key}`;
+  if (resource === 'admin-purchase') return `/admin/records/purchases/${key}`;
+  if (resource === 'admin-code') return `/admin/records/codes/${key}`;
   return '#';
 }
 

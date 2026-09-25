@@ -40,6 +40,7 @@ type AdminUser = EditableAdminUser & {
   remainingDays: number;
   active: boolean;
   registeredAt?: string;
+  imageTokens?: number;
 };
 
 type AdminPurchase = {

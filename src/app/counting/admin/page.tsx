@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function AdminIndexPage() {
-  redirect('/counting/admin/users');
+export default function LegacyAdminIndexPage() {
+  redirect('/admin');
 }

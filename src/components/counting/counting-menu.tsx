@@ -7,7 +7,6 @@ import {
   Link2,
   Scissors,
   Settings,
-  Shield,
   Shirt,
   Sparkles,
   Undo2,
@@ -28,20 +27,4 @@ export const countingMenuSections: CountingMenuSection[] = [
   { id: 'account', name: 'حساب', icon: Wallet, href: '/counting/account', menuItems: [] },
   { id: 'returned', name: 'برگشتی', icon: Undo2, href: '/counting/returned', menuItems: [] },
   { id: 'profile', name: 'تنظیمات', icon: Settings, href: '/counting/profile', menuItems: [] },
-  {
-    id: 'admin',
-    name: 'ادمین',
-    icon: Shield,
-    menuItems: [
-      { name: 'پیام‌ها', href: '/counting/admin/messages' },
-      { name: 'کاربران و اشتراک', href: '/counting/admin/users' },
-      { name: 'اشتراک و توکن', href: '/counting/admin/usage' },
-      { name: 'طرح‌های اشتراک', href: '/counting/admin/plans' },
-      { name: 'سفارش‌های ویترین', href: '/counting/admin/storefront' },
-      { name: 'انتشار در وب‌سایت', href: '/counting/admin/website' },
-      { name: 'پیامک', href: '/counting/admin/sms' },
-      { name: 'تلگرام', href: '/counting/admin/telegram' },
-      { name: 'لیست‌های کمکی', href: '/counting/admin/dropdowns' },
-    ],
-  },
 ];

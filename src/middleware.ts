@@ -34,7 +34,8 @@ export async function middleware(request: NextRequest) {
     pathname === '/counting' ||
     pathname === '/counting/' ||
     pathname.startsWith('/counting/login');
-  if (!pathname.startsWith('/counting') || isPublicCounting) {
+  const isAdminApp = pathname === '/admin' || pathname.startsWith('/admin/');
+  if ((!pathname.startsWith('/counting') && !isAdminApp) || isPublicCounting) {
     return withHeaders(NextResponse.next());
   }
   const access = request.cookies.get(ACCESS_COOKIE)?.value || '';
@@ -48,7 +49,7 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/counting/login';
     return withHeaders(NextResponse.redirect(url));
   }
-  if (pathname.startsWith('/counting/admin')) {
+  if (isAdminApp || pathname.startsWith('/counting/admin')) {
     const admin = (process.env.ADMIN_PHONENUMBER || '').trim();
     const phone = accessSession?.phonenumber || refreshSession?.phonenumber || '';
     if (!admin || phone !== admin) {
@@ -61,5 +62,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/counting/:path*'],
+  matcher: ['/counting/:path*', '/admin', '/admin/:path*'],
 };

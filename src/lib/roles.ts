@@ -31,8 +31,21 @@ export const RESOURCE_WRITE_ROLES: Record<string, StoreRole[]> = {
   payment: ['owner', 'admin', 'seller'],
 };
 
+const ADMIN_MENU_IDS = new Set([
+  'admin',
+  'users',
+  'usage',
+  'plans',
+  'messages',
+  'sms',
+  'telegram',
+  'storefront',
+  'website',
+  'dropdowns',
+]);
+
 export function canAccessMenu(role: StoreRole, menuId: string, isPlatformAdmin = false) {
-  if (menuId === 'admin') return isPlatformAdmin;
+  if (ADMIN_MENU_IDS.has(menuId)) return isPlatformAdmin;
   if (isPlatformAdmin) return true;
   const allowed = MENU_ACCESS[menuId];
   if (!allowed) return role === 'owner';
@@ -77,7 +90,17 @@ export function canReadResource(role: StoreRole, resource: string, isPlatformAdm
 }
 
 export function pathMenuId(pathname: string) {
-  if (pathname.startsWith('/counting/admin')) return 'admin';
+  if (pathname === '/admin' || pathname === '/admin/') return 'dashboard';
+  if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/records')) return 'users';
+  if (pathname.startsWith('/admin/usage')) return 'usage';
+  if (pathname.startsWith('/admin/plans')) return 'plans';
+  if (pathname.startsWith('/admin/messages')) return 'messages';
+  if (pathname.startsWith('/admin/sms')) return 'sms';
+  if (pathname.startsWith('/admin/telegram')) return 'telegram';
+  if (pathname.startsWith('/admin/storefront')) return 'storefront';
+  if (pathname.startsWith('/admin/website')) return 'website';
+  if (pathname.startsWith('/admin/dropdowns')) return 'dropdowns';
+  if (pathname.startsWith('/admin') || pathname.startsWith('/counting/admin')) return 'admin';
   if (pathname.startsWith('/counting/invoices')) return 'invoice';
   if (pathname.startsWith('/counting/people')) return 'person';
   if (pathname.startsWith('/counting/clothes')) return 'cloth';

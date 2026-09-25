@@ -323,6 +323,24 @@ export function SidebarUser({ expanded = true }: { expanded?: boolean }) {
         leading={avatar}
       >
         <div className="rounded-xl bg-black/20 p-1">
+          {workspace?.isPlatformAdmin ? (
+            <>
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex w-full rounded-lg px-2.5 py-1.5 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                پنل ادمین
+              </Link>
+              <Link
+                href="/counting/dashboard"
+                onClick={() => setOpen(false)}
+                className="flex w-full rounded-lg px-2.5 py-1.5 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                پنل شمارش
+              </Link>
+            </>
+          ) : null}
           <Link
             href="/counting/profile"
             onClick={() => setOpen(false)}

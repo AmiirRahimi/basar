@@ -24,7 +24,10 @@ export function CountingShell({
   const workspace = useWorkspace();
   const [headerAction, setHeaderAction] = useState<ReactNode>(null);
   const role = workspace?.storeRole || 'owner';
-  const allowed = canAccessMenu(role, pathMenuId(pathname) || 'dashboard', workspace?.isPlatformAdmin);
+  const menuId = pathMenuId(pathname) || 'dashboard';
+  const allowed = pathname.startsWith('/admin')
+    ? Boolean(workspace?.isPlatformAdmin)
+    : canAccessMenu(role, menuId, workspace?.isPlatformAdmin);
   const activeBrand = workspace?.brands.find((brand) => brand._id === workspace.activeBrandId);
   const activeStore = workspace?.stores.find((store) => store._id === workspace.activeStoreId);
   const contextLabel = [activeBrand?.name, activeStore?.name].filter(Boolean).join(' · ');

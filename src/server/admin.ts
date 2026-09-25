@@ -102,6 +102,7 @@ export async function getAdminOverview(): Promise<ActionResult> {
       registeredAt: registeredAt(user),
       sheba: user.sheba || '',
       bankName: user.bankName || '',
+      imageTokens: Number(user.imageTokens || 0),
     };
   });
   const purchases = subscriptions.map((row: any) => {

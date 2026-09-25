@@ -23,7 +23,10 @@ export async function sendOtp(phonenumber: string) {
 
 export async function loginWithOtp(form: { phonenumber: string; code: string; password?: string }) {
   const res = await loginDb(form);
-  if (res.ok) redirect('/counting/dashboard');
+  if (res.ok) {
+    const admin = (process.env.ADMIN_PHONENUMBER || '').trim();
+    redirect(admin && form.phonenumber === admin ? '/admin' : '/counting/dashboard');
+  }
   return res;
 }
 
