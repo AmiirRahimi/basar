@@ -9,7 +9,6 @@ export const CHAT_MESSAGE_MAX = 2000;
 /** Refresh cookie lifetime. Access tokens are much shorter. */
 export const SESSION_DAYS = 7;
 export const ACCESS_TOKEN_MINUTES = 15;
-export const SESSION_EXPIRED_PARAM = 'expired';
 
 export const PERSON_ROLES: Record<string, string> = {
   '1': 'مشتری عمده',

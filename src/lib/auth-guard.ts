@@ -1,7 +1,4 @@
 import { redirect } from 'next/navigation';
-import { SESSION_EXPIRED_PARAM } from '@/lib/constants';
-
-export { SESSION_EXPIRED_PARAM };
 
 type Guardable = { ok: boolean; status?: number; message?: string };
 
@@ -15,7 +12,7 @@ export function isUnauthorized(res: Guardable) {
  */
 export function guardSession(...results: Guardable[]) {
   if (results.some(isUnauthorized)) {
-    redirect(`/counting/login?${SESSION_EXPIRED_PARAM}=1`);
+    redirect('/counting/login');
   }
 }
 
