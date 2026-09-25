@@ -120,9 +120,9 @@ export function SidebarWorkspace({ compact = false, expanded = true }: { compact
     workspace?.isSuperuser || workspace?.isPlatformAdmin
       ? 'سوپریوزر'
       : workspace?.storeRole === 'owner'
-        ? 'صاحب برند'
+        ? 'ادمین'
         : workspace?.accessSource === 'team'
-          ? 'عضو تیم'
+          ? 'عضو'
           : STORE_STAFF_ROLES[workspace?.storeRole as keyof typeof STORE_STAFF_ROLES] || '';
 
   function apply(nextBrandId: string, nextStoreId: string) {
@@ -299,9 +299,13 @@ export function SidebarUser({ expanded = true }: { expanded?: boolean }) {
   }, [expanded]);
 
   const roleLabel =
-    workspace?.storeRole === 'owner'
-      ? 'صاحب برند'
-      : STORE_STAFF_ROLES[workspace?.storeRole as keyof typeof STORE_STAFF_ROLES] || 'کاربر';
+    workspace?.isSuperuser || workspace?.isPlatformAdmin
+      ? 'سوپریوزر'
+      : workspace?.storeRole === 'owner'
+        ? 'ادمین'
+        : workspace?.accessSource === 'team'
+          ? 'عضو'
+          : STORE_STAFF_ROLES[workspace?.storeRole as keyof typeof STORE_STAFF_ROLES] || 'کاربر';
   const name = workspace?.user.fullName || workspace?.user.phonenumber || 'کاربر';
 
   const avatar = (
@@ -337,7 +341,7 @@ export function SidebarUser({ expanded = true }: { expanded?: boolean }) {
                 onClick={() => setOpen(false)}
                 className="flex w-full rounded-lg px-2.5 py-1.5 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
               >
-                پنل سوپریوزر
+                پنل ادمین
               </Link>
               <Link
                 href="/counting/dashboard"

@@ -154,8 +154,8 @@ function AccountSection({
   const phone = String(user?.phonenumber || user?.phoneNumber || workspace?.user.phonenumber || '');
   const roleLabel = useMemo(() => {
     if (workspace?.isSuperuser || workspace?.isPlatformAdmin) return 'سوپریوزر';
-    if (workspace?.storeRole === 'owner') return 'صاحب برند / فروشگاه';
-    if (workspace?.accessSource === 'team') return 'عضو تیم';
+    if (workspace?.storeRole === 'owner') return 'ادمین';
+    if (workspace?.accessSource === 'team') return 'عضو';
     return STORE_STAFF_ROLES[workspace?.storeRole as keyof typeof STORE_STAFF_ROLES] || 'کاربر';
   }, [workspace?.storeRole, workspace?.isSuperuser, workspace?.isPlatformAdmin, workspace?.accessSource]);
 

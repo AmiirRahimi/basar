@@ -145,6 +145,7 @@ export function pathMenuId(pathname: string) {
   if (pathname.startsWith('/counting/store')) return 'profile';
   if (pathname.startsWith('/counting/subscription')) return 'subscription';
   if (pathname.startsWith('/counting/profile')) return 'profile';
+  if (pathname.startsWith('/counting/invite')) return 'profile';
   if (pathname.startsWith('/counting/dashboard')) return 'dashboard';
   return '';
 }

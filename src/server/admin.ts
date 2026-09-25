@@ -65,11 +65,17 @@ export async function getAdminOverview(): Promise<ActionResult> {
   const access = await requirePlatformAdmin();
   if ('error' in access) return access.error;
   await db();
-  const [users, subscriptions, codes] = await Promise.all([
+  const [users, subscriptions, codes, conversations] = await Promise.all([
     M().User.find().lean(),
     M().UserSubscription.find().sort({ startDate: -1 }).lean(),
     M().DiscountCode.find().sort({ timeStamp: -1 }).lean(),
+    M().Conversation.find({ status: { $ne: 'closed' } }).select('unreadForAdmin').lean(),
   ]);
+  const unansweredMessages = (conversations as any[]).reduce(
+    (sum, row) => sum + Number(row.unreadForAdmin || 0),
+    0,
+  );
+  const waitingConversations = (conversations as any[]).filter((row) => Number(row.unreadForAdmin || 0) > 0).length;
   const byUser = new Map<string, any[]>();
   for (const row of subscriptions) {
     const id = String(row._userId || '');
@@ -176,6 +182,8 @@ export async function getAdminOverview(): Promise<ActionResult> {
         purchasesThisMonthAmount: thisMonthPurchases.reduce((sum, row) => sum + Number(row.price || 0), 0),
         purchasesLastMonth: lastMonthPurchases.length,
         purchasesLastMonthAmount: lastMonthPurchases.reduce((sum, row) => sum + Number(row.price || 0), 0),
+        unansweredMessages,
+        waitingConversations,
       },
     }),
   );

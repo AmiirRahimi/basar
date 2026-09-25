@@ -62,7 +62,7 @@ export function DashboardCharts({
   );
 }
 
-function ChartCard({
+export function ChartCard({
   title,
   children,
   className = '',
@@ -79,12 +79,16 @@ function ChartCard({
   );
 }
 
-function MonthBars({
+export function MonthBars({
   months,
   currentMonth,
+  countLabel = 'فاکتور',
+  formatAmount = toman,
 }: {
   months: MonthlySale[];
   currentMonth: number;
+  countLabel?: string;
+  formatAmount?: (value?: number) => string;
 }) {
   const [active, setActive] = useState<number | null>(null);
   const max = Math.max(...months.map((row) => Number(row.amount || 0)), 1);
@@ -94,7 +98,7 @@ function MonthBars({
     <div>
       <p className="mb-3 text-sm text-gray-600">
         {hovered
-          ? `${hovered.label}: ${toman(hovered.amount)} — ${faNumber(hovered.count)} فاکتور`
+          ? `${hovered.label}: ${formatAmount(hovered.amount)} — ${faNumber(hovered.count)} ${countLabel}`
           : 'روی هر ستون بروید تا مبلغ ماه را ببینید'}
       </p>
       <div className="flex h-48 items-end gap-1.5">
@@ -133,12 +137,14 @@ function MonthBars({
   );
 }
 
-function HBars({
+export function HBars({
   items,
   empty,
+  formatValue = compactToman,
 }: {
   items: { label: string; value: number; color: string }[];
   empty?: string;
+  formatValue?: (value: number) => string;
 }) {
   const max = Math.max(...items.map((row) => row.value), 1);
   if (!items.length || items.every((row) => row.value <= 0)) {
@@ -150,7 +156,7 @@ function HBars({
         <li key={row.label}>
           <div className="mb-1 flex items-center justify-between gap-2 text-sm">
             <span className="truncate">{row.label}</span>
-            <span className="shrink-0 font-medium">{compactToman(row.value)}</span>
+            <span className="shrink-0 font-medium">{formatValue(row.value)}</span>
           </div>
           <div className="h-2.5 overflow-hidden rounded-full bg-gray-100">
             <div
@@ -164,7 +170,13 @@ function HBars({
   );
 }
 
-function Donut({ slices }: { slices: { label: string; value: number; color: string }[] }) {
+export function Donut({
+  slices,
+  formatValue = compactToman,
+}: {
+  slices: { label: string; value: number; color: string }[];
+  formatValue?: (value: number) => string;
+}) {
   const total = slices.reduce((sum, row) => sum + row.value, 0);
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
@@ -204,7 +216,7 @@ function Donut({ slices }: { slices: { label: string; value: number; color: stri
           جمع
         </text>
         <text x="60" y="72" textAnchor="middle" fill="#111827" fontSize="11" fontWeight="600">
-          {compactToman(total)}
+          {formatValue(total)}
         </text>
       </svg>
       <ul className="w-full space-y-2 text-sm">
@@ -214,7 +226,7 @@ function Donut({ slices }: { slices: { label: string; value: number; color: stri
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color }} />
               {row.label}
             </span>
-            <span className="font-medium">{compactToman(row.value)}</span>
+            <span className="font-medium">{formatValue(row.value)}</span>
           </li>
         ))}
       </ul>

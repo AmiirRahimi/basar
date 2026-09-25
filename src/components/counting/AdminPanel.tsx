@@ -86,6 +86,8 @@ export type AdminOverview = {
     purchasesThisMonthAmount?: number;
     purchasesLastMonth?: number;
     purchasesLastMonthAmount?: number;
+    unansweredMessages?: number;
+    waitingConversations?: number;
   };
 };
 

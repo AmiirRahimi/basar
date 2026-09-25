@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { MainWrapper, PageHeader } from '@/ui';
 import { canAccessMenu, pathMenuId } from '@/lib/roles';
+import { countingMenuSections } from './counting-menu';
 import { ResultToast } from './ResultToast';
 import { useWorkspace } from './WorkspaceProvider';
 import { PageActionProvider } from './PageAction';
@@ -21,6 +22,7 @@ export function CountingShell({
   error?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const workspace = useWorkspace();
   const [headerAction, setHeaderAction] = useState<ReactNode>(null);
   const role = workspace?.storeRole || 'owner';
@@ -31,6 +33,15 @@ export function CountingShell({
   const activeBrand = workspace?.brands.find((brand) => brand._id === workspace.activeBrandId);
   const activeStore = workspace?.stores.find((store) => store._id === workspace.activeStoreId);
   const contextLabel = [activeBrand?.name, activeStore?.name].filter(Boolean).join(' · ');
+
+  useEffect(() => {
+    if (!workspace || allowed) return;
+    const fallback =
+      countingMenuSections.find((section) =>
+        canAccessMenu(role, section.id, workspace.isPlatformAdmin, workspace.permissions),
+      )?.href || '/counting/profile';
+    if (fallback !== pathname) router.replace(fallback);
+  }, [allowed, pathname, role, router, workspace]);
 
   return (
     <MainWrapper className="min-h-0 flex-1 rounded-[22px] bg-content-gradient shadow-lg">
@@ -46,13 +57,13 @@ export function CountingShell({
               خرید اشتراک
             </Link>
           ) : (
-            <span>از صاحب برند بخواهید اشتراک را تمدید کند.</span>
+            <span>از ادمین بخواهید اشتراک را تمدید کند.</span>
           )}
         </div>
       ) : null}
       <ResultToast message={error} />
       <PageActionProvider onAction={setHeaderAction}>
-        {allowed ? children : <p className="text-sm text-muted-foreground">به این بخش دسترسی ندارید.</p>}
+        {allowed ? children : null}
       </PageActionProvider>
     </MainWrapper>
   );
