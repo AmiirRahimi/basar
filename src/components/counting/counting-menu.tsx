@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Link2,
   Scissors,
-  Settings,
   Shirt,
   Sparkles,
   Undo2,
@@ -26,5 +25,4 @@ export const countingMenuSections: CountingMenuSection[] = [
   { id: 'fabric', name: 'خرید پارچه', icon: Scissors, href: '/counting/fabric', menuItems: [] },
   { id: 'account', name: 'حساب', icon: Wallet, href: '/counting/account', menuItems: [] },
   { id: 'returned', name: 'برگشتی', icon: Undo2, href: '/counting/returned', menuItems: [] },
-  { id: 'profile', name: 'تنظیمات', icon: Settings, href: '/counting/profile', menuItems: [] },
 ];
