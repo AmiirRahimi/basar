@@ -183,6 +183,7 @@ function AccountSection({
             value={city}
             onChange={(v) => setCity(String(v || ''))}
             options={IRAN_CITY_OPTIONS}
+            placeholder="انتخاب شهر"
             searchable
             labels={selectLabels}
           />

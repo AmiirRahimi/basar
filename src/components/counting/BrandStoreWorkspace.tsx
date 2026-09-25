@@ -160,6 +160,7 @@ function StoreFields({
         value={form.city}
         onChange={(value) => patch({ city: String(value || '') })}
         options={IRAN_CITY_OPTIONS}
+        placeholder="انتخاب شهر"
         searchable
         labels={selectLabels}
       />
@@ -217,6 +218,7 @@ function StoreFields({
                 value={String(warehouse.city || '')}
                 onChange={(value) => patchWarehouse(index, { city: String(value || '') })}
                 options={IRAN_CITY_OPTIONS}
+                placeholder="انتخاب شهر"
                 searchable
                 labels={selectLabels}
               />
