@@ -79,9 +79,13 @@ function InfoBlock({
 export function InvoiceBijakView({
   invoice,
   sender,
+  backHref,
+  invoiceHref,
 }: {
   invoice: Invoice;
   sender?: BijakSender | null;
+  backHref?: string;
+  invoiceHref?: string;
 }) {
   const client = asPerson(invoice._client);
   const store = asStore(invoice._storeId);
@@ -127,12 +131,12 @@ export function InvoiceBijakView({
       `}</style>
 
       <div className="no-print mx-auto mb-5 flex w-[min(20rem,100%)] flex-wrap items-center justify-between gap-3">
-        <Link href={`/counting/invoices/${invoice._id}`} className="text-sm text-primary">
+        <Link href={backHref || `/counting/invoices/${invoice._id}`} className="text-sm text-primary">
           بازگشت به فاکتور
         </Link>
         <div className="flex flex-wrap gap-2">
           <Link
-            href={`/counting/invoices/${invoice._id}/print`}
+            href={invoiceHref || `/counting/invoices/${invoice._id}/print`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-9 items-center rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700"

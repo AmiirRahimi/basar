@@ -27,6 +27,8 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  if (pathname.includes('/print') || pathname.endsWith('/bijak')) return children;
+
   function setPinned(next: boolean) {
     setSidebarPinned(next);
     setSidebarHovered(next);

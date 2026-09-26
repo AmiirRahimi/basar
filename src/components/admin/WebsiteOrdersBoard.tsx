@@ -6,7 +6,7 @@ import { setWebsiteOrderStatus } from '@/actions/admin';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { WEBSITE_ORDER_STATUSES, type WebsiteOrderBoard } from '@/lib/website-orders';
-import { toast } from '@/ui';
+import { Select, toast } from '@/ui';
 
 export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
   const router = useRouter();
@@ -138,21 +138,26 @@ export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
                     ))}
                   </ul>
                 ) : null}
-                <label className="mt-3 flex max-w-xs flex-col gap-1 text-xs text-gray-500">
-                  وضعیت سفارش
-                  <select
-                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
-                    value={order.status}
-                    disabled={pending && pendingId === order.id}
-                    onChange={(event) => changeStatus(order.id, event.target.value)}
-                  >
-                    {WEBSITE_ORDER_STATUSES.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+                  <div className="w-full max-w-xs">
+                    <Select
+                      label="وضعیت سفارش"
+                      value={order.status}
+                      disabled={pending && pendingId === order.id}
+                      options={WEBSITE_ORDER_STATUSES.map((item) => ({ value: item.id, label: item.label }))}
+                      labels={{ search: 'جستجو', remove: 'حذف', noOptionsFound: 'موردی نیست' }}
+                      onChange={(value) => changeStatus(order.id, String(value || ''))}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    <a href={`/admin/orders/${order.id}/print`} target="_blank" rel="noreferrer" className="text-teal-700 hover:underline">
+                      چاپ فاکتور
+                    </a>
+                    <a href={`/admin/orders/${order.id}/bijak`} target="_blank" rel="noreferrer" className="text-teal-700 hover:underline">
+                      چاپ بیجک
+                    </a>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

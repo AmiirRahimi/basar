@@ -14,6 +14,7 @@ import { fileModels } from './file-db';
 import * as mongo from './models';
 import { fail, ok, type ActionResult } from './result';
 import { requirePlatformAdmin } from './admin';
+import { getShopIdentity } from './shop-account';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -198,6 +199,72 @@ export async function getWebsiteOrderBoard(): Promise<ActionResult> {
     }),
   };
   return ok(serialize(board));
+}
+
+const invoicePopulate = [
+  {
+    path: '_client',
+    select: '_id fullName city role address phoneNumber',
+  },
+  {
+    path: '_storeId',
+    select: '_id name address city phones phonenumbers landlines _brandId _userId',
+    populate: [
+      { path: '_brandId', select: '_id name color' },
+      { path: '_userId', select: '_id fullName phonenumber address city' },
+    ],
+  },
+  { path: '_brandId', select: '_id name' },
+];
+
+function phonesMatch(left: unknown, right: unknown) {
+  const normalize = (value: unknown) => text(value).replace(/\D/g, '').replace(/^0+/, '');
+  const a = normalize(left);
+  const b = normalize(right);
+  return Boolean(a && a === b);
+}
+
+export async function getWebsiteInvoiceDocument(id: string): Promise<ActionResult> {
+  await db();
+  const invoice = await M()
+    .Invoice.findOne({ _id: oid(id), isDeleted: false })
+    .populate(invoicePopulate)
+    .lean();
+  if (!invoice || !text((invoice as { publicToken?: unknown }).publicToken)) {
+    return fail('سفارش وب‌سایت پیدا نشد', 404);
+  }
+  const admin = await requirePlatformAdmin();
+  if ('error' in admin) {
+    const identity = await getShopIdentity();
+    const client = (invoice as { _client?: { phoneNumber?: unknown } })._client;
+    const phone = client && typeof client === 'object' ? client.phoneNumber : '';
+    if (!identity || !phonesMatch(phone, identity.phonenumber)) return fail('به این سفارش دسترسی ندارید', 403);
+  }
+  const lines = await M()
+    .CustomerCart.find({ _invoice: oid(id), isDeleted: false })
+    .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
+    .lean();
+  const namedLines = (lines as Record<string, unknown>[]).map((line) => {
+    const cloth = line._cloth;
+    if (!cloth || typeof cloth !== 'object') return line;
+    return { ...line, _cloth: { ...cloth, name: clothName(cloth) } };
+  });
+  const store = (invoice as { _storeId?: { name?: string; _brandId?: { name?: string } } })._storeId;
+  const brandFromStore = store && typeof store === 'object' ? store._brandId : null;
+  const brand =
+    brandFromStore && typeof brandFromStore === 'object'
+      ? brandFromStore
+      : (invoice as { _brandId?: { name?: string } })._brandId;
+  return ok(
+    serialize({
+      invoice: {
+        ...invoice,
+        storeName: store && typeof store === 'object' ? text(store.name) : '',
+        brandName: brand && typeof brand === 'object' ? text(brand.name) : '',
+      },
+      lines: namedLines,
+    }),
+  );
 }
 
 export async function setWebsiteOrderStatus(id: string, status: string): Promise<ActionResult> {

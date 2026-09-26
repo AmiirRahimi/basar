@@ -2,7 +2,8 @@
 
 import { checkoutWholesale } from '@/actions/shop';
 import { useShopCart } from './CartProvider';
-import { shopInputClass, ShopButton, ShopField } from './ShopUi';
+import { ShopButton } from './ShopUi';
+import { Input, Textarea } from '@/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
@@ -49,15 +50,9 @@ export function CheckoutForm({
           آدرس و سفارش‌های قبلی را نگه می‌دارد. اگر در شمارش حساب دارید، همان شماره کافی است.
         </p>
       ) : null}
-      <ShopField label="نام فروشگاه / خریدار">
-        <input className={shopInputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-      </ShopField>
-      <ShopField label="موبایل">
-        <input className={shopInputClass} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="09xxxxxxxxx" />
-      </ShopField>
-      <ShopField label="آدرس تحویل">
-        <textarea className={shopInputClass} rows={3} value={address} onChange={(e) => setAddress(e.target.value)} required />
-      </ShopField>
+      <Input label="نام فروشگاه / خریدار" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+      <Input label="موبایل" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="09xxxxxxxxx" />
+      <Textarea label="آدرس تحویل" rows={3} value={address} onChange={(e) => setAddress(e.target.value)} required />
       <p className="text-sm text-shop-ink/60">
         {storefront
           ? 'پس از ثبت مشخصات به درگاه پرداخت می‌روید. سفارش عمده برای همین فروشنده ثبت می‌شود.'

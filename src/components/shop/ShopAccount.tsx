@@ -6,7 +6,8 @@ import type { ShopAccountView } from '@/lib/shop-account';
 import { toast } from '@/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
-import { shopInputClass, ShopButton } from './ShopUi';
+import { ShopButton } from './ShopUi';
+import { Input, Textarea } from '@/ui';
 
 function toEnDigits(value: string) {
   return value.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/\s/g, '');
@@ -166,31 +167,15 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
             }}
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block space-y-1.5">
-                <span className="text-xs tracking-[0.16em] text-shop-ink/50">نام و نام خانوادگی</span>
-                <input className={shopInputClass} value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" />
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-xs tracking-[0.16em] text-shop-ink/50">موبایل</span>
-                <input className={shopInputClass} dir="ltr" value={account.phonenumber} disabled />
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-xs tracking-[0.16em] text-shop-ink/50">شهر</span>
-                <input className={shopInputClass} value={city} onChange={(event) => setCity(event.target.value)} autoComplete="address-level2" />
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-xs tracking-[0.16em] text-shop-ink/50">ایمیل</span>
-                <input className={shopInputClass} dir="ltr" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
-              </label>
+              <Input label="نام و نام خانوادگی" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" />
+              <Input label="موبایل" dir="ltr" value={account.phonenumber} disabled />
+              <Input label="شهر" value={city} onChange={(event) => setCity(event.target.value)} autoComplete="address-level2" />
+              <Input label="ایمیل" dir="ltr" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
             </div>
-            <label className="block space-y-1.5">
-              <span className="text-xs tracking-[0.16em] text-shop-ink/50">آدرس تحویل</span>
-              <textarea className={shopInputClass} rows={3} value={address} onChange={(event) => setAddress(event.target.value)} autoComplete="street-address" />
-            </label>
-            <label className="block max-w-xs space-y-1.5">
-              <span className="text-xs tracking-[0.16em] text-shop-ink/50">کد پستی</span>
-              <input
-                className={shopInputClass}
+            <Textarea label="آدرس تحویل" rows={3} value={address} onChange={(event) => setAddress(event.target.value)} autoComplete="street-address" />
+            <div className="max-w-xs">
+              <Input
+                label="کد پستی"
                 dir="ltr"
                 inputMode="numeric"
                 autoComplete="postal-code"
@@ -198,10 +183,9 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
                 value={postalCode}
                 onChange={(event) => setPostalCode(toEnDigits(event.target.value).replace(/\D/g, '').slice(0, 10))}
               />
-            </label>
+            </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs tracking-[0.16em] text-shop-ink/50">تلفن ثابت</span>
+              <div className="flex items-center justify-end">
                 <button
                   type="button"
                   className="text-xs text-shop-ink/70 hover:text-shop-ink"
@@ -211,15 +195,17 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
                 </button>
               </div>
               {landlines.map((line, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    className={shopInputClass}
+                <div key={index} className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                  <Input
+                    label={index === 0 ? 'تلفن ثابت' : undefined}
                     dir="ltr"
                     inputMode="tel"
                     placeholder="021xxxxxxxx"
                     value={line}
                     onChange={(event) => updateLine(index, event.target.value)}
                   />
+                  </div>
                   {landlines.length > 1 ? (
                     <button
                       type="button"
@@ -268,6 +254,14 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
                     ))}
                   </ul>
                   <p className="mt-3 text-sm font-medium text-shop-ink">{toman(order.total)}</p>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                    <a href={`/account/orders/${order.id}/print`} target="_blank" rel="noreferrer" className="text-shop-ink underline decoration-shop-saffron underline-offset-4">
+                      چاپ فاکتور
+                    </a>
+                    <a href={`/account/orders/${order.id}/bijak`} target="_blank" rel="noreferrer" className="text-shop-ink underline decoration-shop-saffron underline-offset-4">
+                      چاپ بیجک
+                    </a>
+                  </div>
                 </li>
               ))}
             </ul>

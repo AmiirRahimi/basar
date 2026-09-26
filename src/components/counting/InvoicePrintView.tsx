@@ -7,7 +7,19 @@ import { formatPacksFa } from '@/lib/packs';
 import type { CartLine, Invoice } from '@/lib/types';
 import { Price } from './Price';
 
-export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: CartLine[] }) {
+export function InvoicePrintView({
+  invoice,
+  lines,
+  backHref = '/counting/invoices',
+  backLabel = 'بازگشت به فاکتورها',
+  bijakHref,
+}: {
+  invoice: Invoice;
+  lines: CartLine[];
+  backHref?: string;
+  backLabel?: string;
+  bijakHref?: string;
+}) {
   const totalCount = lines.reduce((sum, line) => sum + Number(line.count || 0), 0);
   const totalAmount = lines.reduce(
     (sum, line) => sum + Number(line.count || 0) * Number(line.price || 0),
@@ -17,11 +29,11 @@ export function InvoicePrintView({ invoice, lines }: { invoice: Invoice; lines: 
   return (
     <div className="print-container mx-auto min-h-screen max-w-3xl bg-white p-6 text-gray-900" dir="rtl">
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/counting/invoices" className="text-sm text-primary">
-          بازگشت به فاکتورها
+        <Link href={backHref} className="text-sm text-primary">
+          {backLabel}
         </Link>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/counting/invoices/${invoice._id}/bijak`} target="_blank" rel="noopener noreferrer">
+          <Link href={bijakHref || `/counting/invoices/${invoice._id}/bijak`} target="_blank" rel="noopener noreferrer">
             <Button variant="outline">چاپ بیجک</Button>
           </Link>
           <Button onClick={() => window.print()}>چاپ</Button>

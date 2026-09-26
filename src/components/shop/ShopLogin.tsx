@@ -5,10 +5,10 @@ import { sendOtp } from '@/actions/auth';
 import { OTP_TTL_MS } from '@/lib/constants';
 import { shopReturnPath } from '@/lib/shop-account';
 import { faNumber } from '@/lib/format';
-import { toast } from '@/ui';
+import { Input, toast } from '@/ui';
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { shopInputClass, ShopButton } from './ShopUi';
+import { ShopButton } from './ShopUi';
 
 function toEnDigits(value: string) {
   return value.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/\s/g, '');
@@ -113,10 +113,9 @@ export function ShopLogin({ next = '' }: { next?: string }) {
         </p>
 
         {step === 'phone' ? (
-          <label className="mt-6 block space-y-2">
-            <span className="text-xs tracking-[0.16em] text-shop-ink/50">موبایل</span>
-            <input
-              className={`${shopInputClass} py-3 text-lg tracking-wide`}
+          <div className="mt-6">
+            <Input
+              label="موبایل"
               dir="ltr"
               inputMode="tel"
               autoComplete="tel"
@@ -125,22 +124,20 @@ export function ShopLogin({ next = '' }: { next?: string }) {
               onChange={(event) => setPhonenumber(toEnDigits(event.target.value).slice(0, 11))}
               required
             />
-          </label>
+          </div>
         ) : (
           <div className="mt-6 space-y-4">
-            <label className="block space-y-2">
-              <span className="text-xs tracking-[0.16em] text-shop-ink/50">کد یک‌بارمصرف</span>
-              <input
-                className={`${shopInputClass} py-3 text-center text-2xl tracking-[0.4em]`}
-                dir="ltr"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="------"
-                value={code}
-                onChange={(event) => setCode(toEnDigits(event.target.value).replace(/\D/g, '').slice(0, 6))}
-                required
-              />
-            </label>
+            <Input
+              label="کد یک‌بارمصرف"
+              dir="ltr"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="------"
+              className="text-center tracking-[0.4em]"
+              value={code}
+              onChange={(event) => setCode(toEnDigits(event.target.value).replace(/\D/g, '').slice(0, 6))}
+              required
+            />
             <div className="flex items-center justify-between gap-3 text-xs text-shop-ink/55">
               <button type="button" className="underline-offset-4 hover:underline" onClick={() => setStep('phone')}>
                 تغییر شماره
