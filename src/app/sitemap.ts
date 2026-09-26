@@ -10,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const collections = collectionsForSeo(products, kinds);
   const { byId } = collectionSlugs(collections);
 
-  const staticPaths = ['/', '/catalog', '/about', '/contact', '/counting'];
+  const staticPaths = ['/', '/catalog', '/about', '/contact', '/accounting'];
   const now = new Date();
 
   return [
@@ -18,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: absoluteUrl(path),
       lastModified: now,
       changeFrequency: 'daily' as const,
-      priority: path === '/' || path === '/counting' ? 1 : 0.8,
+      priority: path === '/' || path === '/accounting' ? 1 : 0.8,
     })),
     ...collections.map((collection) => ({
       url: `${origin}/c/${encodeURIComponent(byId.get(collection.id) || collection.id)}`,

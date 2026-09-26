@@ -25,14 +25,14 @@ export async function loginWithOtp(form: { phonenumber: string; code: string; pa
   const res = await loginDb(form);
   if (res.ok) {
     const admin = (process.env.ADMIN_PHONENUMBER || '').trim();
-    redirect(admin && form.phonenumber === admin ? '/admin' : '/counting/dashboard');
+    redirect(admin && form.phonenumber === admin ? '/admin' : '/accounting/dashboard');
   }
   return res;
 }
 
 export async function logout() {
   await logoutDb();
-  redirect('/counting/login');
+  redirect('/accounting/login');
 }
 
 export async function getSessionUser() {

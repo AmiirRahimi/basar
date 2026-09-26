@@ -9,6 +9,7 @@ const RESERVED = new Set([
   'catalog',
   'checkout',
   'contact',
+  'accounting',
   'counting',
   'basar',
   'login',

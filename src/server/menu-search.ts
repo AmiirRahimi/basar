@@ -49,7 +49,7 @@ export async function recordMenuSearch(input: {
   const query = String(input.query || '').trim().slice(0, 80);
   const href = String(input.href || '').trim();
   const label = String(input.label || '').trim().slice(0, 80);
-  if (!query || !href.startsWith('/counting/')) {
+  if (!query || !href.startsWith('/accounting/')) {
     return getRecentMenuSearches();
   }
 

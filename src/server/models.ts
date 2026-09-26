@@ -19,9 +19,9 @@ const UserSchema = defineSchema(
     email: { type: String, default: null },
     city: { type: String, default: null },
     address: { type: String, default: null },
-    /** Buyer name on the shop. Counting fullName stays as entered there. */
+    /** Buyer name on the shop. Accounting fullName stays as entered there. */
     shopFullName: { type: String, default: '' },
-    /** Delivery address for website orders. Counting address stays separate until the buyer accepts it. */
+    /** Delivery address for website orders. Accounting address stays separate until the buyer accepts it. */
     shopAddress: { type: String, default: '' },
     shopCity: { type: String, default: '' },
     postalCode: { type: String, default: '' },
@@ -373,7 +373,7 @@ const InvoiceSchema = defineSchema(
     payoutPaidAt: { type: Date, default: null },
     payoutNote: { type: String, default: '' },
     isSent: { type: Boolean, required: true, default: false },
-    /** Website order progress. Empty on counting invoices. */
+    /** Website order progress. Empty on accounting invoices. */
     orderStatus: { type: String, default: '' },
     timeStamp: { type: Date, default: Date.now },
     isDeleted: { type: Boolean, default: false },
@@ -622,7 +622,7 @@ const SmsCampaignSchema = defineSchema(
 
 const ConversationSchema = defineSchema(
   {
-    channel: { type: String, required: true, enum: ['counting', 'shop'], index: true },
+    channel: { type: String, required: true, enum: ['accounting', 'counting', 'shop'], index: true },
     status: { type: String, required: true, enum: ['open', 'closed'], default: 'open', index: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     visitorName: { type: String, default: '' },

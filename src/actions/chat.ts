@@ -4,35 +4,35 @@ import type { ChatChannel } from '@/lib/chat-types';
 import {
   adminUnread as adminUnreadServer,
   closeAdminConversation as closeAdminConversationServer,
-  countingUnread as countingUnreadServer,
+  accountingUnread as accountingUnreadServer,
   getAdminThread as getAdminThreadServer,
-  getCountingThread as getCountingThreadServer,
+  getAccountingThread as getAccountingThreadServer,
   getShopThread as getShopThreadServer,
   listAdminConversations as listAdminConversationsServer,
-  markCountingRead as markCountingReadServer,
+  markAccountingRead as markAccountingReadServer,
   markShopRead as markShopReadServer,
   reopenAdminConversation as reopenAdminConversationServer,
   sendAdminMessage as sendAdminMessageServer,
-  sendCountingMessage as sendCountingMessageServer,
+  sendAccountingMessage as sendAccountingMessageServer,
   sendShopMessage as sendShopMessageServer,
   shopUnread as shopUnreadServer,
   startShopThread as startShopThreadServer,
 } from '@/server/chat';
 
-export async function getCountingThread() {
-  return getCountingThreadServer();
+export async function getAccountingThread() {
+  return getAccountingThreadServer();
 }
 
-export async function sendCountingMessage(body: string) {
-  return sendCountingMessageServer(body);
+export async function sendAccountingMessage(body: string) {
+  return sendAccountingMessageServer(body);
 }
 
-export async function markCountingRead() {
-  return markCountingReadServer();
+export async function markAccountingRead() {
+  return markAccountingReadServer();
 }
 
-export async function countingUnread() {
-  return countingUnreadServer();
+export async function accountingUnread() {
+  return accountingUnreadServer();
 }
 
 export async function getShopThread() {

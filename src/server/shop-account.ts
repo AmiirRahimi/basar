@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { mergePacks, parsePacks } from '@/lib/packs';
 import { normalizeWebsiteOrderStatus, websiteOrderStatusLabel } from '@/lib/website-orders';
 import { OTP_TTL_MS, PHONE_RE, SESSION_DAYS, SHOP_COOKIE, SHOP_GUEST_COOKIE } from '@/lib/constants';
-import type { CountingAddressOffer, ShopAccountView, ShopOrder, ShopViewer } from '@/lib/shop-account';
+import type { AccountingAddressOffer, ShopAccountView, ShopOrder, ShopViewer } from '@/lib/shop-account';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
@@ -60,7 +60,7 @@ function displayName(user: { shopFullName?: string; fullName?: string } | null |
   return text(user?.shopFullName) || text(user?.fullName);
 }
 
-type ShopIdentity = { _id: string; phonenumber: string; viaCounting: boolean };
+type ShopIdentity = { _id: string; phonenumber: string; viaAccounting: boolean };
 
 async function identityFromShopCookie(): Promise<ShopIdentity | null> {
   const jar = await cookies();
@@ -69,7 +69,7 @@ async function identityFromShopCookie(): Promise<ShopIdentity | null> {
   try {
     const payload = jwt.verify(token, accessSecret(), { algorithms: ['HS256'] }) as jwt.JwtPayload;
     if (payload.sub !== 'shop' || !payload._id || !payload.phonenumber) return null;
-    return { _id: String(payload._id), phonenumber: String(payload.phonenumber), viaCounting: false };
+    return { _id: String(payload._id), phonenumber: String(payload.phonenumber), viaAccounting: false };
   } catch {
     return null;
   }
@@ -83,7 +83,7 @@ export async function getShopIdentity(): Promise<ShopIdentity | null> {
   if (jar.get(SHOP_GUEST_COOKIE)?.value) return null;
   const session = await getSession();
   if (!session?._id || !session.phonenumber) return null;
-  return { _id: session._id, phonenumber: session.phonenumber, viaCounting: true };
+  return { _id: session._id, phonenumber: session.phonenumber, viaAccounting: true };
 }
 
 async function userByIdentity(identity: ShopIdentity) {
@@ -116,13 +116,13 @@ function cleanLandlines(value: unknown) {
   return [...new Set(list.map((item) => text(item)).filter(Boolean))].slice(0, 6);
 }
 
-async function countingAddresses(user: Record<string, unknown>): Promise<CountingAddressOffer[]> {
-  const offers: CountingAddressOffer[] = [];
+async function accountingAddresses(user: Record<string, unknown>): Promise<AccountingAddressOffer[]> {
+  const offers: AccountingAddressOffer[] = [];
   const profileAddress = text(user.address);
   if (profileAddress) {
     offers.push({
       id: 'profile',
-      label: 'این آدرس را در اپ شمارش وارد کرده‌اید',
+      label: 'این آدرس را در پنل حسابداری وارد کرده‌اید',
       address: profileAddress,
       city: cityText(user.city),
       landlines: [],
@@ -141,7 +141,7 @@ async function countingAddresses(user: Record<string, unknown>): Promise<Countin
     if (offers.some((offer) => offer.address === address)) continue;
     offers.push({
       id: `store:${idOf(store._id)}`,
-      label: `این آدرس را برای فروشگاه «${text(store.name) || 'فروشگاه'}» در شمارش ثبت کرده‌اید`,
+      label: `این آدرس را برای فروشگاه «${text(store.name) || 'فروشگاه'}» در پنل حسابداری ثبت کرده‌اید`,
       address,
       city: cityText(store.city),
       landlines: cleanLandlines(store.landlines),
@@ -231,8 +231,8 @@ export async function getShopAccount(): Promise<ShopAccountView | null> {
     ...viewerFromUser(user),
     email: text(user.email),
     landlines: cleanLandlines(user.landlines),
-    viaCounting: identity.viaCounting,
-    countingAddresses: await countingAddresses(user),
+    viaAccounting: identity.viaAccounting,
+    accountingAddresses: await accountingAddresses(user),
     orders,
   }) as ShopAccountView;
 }
@@ -364,14 +364,14 @@ export async function saveShopProfile(input: {
   }
 }
 
-export async function acceptCountingAddress(id: string): Promise<ActionResult> {
+export async function acceptAccountingAddress(id: string): Promise<ActionResult> {
   try {
     await db();
     const access = await requireShopUser();
     if ('error' in access) return access.error;
-    const offers = await countingAddresses(access.user);
+    const offers = await accountingAddresses(access.user);
     const offer = offers.find((item) => item.id === String(id || ''));
-    if (!offer) return fail('این آدرس دیگر در شمارش نیست');
+    if (!offer) return fail('این آدرس دیگر در پنل حسابداری نیست');
     const currentLines = cleanLandlines(access.user.landlines);
     const landlines = currentLines.length ? currentLines : offer.landlines;
     const city = text(access.user.shopCity) || offer.city || cityText(access.user.city);
@@ -383,7 +383,7 @@ export async function acceptCountingAddress(id: string): Promise<ActionResult> {
         landlines,
       },
     );
-    return ok(null, 'آدرس شمارش برای تحویل سفارش ثبت شد');
+    return ok(null, 'آدرس پنل حسابداری برای تحویل سفارش ثبت شد');
   } catch {
     return failDb();
   }

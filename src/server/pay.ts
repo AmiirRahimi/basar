@@ -148,7 +148,7 @@ export async function startSubscriptionPayment(
     const intentId = String(intent._id);
     if (amount <= 0) {
       const done = await fulfillPaidIntent(intentId, 'free');
-      return done.ok ? ok({ redirectUrl: '/counting/profile?tab=subscription&paid=1' }, done.message) : done;
+      return done.ok ? ok({ redirectUrl: '/accounting/profile?tab=subscription&paid=1' }, done.message) : done;
     }
     const pay = await requestGatewayPayment({
       amountToman: amount,
@@ -167,7 +167,7 @@ export async function startSubscriptionPayment(
     );
     if (!pay.redirectUrl) {
       const done = await fulfillPaidIntent(intentId, pay.authority);
-      return done.ok ? ok({ redirectUrl: '/counting/profile?tab=subscription&paid=1' }, done.message) : done;
+      return done.ok ? ok({ redirectUrl: '/accounting/profile?tab=subscription&paid=1' }, done.message) : done;
     }
     return ok({ redirectUrl: pay.redirectUrl }, 'در حال انتقال به درگاه پرداخت');
   } catch {
@@ -185,9 +185,9 @@ async function fulfillPaidIntent(intentId: string, refId: string): Promise<Actio
         invoices,
         redirectUrl:
           row.kind === 'subscription'
-            ? '/counting/profile?tab=subscription&paid=1'
+            ? '/accounting/profile?tab=subscription&paid=1'
             : row.kind === 'image-tokens'
-              ? '/counting/images?paid=1'
+              ? '/accounting/images?paid=1'
               : undefined,
       },
       'پرداخت قبلاً ثبت شده',
@@ -230,7 +230,7 @@ async function fulfillPaidIntent(intentId: string, refId: string): Promise<Actio
       return granted;
     }
     await M().PaymentIntent.updateOne({ _id: intentId }, { status: 'paid', refId, paidAt: new Date() });
-    return ok({ redirectUrl: '/counting/images?paid=1' }, granted.message || 'توکن به حساب اضافه شد');
+    return ok({ redirectUrl: '/accounting/images?paid=1' }, granted.message || 'توکن به حساب اضافه شد');
   }
 
   const sub = row.snapshot as SubscriptionSnapshot;
@@ -250,7 +250,7 @@ async function fulfillPaidIntent(intentId: string, refId: string): Promise<Actio
     return bought;
   }
   await M().PaymentIntent.updateOne({ _id: intentId }, { status: 'paid', refId, paidAt: new Date() });
-  return ok({ redirectUrl: '/counting/profile?tab=subscription&paid=1' }, bought.message || 'اشتراک فعال شد');
+  return ok({ redirectUrl: '/accounting/profile?tab=subscription&paid=1' }, bought.message || 'اشتراک فعال شد');
 }
 
 export async function completeGatewayPayment(input: {

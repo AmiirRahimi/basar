@@ -70,5 +70,5 @@ export function personPaymentsPrintHref(
   const params = new URLSearchParams();
   params.set('scope', options.scope);
   if (options.ids?.length) params.set('ids', options.ids.join(','));
-  return `/counting/account/${personId}/payments/print?${params.toString()}`;
+  return `/accounting/account/${personId}/payments/print?${params.toString()}`;
 }

@@ -3,8 +3,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
-import { CountingSidebar } from '@/components/counting/CountingSidebar';
-import { useWorkspace } from '@/components/counting/WorkspaceProvider';
+import { AccountingSidebar } from '@/components/accounting/AccountingSidebar';
+import { useWorkspace } from '@/components/accounting/WorkspaceProvider';
 import { canOpenAdminPath, firstAdminHref, hasAdminPermission, type AdminPermissionId } from '@/lib/admin-permissions';
 import { adminMenuGroups, adminMenuSections } from './admin-menu';
 
@@ -40,7 +40,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!workspace || allowed) return;
-    const next = firstAdminHref(workspace.adminPermissions) || '/counting/dashboard';
+    const next = firstAdminHref(workspace.adminPermissions) || '/accounting/dashboard';
     if (next !== pathname) router.replace(next);
   }, [allowed, pathname, router, workspace]);
 
@@ -59,7 +59,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
 
   return (
     <main className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
-      <CountingSidebar
+      <AccountingSidebar
         pathname={pathname}
         menuSections={sections}
         groups={adminMenuGroups}

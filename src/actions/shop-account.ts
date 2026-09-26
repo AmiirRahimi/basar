@@ -1,7 +1,7 @@
 'use server';
 
 import {
-  acceptCountingAddress as acceptDb,
+  acceptAccountingAddress as acceptDb,
   getShopAccount as accountDb,
   getShopViewer as viewerDb,
   loginShopWithOtp as loginDb,
@@ -36,6 +36,6 @@ export async function saveShopProfile(input: {
   return saveDb(input);
 }
 
-export async function acceptCountingAddress(id: string) {
+export async function acceptAccountingAddress(id: string) {
   return acceptDb(id);
 }

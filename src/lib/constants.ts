@@ -1,8 +1,8 @@
 export const ACCESS_COOKIE = 'basar_access';
 export const REFRESH_COOKIE = 'basar_refresh';
-/** Shop buyer session. Separate from the counting app session. */
+/** Shop buyer session. Separate from the accounting app session. */
 export const SHOP_COOKIE = 'basar_shop';
-/** When set, the shop does not treat a counting login as a shop login. */
+/** When set, the shop does not treat an accounting login as a shop login. */
 export const SHOP_GUEST_COOKIE = 'basar_shop_guest';
 export const CART_COOKIE = 'basar_wholesale_cart';
 export const SHARE_TOKEN_COOKIE = 'basar_share_token';
@@ -103,7 +103,7 @@ export type StoreRole = 'owner' | StoreStaffRole;
 export const BRAND_COLORS = ['#0f766e', '#b45309', '#7c3aed', '#be123c', '#0369a1', '#365314'];
 
 export const PHONE_RE = /^0(9)\d{9}$/;
-/** Counting login OTP lifetime. Resend is allowed after this window. */
+/** Accounting login OTP lifetime. Resend is allowed after this window. */
 export const OTP_TTL_MS = 120_000;
 
 export const DEFAULT_MOQ = 12;

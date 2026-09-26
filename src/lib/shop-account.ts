@@ -1,4 +1,4 @@
-export type CountingAddressOffer = {
+export type AccountingAddressOffer = {
   id: string;
   label: string;
   address: string;
@@ -36,14 +36,14 @@ export type ShopViewer = {
 export type ShopAccountView = ShopViewer & {
   email: string;
   landlines: string[];
-  viaCounting: boolean;
-  countingAddresses: CountingAddressOffer[];
+  viaAccounting: boolean;
+  accountingAddresses: AccountingAddressOffer[];
   orders: ShopOrder[];
 };
 
 export function shopReturnPath(value: unknown) {
   const text = String(value || '').trim();
   if (!text.startsWith('/') || text.startsWith('//') || text.includes('\\') || text.includes('://')) return '';
-  if (text.startsWith('/counting') || text.startsWith('/admin') || text.startsWith('/login')) return '';
+  if (text.startsWith('/accounting') || text.startsWith('/admin') || text.startsWith('/login')) return '';
   return text.slice(0, 200);
 }

@@ -1,4 +1,4 @@
-import { RecordDetailPage } from '@/components/counting/RecordDetailPage';
+import { RecordDetailPage } from '@/components/accounting/RecordDetailPage';
 import { notFound } from 'next/navigation';
 
 const DROPDOWNS = new Set(['color', 'size', 'cloth-kind', 'cloth-style']);

@@ -21,7 +21,7 @@ export function shopOrganizationLd() {
   };
 }
 
-export function countingSoftwareLd() {
+export function accountingSoftwareLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -29,7 +29,7 @@ export function countingSoftwareLd() {
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     description: 'نرم‌افزار حسابداری تحت وب مخصوص عمده‌فروشی پوشاک',
-    url: absoluteUrl('/counting'),
+    url: absoluteUrl('/accounting'),
     offers: {
       '@type': 'Offer',
       priceCurrency: 'IRR',

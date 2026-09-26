@@ -1,6 +1,6 @@
 'use client';
 
-import { acceptCountingAddress, logoutShop, saveShopProfile } from '@/actions/shop-account';
+import { acceptAccountingAddress, logoutShop, saveShopProfile } from '@/actions/shop-account';
 import { faDate, faNumber, toman } from '@/lib/format';
 import type { ShopAccountView } from '@/lib/shop-account';
 import { toast } from '@/ui';
@@ -51,7 +51,7 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedKey]);
 
-  const offers = account.countingAddresses.filter((offer) => !hiddenOffers.includes(offer.id) && offer.address !== address.trim());
+  const offers = account.accountingAddresses.filter((offer) => !hiddenOffers.includes(offer.id) && offer.address !== address.trim());
   const missing = [
     !fullName.trim() ? 'نام' : '',
     !address.trim() ? 'آدرس تحویل' : '',
@@ -82,9 +82,9 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
     });
   }
 
-  function useCountingAddress(id: string) {
+  function useAccountingAddress(id: string) {
     start(async () => {
-      const res = await acceptCountingAddress(id);
+      const res = await acceptAccountingAddress(id);
       if (!res.ok) {
         toast.error(res.message || 'آدرس اضافه نشد');
         return;
@@ -121,8 +121,8 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
         </ShopButton>
       </div>
 
-      {account.viaCounting ? (
-        <p className="mt-4 text-sm text-shop-ink/60">با همین شماره در شمارش هم وارد هستید. آدرس تحویل فروشگاه جدا ذخیره می‌شود.</p>
+      {account.viaAccounting ? (
+        <p className="mt-4 text-sm text-shop-ink/60">با همین شماره در پنل حسابداری هم وارد هستید. آدرس تحویل فروشگاه جدا ذخیره می‌شود.</p>
       ) : null}
 
       {missing.length ? (
@@ -149,7 +149,7 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
               ) : null}
               <p className="mt-3 text-sm text-shop-ink/65">اگر می‌خواهید، همین را آدرس تحویل سفارش‌ها کنید.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <ShopButton disabled={pending} onClick={() => useCountingAddress(offer.id)}>
+                <ShopButton disabled={pending} onClick={() => useAccountingAddress(offer.id)}>
                   بله، استفاده شود
                 </ShopButton>
                 <ShopButton variant="outline" disabled={pending} onClick={() => setHiddenOffers((current) => [...current, offer.id])}>

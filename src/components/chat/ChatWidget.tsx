@@ -5,12 +5,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MessageCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
-  countingUnread,
-  getCountingThread,
+  accountingUnread,
+  getAccountingThread,
   getShopThread,
-  markCountingRead,
+  markAccountingRead,
   markShopRead,
-  sendCountingMessage,
+  sendAccountingMessage,
   sendShopMessage,
   shopUnread,
   startShopThread,
@@ -21,7 +21,7 @@ import { ChatPanel } from './ChatPanel';
 import { NewMessageBadge } from './NewMessageBadge';
 import { useChatPolling } from './useChatPolling';
 
-type Variant = 'counting' | 'shop';
+type Variant = 'accounting' | 'shop';
 
 export function ChatWidget({
   variant,
@@ -46,14 +46,14 @@ export function ChatWidget({
   const needsGuestForm = variant === 'shop' && !thread;
 
   const refreshUnread = useCallback(async () => {
-    const res = variant === 'counting' ? await countingUnread() : await shopUnread();
+    const res = variant === 'accounting' ? await accountingUnread() : await shopUnread();
     if (res.ok && res.data) setUnread(res.data.unread);
   }, [variant]);
 
   const refreshThread = useCallback(async () => {
     try {
-      if (variant === 'counting') {
-        const res = await getCountingThread();
+      if (variant === 'accounting') {
+        const res = await getAccountingThread();
         if (res.ok) {
           if (res.data) {
             maybeToastNewReply(res.data);
@@ -126,7 +126,7 @@ export function ChatWidget({
       try {
         await refreshThread();
         if (cancelled) return;
-        if (variant === 'counting') await markCountingRead();
+        if (variant === 'accounting') await markAccountingRead();
         else await markShopRead();
         if (!cancelled) setUnread(0);
       } catch {
@@ -140,7 +140,7 @@ export function ChatWidget({
 
   async function handleSend(body: string) {
     try {
-      const res = variant === 'counting' ? await sendCountingMessage(body) : await sendShopMessage(body);
+      const res = variant === 'accounting' ? await sendAccountingMessage(body) : await sendShopMessage(body);
       if (!res.ok) {
         toast.error(res.message || 'ارسال نشد');
         return false;
@@ -249,7 +249,7 @@ export function ChatWidget({
               </div>
             ) : (
               <ChatPanel
-                title={variant === 'shop' ? 'پشتیبانی فروشگاه' : 'پشتیبانی شمارش'}
+                title={variant === 'shop' ? 'پشتیبانی فروشگاه' : 'پشتیبانی حسابداری'}
                 subtitle={
                   thread?.conversation.status === 'closed'
                     ? 'گفتگوی قبلی بسته شده — پیام جدید گفتگوی تازه می‌سازد'

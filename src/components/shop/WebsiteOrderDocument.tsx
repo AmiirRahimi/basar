@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { InvoiceDocument } from '@/components/counting/InvoiceDocument';
+import { InvoiceDocument } from '@/components/accounting/InvoiceDocument';
 import type { CartLine, Invoice } from '@/lib/types';
 import { getWebsiteInvoiceDocument } from '@/server/website-orders';
 

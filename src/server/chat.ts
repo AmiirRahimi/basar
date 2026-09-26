@@ -27,6 +27,9 @@ function M(): any {
   return dbEngine() === 'file' ? fileModels : mongo;
 }
 
+/** Chats saved before the panel was renamed still use `counting`. */
+const ACCOUNTING_CHANNELS = { $in: ['accounting', 'counting'] };
+
 function failDto<T>(message: string, status = 400): ActionResult<T> {
   return fail(message, status) as ActionResult<T>;
 }
@@ -97,14 +100,14 @@ function conversationTitle(row: any, userName?: string): string {
   if (row.channel === 'shop') {
     return String(row.visitorName || 'مهمان فروشگاه').trim() || 'مهمان فروشگاه';
   }
-  return (userName || '').trim() || 'کاربر شمارش';
+  return (userName || '').trim() || 'کاربر حسابداری';
 }
 
 function toConversationDto(
   row: any,
   extras?: { userFullName?: string; contactPhone?: string },
 ): ChatConversationDto {
-  const channel = (row.channel === 'shop' ? 'shop' : 'counting') as ChatChannel;
+  const channel = (row.channel === 'shop' ? 'shop' : 'accounting') as ChatChannel;
   const dto: ChatConversationDto = {
     _id: String(row._id),
     channel,
@@ -227,7 +230,7 @@ async function threadFor(
   };
 }
 
-async function countingExtras(session: { _id: string; phonenumber: string }) {
+async function accountingExtras(session: { _id: string; phonenumber: string }) {
   const names = await loadUserNames([session._id]);
   const info = names.get(session._id);
   return {
@@ -236,13 +239,13 @@ async function countingExtras(session: { _id: string; phonenumber: string }) {
   };
 }
 
-async function createCountingConversation(session: {
+async function createAccountingConversation(session: {
   _id: string;
   _storeId: string;
   _brandId: string;
 }) {
   const created = await M().Conversation.create({
-    channel: 'counting',
+    channel: 'accounting',
     status: 'open',
     userId: oid(session._id),
     storeId: session._storeId ? oid(session._storeId) : null,
@@ -257,16 +260,16 @@ async function createCountingConversation(session: {
 }
 
 /** Latest open thread, or most recent closed (history) — never creates empty chats. */
-export async function getCountingThread(): Promise<ActionResult<ChatThreadDto | null>> {
+export async function getAccountingThread(): Promise<ActionResult<ChatThreadDto | null>> {
   try {
-    return await loadCountingThread();
+    return await loadAccountingThread();
   } catch (error) {
-    console.error('[chat] getCountingThread', error);
+    console.error('[chat] getAccountingThread', error);
     return failDto('گفتگو بارگذاری نشد');
   }
 }
 
-async function loadCountingThread(): Promise<ActionResult<ChatThreadDto | null>> {
+async function loadAccountingThread(): Promise<ActionResult<ChatThreadDto | null>> {
   const access = await withWorkspace();
   if ('error' in access) return access.error as ActionResult<ChatThreadDto | null>;
   await db();
@@ -275,7 +278,7 @@ async function loadCountingThread(): Promise<ActionResult<ChatThreadDto | null>>
   const userKey = oid(session._id);
   let row = await M()
     .Conversation.findOne({
-      channel: 'counting',
+      channel: ACCOUNTING_CHANNELS,
       userId: userKey,
       status: 'open',
     })
@@ -285,7 +288,7 @@ async function loadCountingThread(): Promise<ActionResult<ChatThreadDto | null>>
   if (!row) {
     row = await M()
       .Conversation.findOne({
-        channel: 'counting',
+        channel: ACCOUNTING_CHANNELS,
         userId: userKey,
       })
       .sort({ lastMessageAt: -1 })
@@ -295,7 +298,7 @@ async function loadCountingThread(): Promise<ActionResult<ChatThreadDto | null>>
   if (!row) {
     row = await M()
       .Conversation.findOne({
-        channel: 'counting',
+        channel: ACCOUNTING_CHANNELS,
         userId: session._id,
         status: 'open',
       })
@@ -305,7 +308,7 @@ async function loadCountingThread(): Promise<ActionResult<ChatThreadDto | null>>
   if (!row) {
     row = await M()
       .Conversation.findOne({
-        channel: 'counting',
+        channel: ACCOUNTING_CHANNELS,
         userId: session._id,
       })
       .sort({ lastMessageAt: -1 })
@@ -313,10 +316,10 @@ async function loadCountingThread(): Promise<ActionResult<ChatThreadDto | null>>
   }
 
   if (!row) return ok(null);
-  return ok(await threadFor(row, await countingExtras(session)));
+  return ok(await threadFor(row, await accountingExtras(session)));
 }
 
-export async function sendCountingMessage(bodyRaw: unknown): Promise<ActionResult<ChatThreadDto>> {
+export async function sendAccountingMessage(bodyRaw: unknown): Promise<ActionResult<ChatThreadDto>> {
   const access = await withWorkspace();
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   const body = clipBody(bodyRaw);
@@ -330,17 +333,17 @@ export async function sendCountingMessage(bodyRaw: unknown): Promise<ActionResul
   const userKey = oid(session._id);
   let row =
     (await M()
-      .Conversation.findOne({ channel: 'counting', userId: userKey, status: 'open' })
+      .Conversation.findOne({ channel: ACCOUNTING_CHANNELS, userId: userKey, status: 'open' })
       .sort({ lastMessageAt: -1 })
       .lean()) ||
     (await M()
-      .Conversation.findOne({ channel: 'counting', userId: session._id, status: 'open' })
+      .Conversation.findOne({ channel: ACCOUNTING_CHANNELS, userId: session._id, status: 'open' })
       .sort({ lastMessageAt: -1 })
       .lean());
 
   // Closed thread stays in history — start a fresh open conversation
   if (!row) {
-    row = await createCountingConversation(session);
+    row = await createAccountingConversation(session);
   }
 
   const conversationId = String((row as any)._id);
@@ -353,36 +356,36 @@ export async function sendCountingMessage(bodyRaw: unknown): Promise<ActionResul
   await bumpConversation(conversationId, body, true);
 
   const refreshed = await M().Conversation.findById(oid(conversationId)).lean();
-  return ok(await threadFor(refreshed || row, await countingExtras(session)));
+  return ok(await threadFor(refreshed || row, await accountingExtras(session)));
 }
 
-export async function markCountingRead(): Promise<ActionResult<{ unread: number }>> {
+export async function markAccountingRead(): Promise<ActionResult<{ unread: number }>> {
   try {
     const access = await withWorkspace();
     if ('error' in access) return access.error as ActionResult<{ unread: number }>;
     await db();
     await M().Conversation.updateMany(
-      { channel: 'counting', userId: oid(access.session._id) },
+      { channel: ACCOUNTING_CHANNELS, userId: oid(access.session._id) },
       { unreadForVisitor: 0 },
     );
     await M().Conversation.updateMany(
-      { channel: 'counting', userId: access.session._id },
+      { channel: ACCOUNTING_CHANNELS, userId: access.session._id },
       { unreadForVisitor: 0 },
     );
     return ok({ unread: 0 });
   } catch (error) {
-    console.error('[chat] markCountingRead', error);
+    console.error('[chat] markAccountingRead', error);
     return ok({ unread: 0 });
   }
 }
 
-export async function countingUnread(): Promise<ActionResult<{ unread: number }>> {
+export async function accountingUnread(): Promise<ActionResult<{ unread: number }>> {
   const access = await withWorkspace();
   if ('error' in access) return access.error as ActionResult<{ unread: number }>;
   await db();
   const rows = await M()
     .Conversation.find({
-      channel: 'counting',
+      channel: ACCOUNTING_CHANNELS,
       $or: [{ userId: oid(access.session._id) }, { userId: access.session._id }],
     })
     .select('unreadForVisitor')
@@ -516,13 +519,14 @@ export async function listAdminConversations(
   await db();
 
   const filter: Record<string, unknown> = {};
-  if (channel === 'counting' || channel === 'shop') filter.channel = channel;
+  if (channel === 'accounting') filter.channel = ACCOUNTING_CHANNELS;
+  else if (channel === 'shop') filter.channel = channel;
   if (status === 'open' || status === 'closed') filter.status = status;
 
   const rows = await M().Conversation.find(filter).sort({ lastMessageAt: -1 }).limit(300).lean();
 
   const userIds = (rows as any[])
-    .filter((row) => row.channel === 'counting' && row.userId)
+    .filter((row) => (row.channel === 'accounting' || row.channel === 'counting') && row.userId)
     .map((row) => String(row.userId));
   const names = await loadUserNames(userIds);
 

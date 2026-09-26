@@ -14,7 +14,7 @@ import {
   Ticket,
   Users,
 } from 'lucide-react';
-import type { CountingMenuSection } from '@/components/counting/CountingSidebar';
+import type { AccountingMenuSection } from '@/components/accounting/AccountingSidebar';
 
 export const adminMenuGroups = [
   { label: 'سوپریوزر', ids: ['access'] },
@@ -24,7 +24,7 @@ export const adminMenuGroups = [
   { label: 'فروشگاه', ids: ['orders', 'storefront', 'website', 'dropdowns'] },
 ];
 
-export const adminMenuSections: CountingMenuSection[] = [
+export const adminMenuSections: AccountingMenuSection[] = [
   { id: 'access', name: 'دسترسی پنل ادمین', icon: Shield, href: '/admin/access', menuItems: [] },
   { id: 'dashboard', name: 'داشبورد', icon: LayoutDashboard, href: '/admin', menuItems: [] },
   { id: 'users', name: 'کاربران و اشتراک', icon: Users, href: '/admin/users', menuItems: [] },

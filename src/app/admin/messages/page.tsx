@@ -1,4 +1,4 @@
-import { CountingShell } from '@/components/counting/CountingShell';
+import { AccountingShell } from '@/components/accounting/AccountingShell';
 import { ChatInbox } from '@/components/chat/ChatInbox';
 import { listAdminConversations } from '@/actions/chat';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
@@ -11,9 +11,9 @@ export default async function AdminMessagesPage() {
   const unread = res.ok && res.data ? res.data.unread : 0;
 
   return (
-    <CountingShell
+    <AccountingShell
       title="پیام‌ها"
-      description="گفتگوهای پشتیبانی کاربران شمارش و مشتریان فروشگاه. از اینجا پاسخ دهید."
+      description="گفتگوهای پشتیبانی کاربران حسابداری و مشتریان فروشگاه. از اینجا پاسخ دهید."
       error={errorMessage(res)}
     >
       {res.ok ? (
@@ -21,6 +21,6 @@ export default async function AdminMessagesPage() {
       ) : (
         <p className="text-sm text-muted-foreground">{res.message || 'به این بخش دسترسی ندارید.'}</p>
       )}
-    </CountingShell>
+    </AccountingShell>
   );
 }

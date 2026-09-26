@@ -30,12 +30,12 @@ function withHeaders(response: NextResponse) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublicCounting =
-    pathname === '/counting' ||
-    pathname === '/counting/' ||
-    pathname.startsWith('/counting/login');
+  const isPublicAccounting =
+    pathname === '/accounting' ||
+    pathname === '/accounting/' ||
+    pathname.startsWith('/accounting/login');
   const isAdminApp = pathname === '/admin' || pathname.startsWith('/admin/');
-  if ((!pathname.startsWith('/counting') && !isAdminApp) || isPublicCounting) {
+  if ((!pathname.startsWith('/accounting') && !isAdminApp) || isPublicAccounting) {
     return withHeaders(NextResponse.next());
   }
   const access = request.cookies.get(ACCESS_COOKIE)?.value || '';
@@ -46,12 +46,12 @@ export async function middleware(request: NextRequest) {
   const refreshSession = refresh && refreshSecret ? await jwtHs256Payload(refresh, refreshSecret) : null;
   if (!accessSession && !refreshSession) {
     const url = request.nextUrl.clone();
-    url.pathname = '/counting/login';
+    url.pathname = '/accounting/login';
     return withHeaders(NextResponse.redirect(url));
   }
   return withHeaders(NextResponse.next());
 }
 
 export const config = {
-  matcher: ['/counting/:path*', '/admin', '/admin/:path*'],
+  matcher: ['/accounting/:path*', '/admin', '/admin/:path*'],
 };

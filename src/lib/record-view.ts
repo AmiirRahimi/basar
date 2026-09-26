@@ -8,12 +8,12 @@ export const RECORD_SLUGS: Record<string, string> = {
 };
 
 export const RECORD_LIST_HREF: Record<string, string> = {
-  person: '/counting/people',
-  cloth: '/counting/clothes',
-  invoice: '/counting/invoices',
-  check: '/counting/checks',
-  fabric: '/counting/fabric',
-  returned: '/counting/returned',
+  person: '/accounting/people',
+  cloth: '/accounting/clothes',
+  invoice: '/accounting/invoices',
+  check: '/accounting/checks',
+  fabric: '/accounting/fabric',
+  returned: '/accounting/returned',
   color: '/admin/dropdowns',
   size: '/admin/dropdowns',
   'cloth-kind': '/admin/dropdowns',
@@ -60,12 +60,12 @@ const DROPDOWN_RESOURCES = new Set(['color', 'size', 'cloth-kind', 'cloth-style'
 export function recordViewPath(resource: string, id: string) {
   const key = String(id || '').trim();
   if (!key) return '#';
-  if (resource === 'person') return `/counting/people/${key}`;
-  if (resource === 'cloth') return `/counting/clothes/${key}`;
-  if (resource === 'invoice') return `/counting/invoices/${key}`;
-  if (resource === 'check') return `/counting/checks/${key}`;
-  if (resource === 'fabric') return `/counting/fabric/${key}`;
-  if (resource === 'returned') return `/counting/returned/${key}`;
+  if (resource === 'person') return `/accounting/people/${key}`;
+  if (resource === 'cloth') return `/accounting/clothes/${key}`;
+  if (resource === 'invoice') return `/accounting/invoices/${key}`;
+  if (resource === 'check') return `/accounting/checks/${key}`;
+  if (resource === 'fabric') return `/accounting/fabric/${key}`;
+  if (resource === 'returned') return `/accounting/returned/${key}`;
   if (DROPDOWN_RESOURCES.has(resource)) return `/admin/dropdowns/${resource}/${key}`;
   if (resource === 'admin-user') return `/admin/records/users/${key}`;
   if (resource === 'admin-purchase') return `/admin/records/purchases/${key}`;

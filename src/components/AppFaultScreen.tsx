@@ -27,8 +27,8 @@ export function AppFaultScreen({
         <Button type="button" variant={onRetry ? 'outline' : 'primary'} onClick={() => { window.location.href = '/'; }}>
           صفحه اصلی
         </Button>
-        <Button type="button" variant="ghost" onClick={() => { window.location.href = '/counting'; }}>
-          پنل شمارش
+        <Button type="button" variant="ghost" onClick={() => { window.location.href = '/accounting'; }}>
+          پنل حسابداری
         </Button>
       </div>
     </div>

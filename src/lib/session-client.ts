@@ -7,6 +7,6 @@ export function isUnauthorized(res: { ok: boolean; status?: number; message?: st
 /** Sends an expired session back to login without a toast. */
 export function redirectIfUnauthorized(res: { ok: boolean; status?: number; message?: string }) {
   if (!isUnauthorized(res)) return false;
-  window.location.assign('/counting/login');
+  window.location.assign('/accounting/login');
   return true;
 }

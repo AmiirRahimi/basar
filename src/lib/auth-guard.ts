@@ -12,7 +12,7 @@ export function isUnauthorized(res: Guardable) {
  */
 export function guardSession(...results: Guardable[]) {
   if (results.some(isUnauthorized)) {
-    redirect('/counting/login');
+    redirect('/accounting/login');
   }
 }
 

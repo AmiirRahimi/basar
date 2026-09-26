@@ -12,10 +12,10 @@ export default async function PayCallbackPage({
   const status = params.Status || params.status || '';
   const result = await finishGatewayPayment({ authority, status });
   if (result.ok && result.data?.kind === 'subscription') {
-    redirect(result.data.redirectUrl || '/counting/profile?tab=subscription&paid=1');
+    redirect(result.data.redirectUrl || '/accounting/profile?tab=subscription&paid=1');
   }
   if (result.ok && result.data?.kind === 'image-tokens') {
-    redirect(result.data.redirectUrl || '/counting/images?paid=1');
+    redirect(result.data.redirectUrl || '/accounting/images?paid=1');
   }
   if (result.ok) {
     await clearShopCheckout();

@@ -4,7 +4,7 @@ function textOf(value: unknown) {
   return String(name || '').trim();
 }
 
-/** Same product title on counting invoices and website order prints. */
+/** Same product title on accounting invoices and website order prints. */
 export function clothLabel(cloth: unknown) {
   if (!cloth || typeof cloth !== 'object') return 'لباس';
   const row = cloth as { code?: unknown; name?: unknown; _type?: unknown; _style?: unknown };

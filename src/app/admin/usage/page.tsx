@@ -1,5 +1,5 @@
-import { CountingShell } from '@/components/counting/CountingShell';
-import { AdminUsageBoard, type UsageReport } from '@/components/counting/AdminUsageBoard';
+import { AccountingShell } from '@/components/accounting/AccountingShell';
+import { AdminUsageBoard, type UsageReport } from '@/components/accounting/AdminUsageBoard';
 import { getAdminUsageReport } from '@/actions/admin-usage';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 
@@ -7,7 +7,7 @@ export default async function AdminUsagePage() {
   const res = await getAdminUsageReport();
   guardSession(res);
   return (
-    <CountingShell
+    <AccountingShell
       title="اشتراک و توکن"
       description="وضعیت اشتراک‌ها و توکن ساخت تصویر: خرید، مصرف، مانده و درآمد هر ماه."
       error={errorMessage(res)}
@@ -17,6 +17,6 @@ export default async function AdminUsagePage() {
       ) : (
         <p className="text-sm text-muted-foreground">{res.message || 'به این بخش دسترسی ندارید.'}</p>
       )}
-    </CountingShell>
+    </AccountingShell>
   );
 }

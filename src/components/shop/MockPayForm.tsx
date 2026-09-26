@@ -26,11 +26,11 @@ export function MockPayForm({
         return;
       }
       if (kind === 'subscription' || res.data?.kind === 'subscription') {
-        window.location.href = res.data?.redirectUrl || '/counting/profile?tab=subscription&paid=1';
+        window.location.href = res.data?.redirectUrl || '/accounting/profile?tab=subscription&paid=1';
         return;
       }
       if (kind === 'image-tokens' || res.data?.kind === 'image-tokens') {
-        window.location.href = res.data?.redirectUrl || '/counting/images?paid=1';
+        window.location.href = res.data?.redirectUrl || '/accounting/images?paid=1';
         return;
       }
       const ids = (res.data?.invoices || []).map((invoice) => invoice.id).join(',');

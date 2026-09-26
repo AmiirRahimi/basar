@@ -1,5 +1,5 @@
 import { AdminAccessBoard, type AdminAccessAccount, type AdminAccessGrant } from '@/components/admin/AdminAccessBoard';
-import { CountingShell } from '@/components/counting/CountingShell';
+import { AccountingShell } from '@/components/accounting/AccountingShell';
 import { getAdminPanelAccess } from '@/actions/admin';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 
@@ -8,7 +8,7 @@ export default async function AdminAccessPage() {
   guardSession(res);
   const data = (res.ok ? res.data : null) as { accounts?: AdminAccessAccount[]; grants?: AdminAccessGrant[] } | null;
   return (
-    <CountingShell
+    <AccountingShell
       title="دسترسی پنل ادمین"
       description="سوپریوزر از اینجا مشخص می‌کند چه کسی کدام بخش پنل ادمین را ببیند. این فهرست جدا از دسترسی همکاران فروشگاه و برند است."
       error={errorMessage(res)}
@@ -18,6 +18,6 @@ export default async function AdminAccessPage() {
       ) : (
         <p className="text-sm text-muted-foreground">{res.message || 'به این بخش دسترسی ندارید.'}</p>
       )}
-    </CountingShell>
+    </AccountingShell>
   );
 }

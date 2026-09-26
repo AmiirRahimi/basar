@@ -3,10 +3,10 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { BadgePercent, MessageSquare, ShoppingBag, Sparkles, Users } from 'lucide-react';
-import type { AdminOverview } from '@/components/counting/AdminPanel';
-import type { UsageReport } from '@/components/counting/AdminUsageBoard';
+import type { AdminOverview } from '@/components/accounting/AdminPanel';
+import type { UsageReport } from '@/components/accounting/AdminUsageBoard';
 import type { WebsiteOrderBoard } from '@/lib/website-orders';
-import { ChartCard, Donut, HBars, MonthBars } from '@/components/counting/DashboardCharts';
+import { ChartCard, Donut, HBars, MonthBars } from '@/components/accounting/DashboardCharts';
 import { PERSIAN_MONTHS, persianYearMonth } from '@/lib/checks';
 import { faDate, faNumber, toman } from '@/lib/format';
 

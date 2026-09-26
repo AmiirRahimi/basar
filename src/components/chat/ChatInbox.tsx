@@ -19,7 +19,7 @@ import { useChatPolling } from './useChatPolling';
 
 const CHANNEL_FILTERS: { id: ChatChannel | 'all'; label: string }[] = [
   { id: 'all', label: 'همه' },
-  { id: 'counting', label: 'شمارش' },
+  { id: 'accounting', label: 'حسابداری' },
   { id: 'shop', label: 'فروشگاه' },
 ];
 
@@ -185,7 +185,7 @@ export function ChatInbox({
             className="h-full"
             title={thread.conversation.title}
             subtitle={[
-              thread.conversation.channel === 'shop' ? 'فروشگاه' : 'شمارش',
+              thread.conversation.channel === 'shop' ? 'فروشگاه' : 'حسابداری',
               thread.conversation.contactPhone,
               isClosed ? 'بسته' : null,
             ]

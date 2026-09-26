@@ -1,4 +1,4 @@
-export type ChatChannel = 'counting' | 'shop';
+export type ChatChannel = 'accounting' | 'shop';
 export type ChatStatus = 'open' | 'closed';
 export type ChatSender = 'admin' | 'user' | 'visitor';
 
@@ -27,7 +27,7 @@ export type ChatConversationDto = {
   unreadForVisitor: number;
   /** Display title for inbox / header */
   title: string;
-  /** Counting user phone / shop phone */
+  /** Accounting user phone / shop phone */
   contactPhone?: string;
   userFullName?: string;
 };

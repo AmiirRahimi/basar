@@ -24,6 +24,12 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'dpioaivrbfistssbxokr.supabase.co' },
     ],
   },
+  async redirects() {
+    return [
+      { source: '/counting', destination: '/accounting', permanent: false },
+      { source: '/counting/:path*', destination: '/accounting/:path*', permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

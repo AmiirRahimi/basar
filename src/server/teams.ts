@@ -61,7 +61,7 @@ function newInviteToken() {
 async function inviteLinkFor(token: string) {
   const origin = await publicAppOrigin();
   if (!origin || !token) return '';
-  return `${origin}/counting/invite/${token}`;
+  return `${origin}/accounting/invite/${token}`;
 }
 
 export async function activateTeamMemberships(userId: string, phonenumber: string) {
@@ -222,7 +222,7 @@ export async function pendingInvitesFor(userId: string, phonenumber: string): Pr
   return rows.map((row: any) => {
     const team = teamById.get(String(row._teamId));
     const ownerId = idOf(row.invitedBy) || idOf(team?._userId);
-    const link = row.inviteToken && origin ? `${origin}/counting/invite/${row.inviteToken}` : '';
+    const link = row.inviteToken && origin ? `${origin}/accounting/invite/${row.inviteToken}` : '';
     return inviteView(row, team, ownerName.get(ownerId) || '', brands, stores, link);
   });
 }
@@ -234,7 +234,7 @@ export async function ownedPeopleFor(userId: string): Promise<TeamMember[]> {
     .lean();
   const origin = await publicAppOrigin();
   return members.map((row: any) =>
-    memberView(row, row.inviteToken && origin ? `${origin}/counting/invite/${row.inviteToken}` : ''),
+    memberView(row, row.inviteToken && origin ? `${origin}/accounting/invite/${row.inviteToken}` : ''),
   );
 }
 

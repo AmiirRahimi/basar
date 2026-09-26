@@ -1,7 +1,7 @@
-import { CountingShell } from '@/components/counting/CountingShell';
+import { AccountingShell } from '@/components/accounting/AccountingShell';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
-import { type AdminOverview } from '@/components/counting/AdminPanel';
-import { type UsageReport } from '@/components/counting/AdminUsageBoard';
+import { type AdminOverview } from '@/components/accounting/AdminPanel';
+import { type UsageReport } from '@/components/accounting/AdminUsageBoard';
 import { getAdminOverview, getWebsiteOrderBoard } from '@/actions/admin';
 import { getAdminUsageReport } from '@/actions/admin-usage';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
@@ -15,7 +15,7 @@ export default async function AdminDashboardPage() {
   ]);
   guardSession(overview, usage, website);
   return (
-    <CountingShell
+    <AccountingShell
       title="داشبورد ادمین"
       description="ورود کاربران، پیام‌های بی‌پاسخ، سود اشتراک و فروش وب‌سایت."
       error={errorMessage(overview) || errorMessage(usage) || errorMessage(website)}
@@ -31,6 +31,6 @@ export default async function AdminDashboardPage() {
           {overview.message || usage.message || 'به این بخش دسترسی ندارید.'}
         </p>
       )}
-    </CountingShell>
+    </AccountingShell>
   );
 }

@@ -132,6 +132,6 @@ export function paymentMethodCounts(payments: AccountPayment[]) {
 }
 
 export function personPaymentsHref(personId: string, invoiceId?: string) {
-  const base = `/counting/account/${personId}/payments`;
+  const base = `/accounting/account/${personId}/payments`;
   return invoiceId ? `${base}?invoice=${invoiceId}` : base;
 }

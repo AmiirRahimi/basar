@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getAdminOverview } from '@/actions/admin';
-import { CountingShell } from '@/components/counting/CountingShell';
-import { RecordDetail, RecordMissing } from '@/components/counting/RecordDetail';
+import { AccountingShell } from '@/components/accounting/AccountingShell';
+import { RecordDetail, RecordMissing } from '@/components/accounting/RecordDetail';
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { RECORD_LIST_TITLE, RECORD_TYPE_LABEL } from '@/lib/record-view';
 
@@ -30,12 +30,12 @@ export default async function AdminRecordPage({
   const row = Array.isArray(list) ? list.find((item) => String(item._id) === id) : null;
 
   return (
-    <CountingShell
+    <AccountingShell
       title={RECORD_TYPE_LABEL[resource] || 'جزئیات'}
       description={RECORD_LIST_TITLE[resource]}
       error={errorMessage(overview)}
     >
       {row ? <RecordDetail resource={resource} row={row} /> : <RecordMissing resource={resource} />}
-    </CountingShell>
+    </AccountingShell>
   );
 }
