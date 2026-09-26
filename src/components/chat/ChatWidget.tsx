@@ -182,8 +182,7 @@ export function ChatWidget({
       : 'bg-teal-700 text-white shadow-teal-900/25 hover:bg-teal-800';
 
   const anchor = cn(
-    'right-4 sm:right-6',
-    variant === 'shop' ? 'bottom-24 sm:bottom-6' : 'bottom-6',
+    variant === 'shop' ? 'right-4 bottom-24 sm:right-6 sm:bottom-6' : 'left-4 bottom-6 sm:left-6',
   );
 
   return (
@@ -197,7 +196,10 @@ export function ChatWidget({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            className="pointer-events-auto absolute bottom-full right-0 mb-3 flex h-[min(65vh,28rem)] w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-xl shadow-black/15"
+            className={cn(
+              'pointer-events-auto absolute bottom-full mb-3 flex h-[min(65vh,28rem)] w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-xl shadow-black/15',
+              variant === 'shop' ? 'right-0' : 'left-0',
+            )}
             dir="rtl"
           >
             {needsGuestForm ? (
