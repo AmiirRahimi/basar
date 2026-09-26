@@ -9,6 +9,7 @@ export type SubscriptionPlan = {
   maxBrands: number;
   maxStores: number;
   allowPartners: boolean;
+  allowMembers: boolean;
   allowClothImages: boolean;
   allowProductShare: boolean;
   allowShareSms: boolean;
@@ -59,6 +60,7 @@ export function planCardsGridClass(count: number) {
 
 const CORE_FEATURES = {
   invoice: { label: 'فاکتور، چک، البسه و پارچه', included: true as const },
+  members: { label: 'افزودن عضو به فروشگاه', included: true as const },
   partners: { label: 'شریک درآمد', included: true as const },
   images: { label: 'تصویر محصول', included: false as const },
   vitrin: { label: 'ویترین اختصاصی: لینک محصول، سبد و پرداخت مشتری (مثل فروشگاه خودت)', included: false as const },
@@ -70,11 +72,12 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'starter',
     name: 'پایه',
-    blurb: 'یک برند، یک حجره. کار روز: البسه، فاکتور، پارچه و چک — بدون شریک و بدون عکس.',
+    blurb: 'یک برند، یک حجره. کار روز: البسه، فاکتور، پارچه و چک — بدون عضو و بدون شریک.',
     monthlyPrice: MONTHLY_BASE_TOMAN,
     maxBrands: 1,
     maxStores: 1,
     allowPartners: false,
+    allowMembers: false,
     allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
@@ -83,6 +86,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       { label: 'یک برند', included: true },
       { label: 'یک فروشگاه', included: true },
       CORE_FEATURES.invoice,
+      { ...CORE_FEATURES.members, included: false },
       { ...CORE_FEATURES.partners, included: false },
       CORE_FEATURES.images,
       CORE_FEATURES.vitrin,
@@ -93,11 +97,12 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'partners',
     name: 'فروشگاه و شرکا',
-    blurb: 'دو فروشگاه روی یک برند، با ثبت شریک و سهم سود.',
+    blurb: 'دو فروشگاه روی یک برند، افزودن عضو با دسترسی، و ثبت شریک و سهم سود.',
     monthlyPrice: 2_500_000,
     maxBrands: 1,
     maxStores: 2,
     allowPartners: true,
+    allowMembers: true,
     allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
@@ -106,6 +111,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       { label: 'یک برند', included: true },
       { label: 'تا ۲ فروشگاه', included: true },
       CORE_FEATURES.invoice,
+      CORE_FEATURES.members,
       CORE_FEATURES.partners,
       CORE_FEATURES.images,
       CORE_FEATURES.vitrin,
@@ -116,11 +122,12 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'brands',
     name: 'ویترین',
-    blurb: 'برند و فروشگاه نامحدود، عکس لباس، لینک مشتری و پرداخت. قیمت این طرح با بقیه فرق دارد.',
+    blurb: 'برند و فروشگاه نامحدود، عضو و شریک، عکس لباس، لینک مشتری و پرداخت.',
     monthlyPrice: HIGHEST_PLAN_TOMAN,
     maxBrands: 99,
     maxStores: 99,
     allowPartners: true,
+    allowMembers: true,
     allowClothImages: true,
     allowProductShare: true,
     allowShareSms: true,
@@ -130,6 +137,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       { label: 'برند نامحدود', included: true },
       { label: 'فروشگاه نامحدود', included: true },
       CORE_FEATURES.invoice,
+      CORE_FEATURES.members,
       CORE_FEATURES.partners,
       { ...CORE_FEATURES.images, included: true },
       { ...CORE_FEATURES.vitrin, included: true },
@@ -217,6 +225,7 @@ function blankPlan(id: string): SubscriptionPlan {
     maxBrands: 1,
     maxStores: 1,
     allowPartners: false,
+    allowMembers: false,
     allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
@@ -268,6 +277,7 @@ function sanitizePlan(
     maxBrands: Math.min(99, Math.max(1, Math.round(Number(patch.maxBrands ?? base.maxBrands) || 1))),
     maxStores,
     allowPartners: Boolean(patch.allowPartners ?? base.allowPartners),
+    allowMembers: Boolean(patch.allowMembers ?? base.allowMembers),
     allowClothImages: Boolean(patch.allowClothImages ?? base.allowClothImages),
     allowProductShare: Boolean(patch.allowProductShare ?? base.allowProductShare),
     allowShareSms: Boolean(patch.allowShareSms ?? base.allowShareSms),
@@ -296,6 +306,7 @@ export function cycleFromLegacy(type?: number, cycle?: string): BillingCycle {
 export function planFeatureFlags(plan: SubscriptionPlan) {
   return {
     allowPartners: Boolean(plan.allowPartners),
+    allowMembers: Boolean(plan.allowMembers),
     allowClothImages: Boolean(plan.allowClothImages),
     allowProductShare: Boolean(plan.allowProductShare),
     allowShareSms: Boolean(plan.allowShareSms),

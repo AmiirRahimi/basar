@@ -38,6 +38,7 @@ export type SubscriptionSnapshot = {
   maxBrands: number;
   maxStores: number;
   allowPartners: boolean;
+  allowMembers: boolean;
   allowClothImages: boolean;
   allowProductShare: boolean;
   allowShareSms: boolean;
@@ -54,6 +55,7 @@ function inactiveSnapshot(): SubscriptionSnapshot {
     maxBrands: 0,
     maxStores: 0,
     allowPartners: false,
+    allowMembers: false,
     allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
@@ -83,7 +85,7 @@ export function snapshotFromRow(row: any): SubscriptionSnapshot {
 
 export function denyPlanFeature(
   sub: SubscriptionSnapshot,
-  feature: 'share' | 'share-sms' | 'product-sms' | 'cloth-images' | 'partners',
+  feature: 'share' | 'share-sms' | 'product-sms' | 'cloth-images' | 'partners' | 'members',
 ) {
   if (!sub.active) return fail('اشتراک تمام شده است. فقط مشاهده ممکن است.', 403);
   if (feature === 'cloth-images' && !sub.allowClothImages) {
@@ -91,6 +93,9 @@ export function denyPlanFeature(
   }
   if (feature === 'partners' && !sub.allowPartners) {
     return fail('ثبت شریک در این طرح نیست. طرح فروشگاه و شرکا یا ویترین را فعال کنید.');
+  }
+  if (feature === 'members' && !sub.allowMembers) {
+    return fail('افزودن عضو در این طرح نیست. طرح فروشگاه و شرکا یا ویترین را فعال کنید.');
   }
   if (feature === 'share' && !sub.allowProductShare) {
     return fail('ساخت لینک محصول فقط در طرح ویترین است؛ این قابلیت مثل داشتن فروشگاه خودتان است. از تنظیمات طرح را ارتقا دهید.');

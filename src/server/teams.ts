@@ -381,6 +381,10 @@ async function sendInviteSms(input: {
 export async function addTeamPerson(payload: Record<string, unknown>): Promise<ActionResult> {
   const access = await requireOwnerSession();
   if ('error' in access) return access.error;
+  const { subscriptionForSession, denyPlanFeature } = await import('./subscription');
+  const sub = await subscriptionForSession(access.session);
+  const denied = denyPlanFeature(sub, 'members');
+  if (denied) return denied;
   const fullName = String(payload.fullName || '').trim();
   if (!fullName) return fail('نام الزامی است');
   const phonenumber = String(payload.phonenumber || '').trim();

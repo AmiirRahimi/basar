@@ -9,7 +9,9 @@ import { OWNER_PERMISSIONS, PERMISSION_GROUPS, PERMISSION_PRESETS } from '@/lib/
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { TeamMember } from '@/lib/types';
 import { Button, ButtonGroup, Checkbox, DatePicker, HintPopover, IconButton, Input, Modal, toast } from '@/ui';
+import { PlanLocked } from './PlanLocked';
 import { useWorkspace } from './WorkspaceProvider';
+import { useWritable } from './useWritable';
 
 const emptyForm = () => ({
   fullName: '',
@@ -23,6 +25,7 @@ const emptyForm = () => ({
 export function TeamsPanel() {
   const workspace = useWorkspace();
   const router = useRouter();
+  const writable = useWritable();
   const [pending, start] = useTransition();
   const [modalOpen, setModalOpen] = useState(false);
   const people = workspace?.teamPeople || [];
@@ -36,14 +39,20 @@ export function TeamsPanel() {
   const [brandIds, setBrandIds] = useState<string[]>([]);
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [form, setForm] = useState(emptyForm());
+  const allowMembers = Boolean(workspace?.isPlatformAdmin || workspace?.isSuperuser || workspace?.subscription?.allowMembers);
+  const canAdd = Boolean(brands.length && allowMembers && writable);
 
   usePageAddButton({
     label: 'افزودن عضو',
-    enabled: Boolean(brands.length),
+    enabled: canAdd,
     onClick: openAdd,
   });
 
   function openAdd() {
+    if (!allowMembers) {
+      toast.error('افزودن عضو در طرح فعلی نیست. طرح را ارتقا دهید.');
+      return;
+    }
     setForm(emptyForm());
     setBrandIds(workspace?.activeBrandId ? [workspace.activeBrandId] : []);
     setStoreIds(workspace?.activeStoreId ? [workspace.activeStoreId] : []);
@@ -76,6 +85,16 @@ export function TeamsPanel() {
       <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600 shadow-sm">
         ابتدا یک برند بسازید؛ بعد می‌توانید عضو به فروشگاه اضافه کنید.
       </div>
+    );
+  }
+
+  if (writable && !allowMembers) {
+    return (
+      <PlanLocked
+        title="اعضا"
+        what="عضو را به برند یا فروشگاه اضافه می‌کنید و سطح دسترسی‌اش را تعیین می‌کنید. در طرح پایه این کار نیست."
+        planHint="فروشگاه و شرکا یا ویترین"
+      />
     );
   }
 
