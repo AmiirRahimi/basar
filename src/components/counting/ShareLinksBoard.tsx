@@ -284,7 +284,7 @@ export function ShareLinksBoard({
             label="نام انگلیسی یکتا"
             value={catalogSlug || (catalogShare ? linkKey(catalogShare) : '')}
             onChange={(e) => setCatalogSlug(e.target.value)}
-            placeholder="jeanpoosh-store"
+            placeholder="basar-store"
             dir="ltr"
           />
           <Input label="عنوان نمایشی (اختیاری)" value={catalogTitle} onChange={(e) => setCatalogTitle(e.target.value)} />

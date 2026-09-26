@@ -17,7 +17,7 @@ export function pageShare({
   description,
   url,
   image,
-  siteName = 'جین پوش',
+  siteName = 'باسار',
 }: {
   title: string;
   description: string;

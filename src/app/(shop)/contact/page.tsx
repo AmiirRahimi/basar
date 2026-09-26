@@ -7,8 +7,8 @@ import { pageShare } from '@/lib/share-meta';
 import { absoluteUrl } from '@/lib/site';
 
 export const metadata: Metadata = pageShare({
-  title: 'تماس با جین پوش | حجره بازار آهنگران',
-  description: 'تلفن و نشانی حجره‌های جین پوش در بازار آهنگران، خیابان ۱۵ خرداد، برای خرید عمده پوشاک.',
+  title: 'تماس با باسار | حجره بازار آهنگران',
+  description: 'تلفن و نشانی حجره‌های باسار در بازار آهنگران، خیابان ۱۵ خرداد، برای خرید عمده پوشاک.',
   url: absoluteUrl('/contact'),
 });
 
@@ -68,7 +68,7 @@ export default function ContactPage() {
       <div className="mt-10 flex flex-wrap gap-3">
         <ShopButton href="/catalog">سفارش از کاتالوگ</ShopButton>
         <ShopButton href="/about" variant="outline">
-          درباره جین پوش
+          درباره باسار
         </ShopButton>
       </div>
     </div>

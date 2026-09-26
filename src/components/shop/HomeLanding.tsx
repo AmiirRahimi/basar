@@ -64,7 +64,7 @@ export function HomeLanding({
             <span className="mt-2 block text-shop-saffron">از بازار بزرگ تهران</span>
           </h1>
           <p className="max-w-xl text-base leading-7 text-shop-bone/75 sm:text-lg sm:leading-8">
-            جین پوش حجره خانواده رحیمی است. شلوار جین، کتان و پوشاک دیگر را عمده، با بسته، از بازار آهنگران می‌فرستیم — نه عدد تکی.
+            باسار حجره خانواده رحیمی است. شلوار جین، کتان و پوشاک دیگر را عمده، با بسته، از بازار آهنگران می‌فرستیم — نه عدد تکی.
           </p>
           <div className="flex flex-wrap gap-2 sm:gap-3">
             <ShopButton href="/catalog" className="px-5 py-2.5 text-sm sm:px-7 sm:py-3 sm:text-base">
@@ -111,7 +111,7 @@ export function HomeLanding({
           />
           <div>
             <p className="text-[11px] tracking-[0.28em] text-shop-saffron">از بازار آهنگران</p>
-            <h2 className="mt-3 text-2xl font-semibold leading-snug text-shop-bone sm:text-3xl md:text-5xl">جین پوش، کار خانواده رحیمی</h2>
+            <h2 className="mt-3 text-2xl font-semibold leading-snug text-shop-bone sm:text-3xl md:text-5xl">باسار، کار خانواده رحیمی</h2>
             <p className="mt-5 max-w-xl text-base leading-8 text-shop-bone/75">
               بیش از چهار دهه در بازار بزرگ تهران جین، کتان و پیراهن را برای فروشگاه‌ها و پخش‌کننده‌ها آماده کرده‌ایم. حجره‌های ما در کوچه
               کلانتری هنوز همان جایی است که خریداران عمده برای دیدن پارچه، رنگ و موجودی می‌آیند.

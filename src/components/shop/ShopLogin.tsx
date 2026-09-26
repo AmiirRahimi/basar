@@ -65,19 +65,20 @@ export function ShopLogin({ next = '' }: { next?: string }) {
 
   return (
     <section className="mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-stretch lg:px-6 lg:py-16" dir="rtl">
-      <div className="relative overflow-hidden rounded-[2rem] bg-shop-ink px-6 py-10 text-shop-bone sm:px-10 sm:py-14">
-        <div className="absolute -left-16 top-10 h-40 w-40 rounded-full bg-shop-saffron/20 blur-3xl" />
-        <p className="text-[11px] tracking-[0.28em] text-shop-saffron">جین پوش</p>
-        <h1 className="mt-3 max-w-md text-4xl font-semibold leading-tight sm:text-5xl">ورود با همان شماره موبایل</h1>
-        <p className="mt-4 max-w-md text-sm leading-7 text-shop-bone/70">
-          اگر در شمارش حساب دارید، همان حساب اینجاست. اگر نه، با همین شماره ساخته می‌شود. بعد از ورود، نام و آدرس تحویل را در
-          حساب کامل می‌کنید.
-        </p>
-        <ol className="mt-8 grid gap-3 text-sm text-shop-bone/80">
-          <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">۱. شماره موبایل</li>
-          <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">۲. کد یک‌بارمصرف</li>
-          <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">۳. تکمیل آدرس، کد پستی و تلفن ثابت</li>
-        </ol>
+      <div data-shop-dark className="relative overflow-hidden rounded-[2rem] bg-shop-ink px-6 py-10 text-shop-bone sm:px-10 sm:py-14">
+        <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-shop-saffron/20 blur-3xl" />
+        <div className="relative">
+          <p className="text-[11px] tracking-[0.28em] text-shop-saffron">خوش آمدید</p>
+          <h1 className="mt-3 max-w-md text-4xl font-semibold leading-tight text-shop-bone sm:text-5xl">به باسار خوش آمدید</h1>
+          <p className="mt-4 max-w-md text-sm leading-7 text-shop-bone/80">
+            برای دیدن سفارش‌ها و ادامه خرید، با شماره موبایل وارد شوید.
+          </p>
+          <ol className="mt-8 grid gap-3 text-sm text-shop-bone">
+            <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">شماره موبایل را وارد کنید</li>
+            <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">کد ورود را بنویسید</li>
+            <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">وارد حساب شوید</li>
+          </ol>
+        </div>
       </div>
 
       <form
@@ -102,14 +103,12 @@ export function ShopLogin({ next = '' }: { next?: string }) {
           });
         }}
       >
-        <p className="text-[11px] tracking-[0.22em] text-shop-ink/45">{step === 'otp' ? 'تایید شماره' : 'ورود یا ساخت حساب'}</p>
+        <p className="text-[11px] tracking-[0.22em] text-shop-ink/45">{step === 'otp' ? 'تایید ورود' : 'ورود'}</p>
         <h2 className="mt-2 text-2xl font-semibold text-shop-ink">
-          {step === 'otp' ? 'کد را وارد کنید' : 'شماره موبایل'}
+          {step === 'otp' ? 'کد را وارد کنید' : 'خوش آمدید'}
         </h2>
         <p className="mt-2 text-sm leading-7 text-shop-ink/60">
-          {step === 'otp'
-            ? `کد برای ${phonenumber} فرستاده شد.`
-            : 'فقط شماره لازم است. اگر حساب باشد وارد می‌شوید و اگر نباشد ساخته می‌شود.'}
+          {step === 'otp' ? `کد برای ${phonenumber} فرستاده شد.` : 'شماره موبایل را وارد کنید تا وارد شوید.'}
         </p>
 
         {step === 'phone' ? (

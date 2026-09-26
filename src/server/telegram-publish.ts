@@ -201,5 +201,5 @@ export async function invitePeopleToTelegramChannel(payload: {
 }
 
 function BRAND_INVITE_SMS(link: string) {
-  return `دعوت به کانال تلگرام جین پوش:\n${link}`;
+  return `دعوت به کانال تلگرام باسار:\n${link}`;
 }

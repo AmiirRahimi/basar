@@ -10,7 +10,7 @@ const RESERVED = new Set([
   'checkout',
   'contact',
   'counting',
-  'jeanpoosh',
+  'basar',
   'login',
   'pay',
   'product',

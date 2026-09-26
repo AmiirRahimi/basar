@@ -365,7 +365,7 @@ export function CountingLanding({
               variant="outlineDark"
               className="px-6 py-3 text-base"
             >
-              فروشگاه جین پوش
+              فروشگاه باسار
             </ShopButton>
           </div>
         </div>

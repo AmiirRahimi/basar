@@ -5,8 +5,8 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
-  title: 'ورود | جین پوش',
-  description: 'ورود یا ساخت حساب خریدار با شماره موبایل و کد یک‌بارمصرف.',
+  title: 'ورود | باسار',
+  description: 'ورود به باسار با شماره موبایل.',
 };
 
 export default async function ShopLoginPage({

@@ -45,9 +45,9 @@ export function CheckoutForm({
       {!initial ? (
         <p className="text-sm leading-7 text-shop-ink/65">
           <a href="/login?next=/checkout" className="text-shop-ink underline decoration-shop-saffron underline-offset-4">
-            ورود با موبایل
+            وارد شوید
           </a>{' '}
-          آدرس و سفارش‌های قبلی را نگه می‌دارد. اگر در شمارش حساب دارید، همان شماره کافی است.
+          تا آدرس و سفارش‌های قبلی بماند.
         </p>
       ) : null}
       <Input label="نام فروشگاه / خریدار" value={fullName} onChange={(e) => setFullName(e.target.value)} required />

@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const product = await getCatalogProduct(id);
   if (!product) return { title: 'محصول پیدا نشد' };
-  const title = `${product.name} عمده | جین پوش`;
-  const description = `خرید عمده ${product.name} از حجره جین پوش در بازار بزرگ تهران. سفارش با بسته.`;
+  const title = `${product.name} عمده | باسار`;
+  const description = `خرید عمده ${product.name} از حجره باسار در بازار بزرگ تهران. سفارش با بسته.`;
   const url = absoluteUrl(`/product/${product.id}`);
   return pageShare({ title, description, url, image: product.image });
 }
@@ -46,7 +46,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           description: product.description,
           image: product.images,
           sku: product.code,
-          brand: { '@type': 'Brand', name: 'جین پوش' },
+          brand: { '@type': 'Brand', name: 'باسار' },
           offers: {
             '@type': 'Offer',
             priceCurrency: 'IRR',

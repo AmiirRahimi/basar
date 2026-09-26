@@ -1,6 +1,6 @@
 export const BRAND = {
-  name: 'جین پوش',
-  latin: 'Jean Poosh',
+  name: 'باسار',
+  latin: 'Basar',
   family: 'خانواده رحیمی',
   years: 45,
   tagline: 'خانواده رحیمی · بیش از ۴۵ سال در بازار بزرگ',
@@ -28,9 +28,9 @@ export const BRAND_ADDRESSES = [
 
 /** Social profile URLs — override with NEXT_PUBLIC_* in env when ready. */
 export const BRAND_SOCIAL = {
-  instagram: process.env.NEXT_PUBLIC_INSTAGRAM_URL || 'https://instagram.com/jeanpoosh',
-  telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || 'https://t.me/jeanpoosh',
-  linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || 'https://www.linkedin.com/company/jeanpoosh',
+  instagram: process.env.NEXT_PUBLIC_INSTAGRAM_URL || 'https://instagram.com/basar',
+  telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || 'https://t.me/basar',
+  linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || 'https://www.linkedin.com/company/basar',
 } as const;
 
 const COLOR_SWATCHES: Array<[string, string]> = [

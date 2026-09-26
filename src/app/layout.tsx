@@ -5,8 +5,8 @@ import { pageShare } from '@/lib/share-meta';
 import { GoogleAnalytics } from '@/components/seo/GoogleAnalytics';
 import './globals.css';
 
-const title = 'جین پوش | شلوار جین و پوشاک عمده از بازار بزرگ تهران';
-const description = 'فروش عمده شلوار جین و پوشاک از حجره جین پوش در بازار بزرگ تهران';
+const title = 'باسار | شلوار جین و پوشاک عمده از بازار بزرگ تهران';
+const description = 'فروش عمده شلوار جین و پوشاک از حجره باسار در بازار بزرگ تهران';
 const googleVerification = (process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '').trim();
 
 export const metadata: Metadata = {

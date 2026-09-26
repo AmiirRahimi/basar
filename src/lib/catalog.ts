@@ -26,7 +26,7 @@ export function clothToProduct(cloth: Cloth): CatalogProduct {
     id: cloth._id,
     code: String(cloth.code ?? cloth._id),
     name: [type.name, style.name].filter(Boolean).join(' ') || `لباس ${cloth.code ?? ''}`.trim(),
-    description: cloth.description || 'موجودی جین پوش — فروش عمده با بسته از حجره بازار بزرگ.',
+    description: cloth.description || 'موجودی باسار — فروش عمده با بسته از حجره بازار بزرگ.',
     category: type.name || 'پوشاک',
     style: style.name,
     wholesalePrice: sale.salePrice,

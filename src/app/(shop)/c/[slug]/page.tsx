@@ -37,8 +37,8 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const collections = collectionsForSeo(products, kinds);
   const found = collectionSlugs(collections).bySlug.get(slug);
   if (!found) return { title: 'مجموعه پیدا نشد' };
-  const title = `${found.name} عمده | جین پوش`;
-  const description = `خرید عمده ${found.name} از حجره جین پوش در بازار بزرگ تهران. سفارش با بسته، موجودی روز حجره.`;
+  const title = `${found.name} عمده | باسار`;
+  const description = `خرید عمده ${found.name} از حجره باسار در بازار بزرگ تهران. سفارش با بسته، موجودی روز حجره.`;
   const url = absoluteUrl(`/c/${encodeURIComponent(slug)}`);
   const image = collections.find((row) => row.id === found.id)?.image;
   return pageShare({ title, description, url, image });
@@ -64,16 +64,16 @@ export default async function CollectionPage({ params }: { params: Promise<Param
             '@context': 'https://schema.org',
             '@type': 'CollectionPage',
             name: `${found.name} عمده`,
-            description: `فروش عمده ${found.name} از جین پوش، بازار بزرگ تهران`,
+            description: `فروش عمده ${found.name} از باسار، بازار بزرگ تهران`,
             url,
-            isPartOf: { '@type': 'WebSite', name: 'جین پوش', url: absoluteUrl('/') },
+            isPartOf: { '@type': 'WebSite', name: 'باسار', url: absoluteUrl('/') },
           },
         ]}
       />
       <p className="text-[11px] tracking-[0.28em] text-shop-saffron">عمده از بازار بزرگ</p>
       <h1 className="mt-2 text-2xl font-semibold text-shop-ink sm:text-3xl md:text-4xl">{found.name} عمده</h1>
       <p className="mt-3 max-w-2xl text-sm leading-8 text-shop-ink/65 sm:text-base">
-        {found.name} را از حجره جین پوش در بازار آهنگران عمده بخر. سفارش با بسته است، نه عدد تکی. {faNumber(items.length)} مدل
+        {found.name} را از حجره باسار در بازار آهنگران عمده بخر. سفارش با بسته است، نه عدد تکی. {faNumber(items.length)} مدل
         آماده است.
       </p>
       <div className="mt-8">
@@ -92,7 +92,7 @@ export default async function CollectionPage({ params }: { params: Promise<Param
       <div className="mt-10 flex flex-wrap gap-3">
         <ShopButton href="/catalog">همه محصولات</ShopButton>
         <ShopButton href="/" variant="outline">
-          خانه جین پوش
+          خانه باسار
         </ShopButton>
       </div>
     </div>
