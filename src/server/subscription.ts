@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
 import {
-  addCalendarMonths,
-  cycleDays,
+  PERIOD_MS,
+  addPeriods,
   cycleFromLegacy,
+  cyclePeriods,
   planFeatureFlags,
   planPrice,
   resolvePlanId,
@@ -28,13 +29,17 @@ function oid(value: unknown) {
 
 export type SubscriptionSnapshot = {
   active: boolean;
-  remainingDays: number;
+  remainingPeriods: number;
+  /** Fractional 30-day units left (for credit); integer display uses remainingPeriods. */
+  remainingPeriodUnits: number;
   planId: PlanId;
   planName: string;
   billingCycle: BillingCycle;
   price?: number;
+  periodsPurchased?: number;
   startDate?: string;
-  endDate?: string;
+  currentPeriodStart?: string;
+  endsAt?: string;
   maxBrands: number;
   maxStores: number;
   allowPartners: boolean;
@@ -48,7 +53,8 @@ export type SubscriptionSnapshot = {
 function inactiveSnapshot(): SubscriptionSnapshot {
   return {
     active: false,
-    remainingDays: 0,
+    remainingPeriods: 0,
+    remainingPeriodUnits: 0,
     planId: 'starter',
     planName: cachedPlanById('starter').name,
     billingCycle: 'month',
@@ -63,24 +69,105 @@ function inactiveSnapshot(): SubscriptionSnapshot {
   };
 }
 
-export function snapshotFromRow(row: any): SubscriptionSnapshot {
+type SyncedPeriods = {
+  remainingPeriods: number;
+  currentPeriodStart: Date | null;
+  dirty: boolean;
+};
+
+/** Burn whole 30-day units that already elapsed. */
+export function syncRemainingPeriods(row: {
+  remainingPeriods?: number;
+  currentPeriodStart?: Date | string | null;
+  endDate?: Date | string | null;
+  startDate?: Date | string | null;
+  billingCycle?: string;
+  subscriptionType?: number;
+  periodsPurchased?: number;
+}): SyncedPeriods {
+  let remaining = Number(row?.remainingPeriods);
+  if (!Number.isFinite(remaining)) remaining = NaN;
+  else remaining = Math.max(0, Math.trunc(remaining));
+  let start = row?.currentPeriodStart ? new Date(row.currentPeriodStart) : null;
+  if ((!start || Number.isNaN(start.getTime())) && remaining > 0 && row?.startDate) {
+    start = new Date(row.startDate);
+  }
+
+  // Legacy day-based rows (endDate only) — convert once when reading pre-migration data.
+  if (!Number.isFinite(remaining) || (remaining <= 0 && !start && row?.endDate)) {
+    const end = row.endDate ? new Date(row.endDate) : null;
+    if (end && end.getTime() > Date.now()) {
+      const msLeft = end.getTime() - Date.now();
+      remaining = Math.max(1, Math.ceil(msLeft / PERIOD_MS));
+      start = new Date(end.getTime() - remaining * PERIOD_MS);
+      return { remainingPeriods: remaining, currentPeriodStart: start, dirty: true };
+    }
+    return { remainingPeriods: 0, currentPeriodStart: null, dirty: Boolean(row?.endDate || row?.remainingPeriods) };
+  }
+
+  if (remaining <= 0 || !start || Number.isNaN(start.getTime())) {
+    return { remainingPeriods: 0, currentPeriodStart: null, dirty: remaining !== 0 || Boolean(start) };
+  }
+
+  const now = Date.now();
+  let elapsed = now - start.getTime();
+  if (elapsed < 0) elapsed = 0;
+  const consumed = Math.floor(elapsed / PERIOD_MS);
+  if (consumed <= 0) {
+    return { remainingPeriods: remaining, currentPeriodStart: start, dirty: false };
+  }
+  const nextRemaining = Math.max(0, remaining - consumed);
+  const nextStart = nextRemaining > 0 ? new Date(start.getTime() + consumed * PERIOD_MS) : null;
+  return { remainingPeriods: nextRemaining, currentPeriodStart: nextStart, dirty: true };
+}
+
+function periodUnitsLeft(remainingPeriods: number, currentPeriodStart: Date | null) {
+  if (remainingPeriods <= 0 || !currentPeriodStart) return 0;
+  const elapsed = Math.max(0, Date.now() - currentPeriodStart.getTime());
+  const used = Math.min(1, elapsed / PERIOD_MS);
+  return Math.max(0, remainingPeriods - used);
+}
+
+function endsAtFrom(remainingPeriods: number, currentPeriodStart: Date | null) {
+  if (remainingPeriods <= 0 || !currentPeriodStart) return undefined;
+  return addPeriods(currentPeriodStart, remainingPeriods);
+}
+
+export function snapshotFromRow(row: any): SubscriptionSnapshot & { remainingDays: number; endDate?: string } {
   const plan = planFromRow(row);
   const cycle = cycleFromLegacy(Number(row?.subscriptionType || 0), row?.billingCycle);
-  const end = row?.endDate ? new Date(row.endDate) : null;
-  const remainingDays = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
+  const synced = syncRemainingPeriods(row);
+  const units = periodUnitsLeft(synced.remainingPeriods, synced.currentPeriodStart);
+  const endsAt = endsAtFrom(synced.remainingPeriods, synced.currentPeriodStart);
   return {
-    active: remainingDays > 0,
-    remainingDays,
+    active: synced.remainingPeriods > 0,
+    remainingPeriods: synced.remainingPeriods,
+    remainingPeriodUnits: units,
+    remainingDays: synced.remainingPeriods,
     planId: plan.id,
     planName: plan.name,
     billingCycle: cycle,
     price: Number(row?.price || 0),
+    periodsPurchased: Math.max(0, Math.trunc(Number(row?.periodsPurchased || cyclePeriods(cycle)))),
     startDate: row?.startDate,
-    endDate: row?.endDate,
+    currentPeriodStart: synced.currentPeriodStart?.toISOString?.() || synced.currentPeriodStart || undefined,
+    endsAt: endsAt?.toISOString(),
+    endDate: endsAt?.toISOString(),
     maxBrands: plan.maxBrands,
     maxStores: plan.maxStores,
     ...planFeatureFlags(plan),
   };
+}
+
+async function persistSyncedRow(row: any, synced: SyncedPeriods) {
+  if (!synced.dirty || !row?._id) return;
+  await M().UserSubscription.updateOne(
+    { _id: row._id },
+    {
+      remainingPeriods: synced.remainingPeriods,
+      currentPeriodStart: synced.currentPeriodStart,
+    },
+  );
 }
 
 export function denyPlanFeature(
@@ -109,19 +196,30 @@ export function denyPlanFeature(
   return null;
 }
 
-export async function remainingDays(userId: string) {
+export async function remainingPeriods(userId: string) {
   const snap = await activeSubscription(userId);
-  return snap.remainingDays;
+  return snap.remainingPeriods;
+}
+
+/** @deprecated use remainingPeriods */
+export async function remainingDays(userId: string) {
+  return remainingPeriods(userId);
 }
 
 export async function activeSubscription(userId: string): Promise<SubscriptionSnapshot> {
   await livePlanCatalog();
-  const row = await M()
-    .UserSubscription.findOne({ _userId: oid(userId), endDate: { $gte: new Date() } })
-    .sort({ endDate: -1 })
-    .lean();
-  if (!row) return inactiveSnapshot();
-  return snapshotFromRow(row);
+  const rows = (await M()
+    .UserSubscription.find({ _userId: oid(userId) })
+    .sort({ startDate: -1 })
+    .lean()) as any[];
+  for (const row of rows) {
+    const synced = syncRemainingPeriods(row);
+    await persistSyncedRow(row, synced);
+    if (synced.remainingPeriods > 0) {
+      return snapshotFromRow({ ...row, ...synced });
+    }
+  }
+  return inactiveSnapshot();
 }
 
 export async function subscriptionForSession(session: Session): Promise<SubscriptionSnapshot> {
@@ -129,10 +227,12 @@ export async function subscriptionForSession(session: Session): Promise<Subscrip
     const plan = await livePlanById('brands');
     return {
       active: true,
-      remainingDays: 3650,
+      remainingPeriods: 999,
+      remainingPeriodUnits: 999,
       planId: plan.id,
       planName: plan.name,
       billingCycle: 'year',
+      periodsPurchased: 12,
       maxBrands: plan.maxBrands,
       maxStores: plan.maxStores,
       allowPartners: true,
@@ -157,8 +257,10 @@ export async function listPurchases(userId: string) {
       planName: snap.planName,
       billingCycle: snap.billingCycle,
       price: Number(row.price || 0),
+      periodsPurchased: snap.periodsPurchased || cyclePeriods(snap.billingCycle),
+      remainingPeriods: snap.remainingPeriods,
       startDate: row.startDate,
-      endDate: row.endDate,
+      endsAt: snap.endsAt,
       active: snap.active,
     };
   });
@@ -171,23 +273,100 @@ export async function previewPlanDiscount(
   discountCode = '',
 ): Promise<ActionResult> {
   await db();
-  const catalog = await livePlanCatalog();
-  const plan = catalog.plans.find((row) => row.id === resolvePlanId(planId));
-  if (!plan) return fail('طرح اشتراک نامعتبر است');
-  const originalPrice = planPrice(plan, cycle, catalog.annualDiscount);
-  const { consumeDiscountCode } = await import('./admin');
-  const discounted = await consumeDiscountCode(discountCode, originalPrice, session._id);
-  if (!discounted.ok) return fail(discounted.message);
+  const quote = await quoteSubscriptionPrice(session, planId, cycle, discountCode);
+  if ('error' in quote) return quote.error;
+  const { plan, catalogPrice, afterDiscount, payable, discount, credit } = quote;
   const percent =
-    originalPrice > 0 ? Math.round((1 - discounted.price / originalPrice) * 100) : 0;
+    catalogPrice > 0 && discount.code
+      ? Math.round((1 - afterDiscount / catalogPrice) * 100)
+      : 0;
   return ok({
     planId: plan.id,
     billingCycle: cycle,
-    originalPrice,
-    price: discounted.price,
-    code: discounted.code,
+    originalPrice: catalogPrice,
+    catalogPrice,
+    afterDiscount,
+    price: payable,
+    code: discount.code,
     percent,
+    remainingPeriods: credit.remainingPeriods,
+    remainingPeriodUnits: credit.remainingPeriodUnits,
+    remainingCredit: credit.credit,
+    currentPlanName: credit.planName,
   });
+}
+
+type RemainingCredit = {
+  remainingPeriods: number;
+  remainingPeriodUnits: number;
+  credit: number;
+  paidPrice: number;
+  unitPrice: number;
+  planName: string;
+};
+
+function remainingSubscriptionCredit(
+  current: SubscriptionSnapshot,
+  catalogPriceFallback: number,
+): RemainingCredit {
+  if (!current.active || current.remainingPeriodUnits <= 0) {
+    return {
+      remainingPeriods: 0,
+      remainingPeriodUnits: 0,
+      credit: 0,
+      paidPrice: 0,
+      unitPrice: 0,
+      planName: '',
+    };
+  }
+  const purchased = Math.max(1, Number(current.periodsPurchased) || cyclePeriods(current.billingCycle));
+  const paidPrice = Math.max(0, Number(current.price) || 0) || Math.max(0, catalogPriceFallback);
+  const unitPrice = paidPrice / purchased;
+  const credit = Math.min(paidPrice, Math.round(current.remainingPeriodUnits * unitPrice));
+  return {
+    remainingPeriods: current.remainingPeriods,
+    remainingPeriodUnits: current.remainingPeriodUnits,
+    credit,
+    paidPrice,
+    unitPrice,
+    planName: current.planName || '',
+  };
+}
+
+async function quoteSubscriptionPrice(
+  session: Session,
+  planId: string,
+  cycle: BillingCycle,
+  discountCode = '',
+) {
+  const catalog = await livePlanCatalog();
+  const plan = catalog.plans.find((row) => row.id === resolvePlanId(planId));
+  if (!plan) return { error: fail('طرح اشتراک نامعتبر است') as ActionResult };
+  const current = await activeSubscription(session._id);
+  const currentCatalogPrice = current.active
+    ? planPrice(
+        catalog.plans.find((row) => row.id === resolvePlanId(current.planId)) || planFromRow({ planId: current.planId }),
+        current.billingCycle,
+        catalog.annualDiscount,
+      )
+    : 0;
+  const credit = remainingSubscriptionCredit(current, currentCatalogPrice);
+  const catalogPrice = planPrice(plan, cycle, catalog.annualDiscount);
+  const { consumeDiscountCode } = await import('./admin');
+  const discounted = await consumeDiscountCode(discountCode, catalogPrice, session._id);
+  if (!discounted.ok) return { error: fail(discounted.message) as ActionResult };
+  const afterDiscount = Math.max(0, Math.round(Number(discounted.price) || 0));
+  const payable = Math.max(0, afterDiscount - credit.credit);
+  return {
+    plan,
+    catalog,
+    current,
+    credit,
+    catalogPrice,
+    afterDiscount,
+    payable,
+    discount: discounted,
+  };
 }
 
 export async function buyPlan(
@@ -200,47 +379,85 @@ export async function buyPlan(
   if (session.storeRole && session.storeRole !== 'owner' && !session.isPlatformAdmin) {
     return fail('فقط صاحب برند می‌تواند اشتراک بخرد', 403);
   }
-  const catalog = await livePlanCatalog();
-  const plan = catalog.plans.find((row) => row.id === resolvePlanId(planId));
-  if (!plan) return fail('طرح اشتراک نامعتبر است');
-  const current = await activeSubscription(session._id);
-  const now = Date.now();
-  const startMs = current.active && current.endDate ? Math.max(now, new Date(current.endDate).getTime()) : now;
-  const startDate = new Date(startMs);
-  const endDate = new Date(startMs + cycleDays(cycle) * 24 * 60 * 60 * 1000);
-  const originalPrice = planPrice(plan, cycle, catalog.annualDiscount);
-  const { consumeDiscountCode, commitDiscountUse } = await import('./admin');
-  const discounted = await consumeDiscountCode(discountCode, originalPrice, session._id);
-  if (!discounted.ok) return fail(discounted.message);
-  if (discounted.id) {
-    const committed = await commitDiscountUse(discounted.id);
+  const quote = await quoteSubscriptionPrice(session, planId, cycle, discountCode);
+  if ('error' in quote) return quote.error;
+  const { plan, current, credit, catalogPrice, payable, discount } = quote;
+  if (discount.id) {
+    const { commitDiscountUse } = await import('./admin');
+    const committed = await commitDiscountUse(discount.id);
     if (!committed.ok) return fail(committed.message);
+  }
+
+  const now = new Date();
+  const periods = cyclePeriods(cycle);
+  // Active leftover is converted to credit, so the new stack starts now.
+  if (current.active) {
+    await M().UserSubscription.updateMany(
+      { _userId: oid(session._id), remainingPeriods: { $gt: 0 } },
+      { remainingPeriods: 0, currentPeriodStart: null },
+    );
+    // Legacy rows keyed by endDate
+    await M().UserSubscription.updateMany(
+      { _userId: oid(session._id), endDate: { $gte: now } },
+      { remainingPeriods: 0, currentPeriodStart: null, endDate: now },
+    );
   }
   const created = await M().UserSubscription.create({
     _userId: oid(session._id),
     planId: plan.id,
     billingCycle: cycle,
     subscriptionType: cycle === 'year' ? 3 : 2,
-    price: discounted.price,
-    originalPrice,
-    discountCode: discounted.code,
-    startDate,
-    endDate,
+    periodsPurchased: periods,
+    remainingPeriods: periods,
+    currentPeriodStart: now,
+    price: payable,
+    originalPrice: catalogPrice,
+    discountCode: discount.code,
+    remainingCredit: credit.credit || undefined,
+    startDate: now,
   });
+  const snap = snapshotFromRow(created.toObject ? created.toObject() : created);
+  const message =
+    credit.credit > 0
+      ? 'اشتراک فعال شد؛ ارزش اشتراک‌های مانده از مبلغ کم شد'
+      : current.active
+        ? 'اشتراک تمدید شد'
+        : 'اشتراک فعال شد';
   return ok(
     serialize({
-      remainingDaysOfSubscription: snapshotFromRow(created.toObject ? created.toObject() : created).remainingDays,
+      remainingPeriods: snap.remainingPeriods,
+      remainingPeriodsOfSubscription: snap.remainingPeriods,
       planId: plan.id,
       billingCycle: cycle,
-      endDate,
-      price: discounted.price,
+      periodsPurchased: periods,
+      endsAt: snap.endsAt,
+      price: payable,
+      remainingCredit: credit.credit,
     }),
-    current.active ? 'اشتراک تمدید شد' : 'اشتراک فعال شد',
+    message,
   );
 }
 
 function keepPrice(row: any) {
   return Number(row?.price || 0);
+}
+
+async function activeRowsForUser(userId: string) {
+  const now = new Date();
+  const rows = (await M().UserSubscription.find({ _userId: oid(userId) }).lean()) as any[];
+  const active: any[] = [];
+  for (const row of rows) {
+    const synced = syncRemainingPeriods(row);
+    await persistSyncedRow(row, synced);
+    if (synced.remainingPeriods > 0) {
+      active.push({ ...row, ...synced });
+    } else if (row.endDate && new Date(row.endDate).getTime() > now.getTime() && !row.remainingPeriods) {
+      // handled by syncRemainingPeriods legacy branch
+    }
+  }
+  return active.sort(
+    (a, b) => new Date(b.currentPeriodStart || b.startDate).getTime() - new Date(a.currentPeriodStart || a.startDate).getTime(),
+  );
 }
 
 export async function adminSetSubscription(
@@ -252,54 +469,64 @@ export async function adminSetSubscription(
   if (!user) return fail('کاربر پیدا نشد', 404);
 
   const now = new Date();
-  const rows = (await M().UserSubscription.find({ _userId: oid(userId) }).lean()) as any[];
-  const overlapping = rows
-    .filter((row) => new Date(row.endDate).getTime() > now.getTime())
-    .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+  const overlapping = await activeRowsForUser(userId);
 
   const endSubscription = payload.endSubscription === true || payload.endSubscription === 'true';
   if (endSubscription) {
     for (const row of overlapping) {
-      await M().UserSubscription.updateOne({ _id: row._id }, { endDate: now });
+      await M().UserSubscription.updateOne(
+        { _id: row._id },
+        { remainingPeriods: 0, currentPeriodStart: null },
+      );
     }
     return ok(null, overlapping.length ? 'اشتراک تمام شد' : '');
   }
 
-  const addRaw = payload.addMonths;
+  const addRaw = payload.addMonths ?? payload.addPeriods;
   const hasAdd = addRaw !== undefined && addRaw !== null && String(addRaw).trim() !== '';
-  const addMonths = hasAdd ? Math.trunc(Number(addRaw)) : 0;
-  if (hasAdd && (!Number.isFinite(addMonths) || addMonths < 0)) return fail('تعداد ماه نامعتبر است');
-  if (addMonths > 120) return fail('تعداد ماه بیش از حد مجاز است');
+  const addPeriodsCount = hasAdd ? Math.trunc(Number(addRaw)) : 0;
+  if (hasAdd && (!Number.isFinite(addPeriodsCount) || addPeriodsCount < 0)) {
+    return fail('تعداد اشتراک نامعتبر است');
+  }
+  if (addPeriodsCount > 120) return fail('تعداد اشتراک بیش از حد مجاز است');
 
   const planId = resolvePlanId(String(payload.planId || overlapping[0]?.planId || 'starter')) || 'starter';
   const catalog = await livePlanCatalog();
   const plan = catalog.plans.find((row) => row.id === planId);
   if (!plan) return fail('طرح اشتراک نامعتبر است');
   const cycle: BillingCycle =
-    addMonths >= 12
+    addPeriodsCount >= 12
       ? 'year'
       : payload.billingCycle === 'year' || payload.billingCycle === 'month'
         ? payload.billingCycle
         : cycleFromLegacy(Number(overlapping[0]?.subscriptionType || 0), overlapping[0]?.billingCycle);
-  const originalPrice = addMonths > 0 ? plan.monthlyPrice * addMonths : planPrice(plan, cycle, catalog.annualDiscount);
+  const originalPrice =
+    addPeriodsCount > 0 ? plan.monthlyPrice * addPeriodsCount : planPrice(plan, cycle, catalog.annualDiscount);
   const hasPrice = payload.price !== undefined && payload.price !== null && String(payload.price).trim() !== '';
-  const price = hasPrice ? Math.max(0, Number(payload.price)) : addMonths > 0 ? originalPrice : keepPrice(overlapping[0]);
+  const price =
+    hasPrice ? Math.max(0, Number(payload.price)) : addPeriodsCount > 0 ? originalPrice : keepPrice(overlapping[0]);
   if (!Number.isFinite(price)) return fail('مبلغ نامعتبر است');
 
   const keep = overlapping[0];
   for (const extra of overlapping.slice(1)) {
-    await M().UserSubscription.updateOne({ _id: extra._id }, { endDate: now });
+    await M().UserSubscription.updateOne(
+      { _id: extra._id },
+      { remainingPeriods: 0, currentPeriodStart: null },
+    );
   }
 
-  if (addMonths > 0) {
-    const base =
-      keep && new Date(keep.endDate).getTime() > now.getTime() ? new Date(keep.endDate) : now;
-    const endDate = addCalendarMonths(base, addMonths);
+  if (addPeriodsCount > 0) {
+    const baseRemaining = keep ? Math.max(0, Number(keep.remainingPeriods) || 0) : 0;
+    const nextRemaining = baseRemaining + addPeriodsCount;
+    const currentPeriodStart =
+      keep?.currentPeriodStart && baseRemaining > 0 ? new Date(keep.currentPeriodStart) : now;
     const next = {
       planId: plan.id,
       billingCycle: cycle,
       subscriptionType: cycle === 'year' ? 3 : 2,
-      endDate,
+      periodsPurchased: Math.max(Number(keep?.periodsPurchased) || 0, 0) + addPeriodsCount,
+      remainingPeriods: nextRemaining,
+      currentPeriodStart,
       price,
       originalPrice,
       discountCode: '',
@@ -307,8 +534,14 @@ export async function adminSetSubscription(
     if (keep) {
       await M().UserSubscription.updateOne({ _id: keep._id }, next);
       return ok(
-        serialize({ planId: plan.id, billingCycle: cycle, addMonths, endDate }),
-        `${addMonths} ماه به اشتراک اضافه شد`,
+        serialize({
+          planId: plan.id,
+          billingCycle: cycle,
+          addPeriods: addPeriodsCount,
+          remainingPeriods: nextRemaining,
+          endsAt: endsAtFrom(nextRemaining, currentPeriodStart),
+        }),
+        `${addPeriodsCount} اشتراک (هر کدام ۳۰ روز) اضافه شد`,
       );
     }
     await M().UserSubscription.create({
@@ -317,7 +550,13 @@ export async function adminSetSubscription(
       startDate: now,
     });
     return ok(
-      serialize({ planId: plan.id, billingCycle: cycle, addMonths, endDate }),
+      serialize({
+        planId: plan.id,
+        billingCycle: cycle,
+        addPeriods: addPeriodsCount,
+        remainingPeriods: nextRemaining,
+        endsAt: endsAtFrom(nextRemaining, currentPeriodStart),
+      }),
       'اشتراک فعال شد',
     );
   }

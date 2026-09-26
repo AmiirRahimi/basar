@@ -26,8 +26,14 @@ import { useWorkspace } from './WorkspaceProvider';
 type DiscountPreview = {
   price: number;
   originalPrice: number;
+  catalogPrice?: number;
+  afterDiscount?: number;
   code: string;
   percent: number;
+  remainingPeriods?: number;
+  remainingPeriodUnits?: number;
+  remainingCredit?: number;
+  currentPlanName?: string;
 };
 
 export function SubscriptionPanel({
@@ -48,8 +54,10 @@ export function SubscriptionPanel({
   const plans = workspace?.planCatalog?.plans?.length ? workspace.planCatalog.plans : SUBSCRIPTION_PLANS;
   const annualDiscount = workspace?.planCatalog?.annualDiscount ?? ANNUAL_DISCOUNT;
   const lowestMonthly = Math.min(...plans.map((plan) => plan.monthlyPrice));
-  const remainingDays = Number(subscription?.remainingDays || 0);
-  const active = Boolean(subscription?.active ?? remainingDays > 0);
+  const remainingPeriods = Number(
+    subscription?.remainingPeriods ?? subscription?.remainingDays ?? 0,
+  );
+  const active = Boolean(subscription?.active ?? remainingPeriods > 0);
   const selectedPlan = selectedPlanId ? planFromList(plans, selectedPlanId) : null;
   const catalogPrice = selectedPlan ? planPrice(selectedPlan, cycle, annualDiscount) : 0;
   const payable = applied?.price ?? catalogPrice;
@@ -62,11 +70,31 @@ export function SubscriptionPanel({
     router.replace('/accounting/profile?tab=subscription', { scroll: false });
   }, [router]);
 
+  useEffect(() => {
+    if (!selectedPlanId) {
+      setApplied(null);
+      return;
+    }
+    start(async () => {
+      const res = await previewSubscriptionDiscount({
+        planId: selectedPlanId,
+        billingCycle: cycle,
+        discountCode: discountCode.trim(),
+      });
+      if (redirectIfUnauthorized(res)) return;
+      if (!res.ok || !res.data) {
+        setApplied(null);
+        return;
+      }
+      setApplied(res.data as DiscountPreview);
+    });
+  }, [selectedPlanId, cycle]);
+
   const history = useMemo(() => purchases || [], [purchases]);
 
   function selectPlan(planId: PlanId) {
     setSelectedPlanId(planId);
-    setApplied(null);
+    setDiscountCode('');
   }
 
   function openCheckout() {
@@ -74,8 +102,16 @@ export function SubscriptionPanel({
       toast.error('اول یکی از طرح‌ها را انتخاب کنید');
       return;
     }
-    setDiscountCode(applied?.code || '');
-    setCheckoutOpen(true);
+    start(async () => {
+      const res = await previewSubscriptionDiscount({
+        planId: selectedPlan.id,
+        billingCycle: cycle,
+        discountCode: discountCode.trim(),
+      });
+      if (redirectIfUnauthorized(res)) return;
+      if (res.ok && res.data) setApplied(res.data as DiscountPreview);
+      setCheckoutOpen(true);
+    });
   }
 
   function closeCheckout() {
@@ -85,11 +121,6 @@ export function SubscriptionPanel({
   function applyDiscount() {
     if (!selectedPlan) return;
     const code = discountCode.trim();
-    if (!code) {
-      setApplied(null);
-      toast.success('کد تخفیف برداشته شد');
-      return;
-    }
     start(async () => {
       const res = await previewSubscriptionDiscount({
         planId: selectedPlan.id,
@@ -104,7 +135,8 @@ export function SubscriptionPanel({
       }
       const data = res.data as DiscountPreview;
       setApplied(data);
-      toast.success(data.percent ? `${faNumber(data.percent)}٪ تخفیف اعمال شد` : 'کد ثبت شد');
+      if (!code) toast.success('کد تخفیف برداشته شد');
+      else toast.success(data.percent ? `${faNumber(data.percent)}٪ تخفیف اعمال شد` : 'کد ثبت شد');
     });
   }
 
@@ -145,8 +177,11 @@ export function SubscriptionPanel({
                 {subscription?.planName} · {cycleLabel(subscription?.billingCycle)}
               </p>
               <p className="mt-1 text-sm text-gray-600">
-                {faNumber(remainingDays)} روز باقی مانده
-                {subscription?.endDate ? ` · تا ${faDate(subscription.endDate)}` : ''}
+                {faNumber(remainingPeriods)} اشتراک باقی‌مانده
+                <span className="text-gray-400"> (هر اشتراک ۳۰ روز)</span>
+                {subscription?.endsAt || subscription?.endDate
+                  ? ` · تا ${faDate(subscription.endsAt || subscription.endDate)}`
+                  : ''}
               </p>
             </div>
             <p className="text-sm text-teal-800">می‌توانید قبل از پایان، طرح را تمدید یا ارتقا دهید.</p>
@@ -174,7 +209,9 @@ export function SubscriptionPanel({
                     {row.planName} · {cycleLabel(row.billingCycle)}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {faDate(row.startDate)} تا {faDate(row.endDate)}
+                    {faNumber(row.periodsPurchased || (row.billingCycle === 'year' ? 12 : 1))} اشتراک
+                    {row.startDate ? ` · از ${faDate(row.startDate)}` : ''}
+                    {row.endsAt || row.endDate ? ` تا ${faDate(row.endsAt || row.endDate)}` : ''}
                   </p>
                 </div>
                 <div className="text-left">
@@ -215,7 +252,7 @@ export function SubscriptionPanel({
               type="button"
               onClick={() => {
                 setCycle('month');
-                setApplied(null);
+                setDiscountCode('');
               }}
               className={`rounded-lg px-3 py-1.5 text-sm ${cycle === 'month' ? 'bg-white font-medium shadow-sm' : 'text-gray-600'}`}
             >
@@ -225,7 +262,7 @@ export function SubscriptionPanel({
               type="button"
               onClick={() => {
                 setCycle('year');
-                setApplied(null);
+                setDiscountCode('');
               }}
               className={`rounded-lg px-3 py-1.5 text-sm ${cycle === 'year' ? 'bg-white font-medium shadow-sm' : 'text-gray-600'}`}
             >
@@ -273,10 +310,10 @@ export function SubscriptionPanel({
                   description={
                     cycle === 'year' ? (
                       <>
-                        به‌جای <Price value={yearlyFull} /> — {faNumber(annualDiscount * 100)}٪ تخفیف
+                        {faNumber(12)} اشتراک ۳۰‌روزه · به‌جای <Price value={yearlyFull} /> — {faNumber(annualDiscount * 100)}٪ تخفیف
                       </>
                     ) : (
-                      'برای هر ماه'
+                      '۱ اشتراک · ۳۰ روز'
                     )
                   }
                 />
@@ -303,7 +340,7 @@ export function SubscriptionPanel({
         </div>
       </section>
 
-      <Modal isOpen={checkoutOpen} onClose={closeCheckout} size="md" rounded="lg" title="کد تخفیف">
+      <Modal isOpen={checkoutOpen} onClose={closeCheckout} size="md" rounded="lg" title="پرداخت اشتراک">
         <FormCard className="border-0 shadow-none rounded-[inherit]">
           <div className="space-y-4">
             <div>
@@ -320,7 +357,6 @@ export function SubscriptionPanel({
                   value={discountCode}
                   onChange={(e) => {
                     setDiscountCode(e.target.value);
-                    setApplied(null);
                   }}
                 />
               </div>
@@ -328,26 +364,43 @@ export function SubscriptionPanel({
                 اعمال تخفیف
               </Button>
             </div>
-            {applied?.percent ? (
-              <PriceSection
-                label="مبلغ قابل پرداخت"
-                value={applied.price}
-                description={
+            {applied?.remainingCredit ? (
+              <p className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-950">
+                {faNumber(applied.remainingPeriods || 0)} اشتراک از طرح فعلی
+                {applied.currentPlanName ? ` «${applied.currentPlanName}»` : ''} مانده است؛ ارزش آن{' '}
+                {toman(applied.remainingCredit)} از مبلغ طرح جدید کم می‌شود.
+              </p>
+            ) : null}
+            <PriceSection
+              label="مبلغ قابل پرداخت"
+              value={payable}
+              description={
+                applied ? (
                   <>
-                    {faNumber(applied.percent)}٪ تخفیف با کد {applied.code}: از <Price value={applied.originalPrice} /> به{' '}
-                    <Price value={applied.price} />
+                    قیمت طرح: <Price value={applied.catalogPrice ?? applied.originalPrice} />
+                    {applied.percent ? (
+                      <>
+                        {' '}
+                        · بعد از {faNumber(applied.percent)}٪ تخفیف:{' '}
+                        <Price value={applied.afterDiscount ?? applied.originalPrice} />
+                      </>
+                    ) : null}
+                    {applied.remainingCredit ? (
+                      <>
+                        {' '}
+                        · کسر مانده: <Price value={applied.remainingCredit} />
+                      </>
+                    ) : null}
                   </>
-                }
-              />
-            ) : (
-              <PriceSection label="مبلغ قابل پرداخت" value={payable} />
-            )}
+                ) : undefined
+              }
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" disabled={pending} onClick={closeCheckout}>
                 انصراف
               </Button>
               <Button disabled={pending || !selectedPlan} onClick={buy}>
-                {active ? 'پرداخت و تمدید' : 'پرداخت و فعال‌سازی'}
+                {active ? 'پرداخت و تغییر طرح' : 'پرداخت و فعال‌سازی'}
               </Button>
             </div>
           </div>

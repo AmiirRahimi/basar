@@ -47,11 +47,17 @@ const UserSubscriptionSchema = defineSchema(
     planId: { type: String, default: 'starter' },
     billingCycle: { type: String, default: 'month' },
     subscriptionType: { type: Number, required: true },
+    /** How many 30-day units were bought in this purchase (1 = month, 12 = year). */
+    periodsPurchased: { type: Number, default: 1 },
+    /** How many 30-day units are still left (including the current active unit). */
+    remainingPeriods: { type: Number, default: 0, index: true },
+    /** Start of the currently burning 30-day unit. */
+    currentPeriodStart: { type: Date, default: null },
     price: { type: Number, default: 0 },
     discountCode: { type: String, default: '' },
     originalPrice: { type: Number, default: 0 },
+    remainingCredit: { type: Number, default: 0 },
     startDate: { type: Date, required: true, default: Date.now },
-    endDate: { type: Date, required: true },
   },
   { collection: 'usersubscriptions' },
 );

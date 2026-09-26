@@ -28,6 +28,8 @@ export type UserInfo = {
   fullName?: string;
   phonenumber?: string | number;
   phoneNumber?: string | number;
+  remainingPeriodsOfSubscription?: number;
+  /** @deprecated alias of remainingPeriodsOfSubscription */
   remainingDaysOfSubscription?: number;
   permisions?: string[];
   permissions?: string[];
@@ -184,11 +186,17 @@ export type Workspace = {
   subscriptionActive: boolean;
   subscription?: {
     active?: boolean;
-    remainingDays: number;
+    remainingPeriods: number;
+    remainingPeriodUnits?: number;
+    /** @deprecated use remainingPeriods */
+    remainingDays?: number;
     planId?: string;
     planName?: string;
     billingCycle?: 'month' | 'year';
+    periodsPurchased?: number;
     startDate?: string;
+    currentPeriodStart?: string;
+    endsAt?: string;
     endDate?: string;
     maxBrands?: number;
     maxStores?: number;
@@ -210,7 +218,10 @@ export type Workspace = {
     planName?: string;
     billingCycle?: string;
     price?: number;
+    periodsPurchased?: number;
+    remainingPeriods?: number;
     startDate?: string;
+    endsAt?: string;
     endDate?: string;
     active?: boolean;
   }[];

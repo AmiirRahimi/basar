@@ -67,10 +67,13 @@ export async function getAdminUsageReport(): Promise<ActionResult> {
       planName: snap.planName,
       billingCycle: snap.billingCycle,
       price,
+      periodsPurchased: snap.periodsPurchased || 0,
       startDate: row.startDate,
-      endDate: row.endDate,
+      endDate: snap.endsAt,
+      endsAt: snap.endsAt,
       active: snap.active,
-      remainingDays: snap.remainingDays || 0,
+      remainingPeriods: snap.remainingPeriods || 0,
+      remainingDays: snap.remainingPeriods || 0,
     };
   });
 
@@ -153,7 +156,7 @@ export async function getAdminUsageReport(): Promise<ActionResult> {
       people,
       stats: {
         activeSubscriptions: subscriptionRows.filter((row) => row.active).length,
-        expiringSoon: subscriptionRows.filter((row) => row.active && row.remainingDays <= 14).length,
+        expiringSoon: subscriptionRows.filter((row) => row.active && row.remainingPeriods <= 1).length,
         subscriptionsThisMonth: thisMonthSubs.length,
         subscriptionRevenueThisMonth: thisMonthSubs.reduce((sum, row) => sum + row.price, 0),
         subscriptionRevenueLastMonth: lastMonthSubs.reduce((sum, row) => sum + row.price, 0),

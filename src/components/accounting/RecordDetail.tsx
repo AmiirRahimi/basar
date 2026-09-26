@@ -62,7 +62,12 @@ function formatField(row: Record<string, any>, field: DetailField) {
   if (field.kind === 'date') return faDate(value);
   if (field.kind === 'role') return personRolesLabel(value) || String(value);
   if (field.key === 'percent' || field.key === 'discountPercent') return `${faNumber(value)}٪`;
-  if (field.key === 'remainingDays') return `${faNumber(value)} روز`;
+  if (field.key === 'remainingPeriods' || field.key === 'remainingDays') {
+    return `${faNumber(value)} اشتراک`;
+  }
+  if (field.key === 'periodsPurchased' || field.key === 'totalPeriods' || field.key === 'totalMonths') {
+    return `${faNumber(value)} اشتراک`;
+  }
   if (field.key === 'maxUses') return Number(value) > 0 ? faNumber(value) : 'نامحدود';
   if (field.key === 'usedCount' && row.maxUses != null) {
     return Number(row.maxUses) > 0 ? `${faNumber(value)} / ${faNumber(row.maxUses)}` : `${faNumber(value)} / نامحدود`;

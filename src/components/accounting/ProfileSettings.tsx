@@ -46,6 +46,7 @@ export function ProfileSettings({
     city?: string;
     phonenumber?: string;
     phoneNumber?: string;
+    remainingPeriodsOfSubscription?: number;
     remainingDaysOfSubscription?: number;
     sheba?: string;
     bankName?: string;

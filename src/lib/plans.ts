@@ -164,16 +164,20 @@ export function planPrice(plan: SubscriptionPlan, cycle: BillingCycle, discount 
   return cycle === 'year' ? annualPrice(plan.monthlyPrice, discount) : plan.monthlyPrice;
 }
 
-export function cycleDays(cycle: BillingCycle) {
-  return cycle === 'year' ? 365 : 30;
+/** One subscription unit = 30 days. Yearly purchase = 12 units. */
+export const PERIOD_DAYS = 30;
+export const PERIOD_MS = PERIOD_DAYS * 24 * 60 * 60 * 1000;
+
+export function cyclePeriods(cycle: BillingCycle) {
+  return cycle === 'year' ? 12 : 1;
 }
 
-export function addCalendarMonths(from: Date, months: number) {
-  const next = new Date(from.getTime());
-  const day = next.getDate();
-  next.setMonth(next.getMonth() + months);
-  if (next.getDate() < day) next.setDate(0);
-  return next;
+export function cycleDays(cycle: BillingCycle) {
+  return cyclePeriods(cycle) * PERIOD_DAYS;
+}
+
+export function addPeriods(from: Date, periods: number) {
+  return new Date(from.getTime() + Math.max(0, periods) * PERIOD_MS);
 }
 
 export function cycleLabel(cycle?: string | null) {

@@ -26,6 +26,7 @@ export type UsageReport = {
     startDate: string;
     endDate: string;
     active: boolean;
+    remainingPeriods: number;
     remainingDays: number;
   }[];
   purchases: {
@@ -144,7 +145,10 @@ function SubscriptionsView({ report }: { report: UsageReport }) {
       helper.accessor('endDate', { header: 'پایان', cell: (info) => faDate(info.getValue()) }),
       helper.accessor('remainingDays', {
         header: 'مانده',
-        cell: (info) => (info.row.original.active ? `${faNumber(info.getValue())} روز` : '—'),
+        cell: (info) =>
+          info.row.original.active
+            ? `${faNumber(info.row.original.remainingPeriods ?? info.getValue())} اشتراک`
+            : '—',
       }),
       helper.accessor('active', { header: 'وضعیت', cell: (info) => (info.getValue() ? 'فعال' : 'تمام‌شده') }),
     ],
@@ -156,7 +160,7 @@ function SubscriptionsView({ report }: { report: UsageReport }) {
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="اشتراک فعال" value={faNumber(stats.activeSubscriptions)} />
-        <Stat label="نزدیک به پایان" value={faNumber(stats.expiringSoon)} hint="۱۴ روز یا کمتر" />
+        <Stat label="نزدیک به پایان" value={faNumber(stats.expiringSoon)} hint="۱ اشتراک یا کمتر" />
         <Stat
           label="خرید این ماه"
           value={faNumber(stats.subscriptionsThisMonth)}

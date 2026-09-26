@@ -30,10 +30,12 @@ export type EditableAdminUser = {
   city?: string;
   address?: string;
   active?: boolean;
+  remainingPeriods?: number;
   remainingDays?: number;
   planName?: string;
   planId?: string;
   billingCycle?: string;
+  endsAt?: string;
   endDate?: string;
 };
 
@@ -76,11 +78,11 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
     if (!user || !form) return;
     const months = endSubscription ? 0 : Math.trunc(Number(form.addMonths || 0));
     if (!endSubscription && (!Number.isFinite(months) || months < 0)) {
-      toast.error('تعداد ماه نامعتبر است');
+      toast.error('تعداد اشتراک نامعتبر است');
       return;
     }
     if (!endSubscription && !user.active && months < 1) {
-      toast.error('برای فعال‌کردن اشتراک، تعداد ماه را وارد کنید');
+      toast.error('برای فعال‌کردن اشتراک، تعداد اشتراک را وارد کنید');
       return;
     }
     const priceRaw = String(form.price ?? '').trim();
@@ -120,7 +122,9 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
         <div className="mb-5 space-y-1">
           <p className="text-sm text-gray-500">
             {user.active
-              ? `${user.planName || plan.name} · ${faNumber(user.remainingDays || 0)} روز مانده${user.endDate ? ` · تا ${faDate(user.endDate)}` : ''}`
+              ? `${user.planName || plan.name} · ${faNumber(user.remainingPeriods ?? user.remainingDays ?? 0)} اشتراک مانده${
+                  user.endsAt || user.endDate ? ` · تا ${faDate(user.endsAt || user.endDate)}` : ''
+                }`
               : 'الان اشتراک فعال ندارد'}
           </p>
         </div>
@@ -147,7 +151,8 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
           <section className="grid gap-3 sm:grid-cols-2">
             <p className="sm:col-span-2 text-sm font-medium text-gray-800">اشتراک</p>
             <p className="sm:col-span-2 text-xs text-gray-500">
-              روز مانده قابل ویرایش نیست. می‌توانید ۲، ۳، ۴ یا چند ماه به حساب کاربر اضافه کنید.
+              تعداد اشتراک مانده قابل ویرایش مستقیم نیست. هر اشتراک ۳۰ روز است؛ می‌توانید ۲، ۳، ۴ یا چند اشتراک به حساب
+              کاربر اضافه کنید.
             </p>
             <Select
               label="طرح"
@@ -164,12 +169,12 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
               onChange={(e) => set('price', e.target.value)}
               hint={
                 addMonths > 0
-                  ? `پیشنهادی برای ${faNumber(addMonths)} ماه: ${toman(suggestedPrice)}`
-                  : `ماهانه از ${toman(plan.monthlyPrice)}`
+                  ? `پیشنهادی برای ${faNumber(addMonths)} اشتراک: ${toman(suggestedPrice)}`
+                  : `هر اشتراک از ${toman(plan.monthlyPrice)}`
               }
             />
             <div className="sm:col-span-2 space-y-2">
-              <p className="text-xs font-medium text-gray-700">افزودن ماه</p>
+              <p className="text-xs font-medium text-gray-700">افزودن اشتراک (هر کدام ۳۰ روز)</p>
               <div className="flex flex-wrap gap-2">
                 {ADMIN_ADD_MONTH_OPTIONS.map((months) => (
                   <button
@@ -182,20 +187,20 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    {faNumber(months)} ماه
+                    {faNumber(months)} اشتراک
                   </button>
                 ))}
               </div>
               <Input
-                label="چند ماه (دلخواه)"
+                label="چند اشتراک (دلخواه)"
                 type="number"
                 min={0}
                 value={form.addMonths}
                 onChange={(e) => set('addMonths', e.target.value)}
                 hint={
                   user.active
-                    ? 'صفر یعنی مدت فعلی عوض نشود و فقط طرح یا مبلغ ذخیره شود.'
-                    : 'برای کاربر بدون اشتراک حداقل یک ماه لازم است.'
+                    ? 'صفر یعنی تعداد فعلی عوض نشود و فقط طرح یا مبلغ ذخیره شود.'
+                    : 'برای کاربر بدون اشتراک حداقل یک اشتراک لازم است.'
                 }
               />
             </div>

@@ -37,6 +37,8 @@ type AdminUser = EditableAdminUser & {
   loggedIn: boolean;
   purchaseCount: number;
   totalMonths: number;
+  totalPeriods?: number;
+  remainingPeriods?: number;
   remainingDays: number;
   active: boolean;
   registeredAt?: string;
@@ -52,8 +54,11 @@ type AdminPurchase = {
   price?: number;
   originalPrice?: number;
   discountCode?: string;
+  periodsPurchased?: number;
+  remainingPeriods?: number;
   startDate?: string;
   endDate?: string;
+  endsAt?: string;
   active?: boolean;
 };
 
@@ -334,9 +339,12 @@ function UserTable({
       }),
       helper.accessor('remainingDays', {
         header: 'مانده',
-        cell: ({ row }) => (row.original.active ? `${faNumber(row.original.remainingDays)} روز` : '—'),
+        cell: ({ row }) =>
+          row.original.active
+            ? `${faNumber(row.original.remainingPeriods ?? row.original.remainingDays)} اشتراک`
+            : '—',
       }),
-      helper.accessor('totalMonths', { header: 'جمع ماه', cell: (info) => faNumber(info.getValue()) }),
+      helper.accessor('totalMonths', { header: 'جمع اشتراک', cell: (info) => faNumber(info.getValue()) }),
       helper.accessor('city', { header: 'شهر', cell: (info) => info.getValue() || '—' }),
       helper.accessor('purchaseCount', { header: 'تعداد خرید', cell: (info) => faNumber(info.getValue()) }),
       helper.accessor('endDate', { header: 'پایان اشتراک', cell: (info) => faDate(info.getValue()) }),
@@ -393,8 +401,9 @@ function PurchaseTable({ rows }: { rows: AdminPurchase[] }) {
       helper.accessor('planName', { header: 'طرح', cell: (info) => info.getValue() || '—' }),
       helper.accessor('startDate', {
         id: 'range',
-        header: 'بازه',
-        cell: ({ row }) => `${faDate(row.original.startDate)} تا ${faDate(row.original.endDate)}`,
+        header: 'اشتراک‌ها',
+        cell: ({ row }) =>
+          `${faNumber(row.original.periodsPurchased || (row.original.billingCycle === 'year' ? 12 : 1))} اشتراک · ${faDate(row.original.startDate)}`,
       }),
       helper.accessor('price', { header: 'مبلغ', cell: (info) => toman(info.getValue()) }),
       helper.accessor('active', { header: 'وضعیت', cell: (info) => (info.getValue() ? 'فعال' : 'تمام‌شده') }),

@@ -26,11 +26,12 @@ function parseUserIds(value: unknown) {
   return [...new Set(list.map((item) => String(item || '').trim()).filter(Boolean))];
 }
 
-function monthsBetween(start?: string | Date, end?: string | Date) {
-  const from = start ? new Date(start).getTime() : NaN;
-  const to = end ? new Date(end).getTime() : NaN;
-  if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return 0;
-  return (to - from) / (1000 * 60 * 60 * 24 * 30);
+function periodsFromRow(row: any) {
+  const purchased = Math.max(0, Math.trunc(Number(row?.periodsPurchased) || 0));
+  if (purchased > 0) return purchased;
+  const remaining = Math.max(0, Math.trunc(Number(row?.remainingPeriods) || 0));
+  if (remaining > 0) return remaining;
+  return 0;
 }
 
 export async function requirePlatformAdmin(
@@ -97,7 +98,7 @@ export async function getAdminOverview(): Promise<ActionResult> {
     const rows = byUser.get(id) || [];
     const snaps = rows.map((row) => snapshotFromRow(row));
     const active = snaps.find((row) => row.active);
-    const totalMonths = rows.reduce((sum: number, row: any) => sum + monthsBetween(row.startDate, row.endDate), 0);
+    const totalPeriods = rows.reduce((sum: number, row: any) => sum + periodsFromRow(row), 0);
     return {
       _id: id,
       fullName: user.fullName || '',
@@ -107,13 +108,16 @@ export async function getAdminOverview(): Promise<ActionResult> {
       address: user.address || '',
       loggedIn: Boolean(user.refreshToken),
       purchaseCount: rows.length,
-      totalMonths: Math.round(totalMonths * 10) / 10,
+      totalMonths: totalPeriods,
+      totalPeriods,
       active: Boolean(active),
-      remainingDays: active?.remainingDays || 0,
+      remainingPeriods: active?.remainingPeriods || 0,
+      remainingDays: active?.remainingPeriods || 0,
       planId: active?.planId || '',
       planName: active?.planName || '',
       billingCycle: active?.billingCycle || '',
-      endDate: active?.endDate || '',
+      endDate: active?.endsAt || '',
+      endsAt: active?.endsAt || '',
       registeredAt: registeredAt(user),
       sheba: user.sheba || '',
       bankName: user.bankName || '',
@@ -133,8 +137,11 @@ export async function getAdminOverview(): Promise<ActionResult> {
       price: Number(row.price || 0),
       originalPrice: Number(row.originalPrice || row.price || 0),
       discountCode: row.discountCode || '',
+      periodsPurchased: snap.periodsPurchased || periodsFromRow(row),
+      remainingPeriods: snap.remainingPeriods,
       startDate: row.startDate,
-      endDate: row.endDate,
+      endDate: snap.endsAt,
+      endsAt: snap.endsAt,
       active: snap.active,
     };
   });

@@ -12,7 +12,7 @@ import {
   ensureOwnerWorkspace,
   resolveLoginContext,
 } from './workspace';
-import { previewPlanDiscount, remainingDays } from './subscription';
+import { previewPlanDiscount, remainingPeriods } from './subscription';
 import { startSubscriptionPayment } from './pay';
 import { normalizeCardNumber, normalizeSheba, shebaIsValid } from '@/lib/iran-bank';
 import { clampPage } from './paging';
@@ -187,8 +187,15 @@ export async function getSessionUser(): Promise<ActionResult> {
   if (!session) return fail('وارد شوید', 401);
   const user = await M().User.findById(session._id).select('-password -refreshToken').lean();
   if (!user) return fail('کاربر پیدا نشد', 404);
-  const days = await remainingDays(session._id);
-  return ok(serialize({ ...user, remainingDaysOfSubscription: days, phoneNumber: user.phonenumber }));
+  const periods = await remainingPeriods(session._id);
+  return ok(
+    serialize({
+      ...user,
+      remainingPeriodsOfSubscription: periods,
+      remainingDaysOfSubscription: periods,
+      phoneNumber: user.phonenumber,
+    }),
+  );
 }
 
 export async function updateProfile(payload: Record<string, unknown>): Promise<ActionResult> {
