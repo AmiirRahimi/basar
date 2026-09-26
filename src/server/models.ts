@@ -651,6 +651,25 @@ const ChatMessageSchema = defineSchema(
   { collection: 'chatmessages' },
 );
 
+const MarketPriceSchema = defineSchema(
+  {
+    key: { type: String, required: true, unique: true, index: true },
+    dollarUrl: { type: String, default: '' },
+    dollarPath: { type: String, default: '' },
+    dollarInterval: { type: String, default: 'manual' },
+    dollarUnit: { type: String, default: 'تومان' },
+    dollarValue: { type: Number, default: null },
+    dollarFetchedAt: { type: Date, default: null },
+    dollarError: { type: String, default: '' },
+    fabricLabel: { type: String, default: 'پارچه' },
+    fabricUnit: { type: String, default: 'تومان' },
+    fabricValue: { type: Number, default: null },
+    fabricUpdatedAt: { type: Date, default: null },
+    timeStamp: { type: Date, required: true, default: Date.now },
+  },
+  { collection: 'marketprices' },
+);
+
 const MenuSearchSchema = defineSchema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
@@ -723,6 +742,7 @@ export const SmsCampaign = modelOf<any>('SmsCampaign', SmsCampaignSchema);
 export const Conversation = modelOf<any>('Conversation', ConversationSchema);
 export const ChatMessage = modelOf<any>('ChatMessage', ChatMessageSchema);
 export const MenuSearch = modelOf<any>('MenuSearch', MenuSearchSchema);
+export const MarketPrice = modelOf<any>('MarketPrice', MarketPriceSchema);
 export const Attachment = modelOf<any>('Attachment', AttachmentSchema);
 
 export const PERSON_POPULATE = personSelect;

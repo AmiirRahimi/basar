@@ -59,10 +59,15 @@ export function hasAdminPermission(permissions: readonly string[] | undefined, p
   return Boolean(permissions?.includes(permission));
 }
 
-/** The access page is superuser-only. It is not one of the sections that can be granted. */
+/** Superuser-only pages. These are not sections that can be granted. */
 export function isSuperuserAccessPath(pathname: string) {
   const path = pathname.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/';
-  return path === '/admin/access' || path.startsWith('/admin/access/');
+  return (
+    path === '/admin/access' ||
+    path.startsWith('/admin/access/') ||
+    path === '/admin/prices' ||
+    path.startsWith('/admin/prices/')
+  );
 }
 
 export function canOpenAdminPath(

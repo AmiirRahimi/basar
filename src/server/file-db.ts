@@ -379,4 +379,5 @@ export const fileModels = {
   Conversation: new FileModel('conversations'),
   ChatMessage: new FileModel('chatmessages'),
   MenuSearch: new FileModel('menusearches'),
+  MarketPrice: new FileModel('marketprices'),
 };

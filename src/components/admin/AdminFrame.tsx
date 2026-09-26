@@ -34,7 +34,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   const superuser = Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin);
   const allowed = canOpenAdminPath(pathname, { superuser, permissions: workspace?.adminPermissions });
   const sections = adminMenuSections.filter((section) => {
-    if (section.id === 'access') return superuser;
+    if (section.id === 'access' || section.id === 'prices') return superuser;
     return hasAdminPermission(workspace?.adminPermissions, section.id as AdminPermissionId);
   });
 

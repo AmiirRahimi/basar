@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Coins,
   Globe,
   LayoutDashboard,
   List,
@@ -17,7 +18,7 @@ import {
 import type { AccountingMenuSection } from '@/components/accounting/AccountingSidebar';
 
 export const adminMenuGroups = [
-  { label: 'سوپریوزر', ids: ['access'] },
+  { label: 'سوپریوزر', ids: ['access', 'prices'] },
   { label: 'نمای کلی', ids: ['dashboard'] },
   { label: 'کاربران', ids: ['users', 'usage', 'plans'] },
   { label: 'ارتباط', ids: ['messages', 'sms', 'telegram'] },
@@ -26,6 +27,7 @@ export const adminMenuGroups = [
 
 export const adminMenuSections: AccountingMenuSection[] = [
   { id: 'access', name: 'دسترسی پنل ادمین', icon: Shield, href: '/admin/access', menuItems: [] },
+  { id: 'prices', name: 'قیمت‌ها', icon: Coins, href: '/admin/prices', menuItems: [] },
   { id: 'dashboard', name: 'داشبورد', icon: LayoutDashboard, href: '/admin', menuItems: [] },
   { id: 'users', name: 'کاربران و اشتراک', icon: Users, href: '/admin/users', menuItems: [] },
   { id: 'usage', name: 'اشتراک و توکن', icon: Sparkles, href: '/admin/usage', menuItems: [] },

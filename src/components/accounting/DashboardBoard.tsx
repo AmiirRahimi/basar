@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Banknote, CalendarClock, FileWarning, Handshake, TrendingUp, Wallet } from 'lucide-react';
+import { AlertTriangle, Banknote, CalendarClock, Coins, FileWarning, Handshake, TrendingUp, Wallet } from 'lucide-react';
+import type { PublicMarketPrices } from '@/lib/market-prices';
 import { DashboardCharts } from './DashboardCharts';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkStatus, persianMonthLabel } from '@/lib/checks';
-import { displayName, faNumber, toman } from '@/lib/format';
+import { displayName, faDate, faNumber, faTime, toman } from '@/lib/format';
 import type { Check } from '@/lib/types';
 import { Price } from './Price';
 import { TeamInviteInbox } from './TeamInviteInbox';
@@ -34,6 +35,7 @@ export function DashboardBoard({
   returnedChecks,
   debtors,
   partnerShares,
+  marketPrices,
 }: {
   sales: { week?: SalesPeriod; month?: SalesPeriod; year?: SalesPeriod };
   monthlySales?: { label: string; amount?: number; count?: number }[];
@@ -41,6 +43,7 @@ export function DashboardBoard({
   returnedChecks: Check[];
   debtors: Debtor[];
   partnerShares?: PartnerShare;
+  marketPrices?: PublicMarketPrices;
 }) {
   const dueTotal = sumAmount(dueThisMonth);
   const returnedTotal = sumAmount(returnedChecks);
@@ -50,6 +53,7 @@ export function DashboardBoard({
   return (
     <div className="space-y-6">
       <TeamInviteInbox />
+      {marketPrices ? <MarketPricesCard prices={marketPrices} /> : null}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-gray-700">فروش</h2>
         <div className="grid gap-4 md:grid-cols-3">
@@ -196,6 +200,34 @@ export function DashboardBoard({
           ))}
         </ListCard>
       </section>
+    </div>
+  );
+}
+
+function MarketPricesCard({ prices }: { prices: PublicMarketPrices }) {
+  return (
+    <section>
+      <h2 className="mb-3 text-sm font-semibold text-gray-700">قیمت‌های بازار</h2>
+      <div className="grid gap-4 md:grid-cols-2">
+        <QuoteCard title="دلار" quote={prices.dollar} />
+        <QuoteCard title={prices.fabric.label || 'پارچه'} quote={prices.fabric} />
+      </div>
+    </section>
+  );
+}
+
+function QuoteCard({ title, quote }: { title: string; quote: { value: number | null; unit: string; updatedAt: string | null } }) {
+  const updated = quote.updatedAt ? `${faDate(quote.updatedAt)}، ${faTime(quote.updatedAt)}` : '';
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-2 text-amber-900">
+        <p className="text-sm font-semibold">{title}</p>
+        <Coins className="h-5 w-5 opacity-80" />
+      </div>
+      <p className="text-2xl font-semibold tracking-tight text-gray-900">
+        {quote.value == null ? 'هنوز ثبت نشده' : `${faNumber(quote.value)} ${quote.unit}`}
+      </p>
+      <p className="mt-1 text-sm text-amber-900/70">{updated ? `به‌روزرسانی ${updated}` : 'سوپریوزر هنوز این قیمت را نگذاشته است'}</p>
     </div>
   );
 }
