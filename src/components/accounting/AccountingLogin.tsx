@@ -97,7 +97,6 @@ export function AccountingLogin() {
               return;
             }
             if (requireAdminPassword && !password.trim()) {
-              toast.error('رمز ادمین لازم است');
               return;
             }
             const res = await loginWithOtp({
@@ -111,7 +110,6 @@ export function AccountingLogin() {
             }
             if (res.message === 'رمز ادمین لازم است') {
               setRequireAdminPassword(true);
-              toast.error(res.message);
               return;
             }
             toast.error(res.message || 'ورود ناموفق');
