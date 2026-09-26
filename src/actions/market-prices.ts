@@ -3,9 +3,9 @@
 import {
   getAdminMarketPrices as loadAdminPrices,
   getPublicMarketPrices as loadPublicPrices,
-  refreshDollarPrice as pullDollar,
-  saveDollarPriceSettings as saveDollar,
-  saveFabricPrices as saveFabrics,
+  refreshCurrencyNow as pullCurrency,
+  saveCurrencyPrices as saveCurrencies,
+  saveStaticPrices as saveStatics,
 } from '@/server/market-prices';
 
 export async function getPublicMarketPrices() {
@@ -16,26 +16,14 @@ export async function getAdminMarketPrices() {
   return loadAdminPrices();
 }
 
-export async function saveDollarPriceSettings(input: {
-  url?: string;
-  path?: string;
-  interval?: string;
-  unit?: string;
-}) {
-  return saveDollar(input);
+export async function saveCurrencyPrices(input: { currencies?: Array<Record<string, unknown>> }) {
+  return saveCurrencies(input);
 }
 
-export async function refreshDollarPrice(input: {
-  url?: string;
-  path?: string;
-  interval?: string;
-  unit?: string;
-}) {
-  return pullDollar(input);
+export async function refreshCurrencyNow(input: { id?: string; url?: string; path?: string }) {
+  return pullCurrency(input);
 }
 
-export async function saveFabricPrices(input: {
-  fabrics?: Array<{ id?: string; label?: string; unit?: string; value?: number | string }>;
-}) {
-  return saveFabrics(input);
+export async function saveStaticPrices(input: { statics?: Array<Record<string, unknown>> }) {
+  return saveStatics(input);
 }

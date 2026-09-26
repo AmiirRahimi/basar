@@ -7,8 +7,10 @@ import { canAccessMenu } from '@/lib/roles';
 import { ChatWidget } from '@/components/chat/ChatWidget';
 import { accountingMenuSections } from './accounting-menu';
 import { AccountingSidebar } from './AccountingSidebar';
+import { PriceTicker, usePriceTicker } from './PriceTicker';
 import { SidebarWorkspace } from './SidebarWorkspace';
 import { useWorkspace } from './WorkspaceProvider';
+import type { TickerPrice } from '@/lib/market-prices';
 
 const EASE = 'duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]';
 
@@ -17,15 +19,16 @@ function isBareRoute(pathname: string) {
   return pathname.includes('/print') || pathname.endsWith('/bijak');
 }
 
-export function AccountingFrame({ children }: { children: ReactNode }) {
+export function AccountingFrame({ children, prices = [] }: { children: ReactNode; prices?: TickerPrice[] }) {
   const pathname = usePathname();
   if (isBareRoute(pathname)) return children;
-  return <AccountingChrome>{children}</AccountingChrome>;
+  return <AccountingChrome prices={prices}>{children}</AccountingChrome>;
 }
 
-function AccountingChrome({ children }: { children: ReactNode }) {
+function AccountingChrome({ children, prices }: { children: ReactNode; prices: TickerPrice[] }) {
   const pathname = usePathname();
   const workspace = useWorkspace();
+  const ticker = usePriceTicker(prices);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
@@ -58,7 +61,8 @@ function AccountingChrome({ children }: { children: ReactNode }) {
   }
 
   return (
-    <main className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
+    <main className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100 p-3 md:p-5 md:pt-14" dir="rtl">
+      <PriceTicker items={ticker} variant="sidebar" />
       <AccountingSidebar
         pathname={pathname}
         menuSections={visibleMenu}
@@ -68,12 +72,14 @@ function AccountingChrome({ children }: { children: ReactNode }) {
         onExpandedChange={setSidebarHovered}
         onPinnedChange={setPinned}
         onClose={() => setMobileOpen(false)}
+        tickerOffset
       />
       <div
         className={`relative z-10 flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-col gap-3 transition-[margin] ${EASE} md:min-h-[calc(100vh-2.5rem)] ${
           sidebarExpanded ? 'md:ms-[17.75rem]' : 'md:ms-[6.25rem]'
         }`}
       >
+        <PriceTicker items={ticker} variant="inline" />
         <div className="flex items-center gap-2 rounded-2xl bg-sidebar-gradient px-3 py-2 text-white md:hidden">
           <button
             type="button"

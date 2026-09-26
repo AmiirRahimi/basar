@@ -74,3 +74,28 @@ body {
   background: rgb(var(--shop-saffron) / 0.35);
   color: rgb(var(--shop-ink));
 }
+
+@keyframes price-ticker {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.price-ticker-track {
+  display: flex;
+  width: max-content;
+  animation-name: price-ticker;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .price-ticker-track {
+    animation: none;
+    width: 100%;
+  }
+}

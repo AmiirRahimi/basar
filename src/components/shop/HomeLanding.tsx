@@ -6,6 +6,7 @@ import { faNumber } from '@/lib/format';
 import { shopOrganizationLd } from '@/lib/json-ld';
 import type { CatalogProduct } from '@/lib/types';
 import Link from 'next/link';
+import AccordionGallery from './AccordionGallery';
 import { ProductGrid, ProductRail } from './ProductRail';
 import { ShopButton } from './ShopUi';
 
@@ -50,6 +51,15 @@ export function HomeLanding({
   const collections = collectionsForSeo(products, kinds);
   const colors = colorsFromCatalog(products);
   const ready = products.slice(0, 12);
+  const gallery = products
+    .filter((product) => product.image)
+    .slice(0, 6)
+    .map((product) => ({
+      image: product.image,
+      label: product.name,
+      alt: product.name,
+      link: `/product/${product.id}`,
+    }));
 
   return (
     <div>
@@ -95,6 +105,22 @@ export function HomeLanding({
           ))}
         </div>
       </section>
+
+      {gallery.length ? (
+        <section className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
+          <SectionHead eyebrow="حجره" title="تصویر لباس‌ها" href="/catalog" linkLabel="همه محصولات" />
+          <AccordionGallery
+            items={gallery}
+            defaultIndex={Math.min(2, gallery.length - 1)}
+            accentColor="#c49440"
+            overlayColor="#101c30"
+            textColor="#f3efe6"
+            expandRatio={0.52}
+            trigger="hover"
+            height={460}
+          />
+        </section>
+      ) : null}
 
       {newest.length ? (
         <section id="new" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-12 lg:px-6">

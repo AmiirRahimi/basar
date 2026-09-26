@@ -1,12 +1,20 @@
-export type DollarInterval = 'manual' | 'hour' | 'day';
+/** Shortest allowed gap between API reads. One shared fetch serves every user. */
+export const MIN_PRICE_INTERVAL_SECONDS = 30;
+export const MAX_PRICE_INTERVAL_SECONDS = 7 * 24 * 60 * 60;
 
-export type MarketPriceQuote = {
-  value: number | null;
+export type CurrencyPrice = {
+  id: string;
+  label: string;
+  url: string;
+  path: string;
   unit: string;
+  intervalSeconds: number;
+  value: number | null;
   updatedAt: string | null;
+  error: string;
 };
 
-export type FabricPrice = {
+export type StaticPrice = {
   id: string;
   label: string;
   value: number;
@@ -14,38 +22,44 @@ export type FabricPrice = {
   updatedAt: string | null;
 };
 
+export type TickerPrice = {
+  id: string;
+  label: string;
+  value: number;
+  unit: string;
+};
+
 export type PublicMarketPrices = {
-  dollar: MarketPriceQuote;
-  fabrics: FabricPrice[];
+  currencies: Array<Pick<CurrencyPrice, 'id' | 'label' | 'unit' | 'value' | 'updatedAt'>>;
+  statics: StaticPrice[];
 };
 
-export type AdminMarketPrices = PublicMarketPrices & {
-  dollar: MarketPriceQuote & {
-    url: string;
-    path: string;
-    interval: DollarInterval;
-    error: string;
-  };
+export type AdminMarketPrices = {
+  currencies: CurrencyPrice[];
+  statics: StaticPrice[];
 };
 
-export const DOLLAR_INTERVALS: { id: DollarInterval; label: string }[] = [
-  { id: 'manual', label: 'هر وقت خودتان بخواهید' },
-  { id: 'hour', label: 'هر ساعت' },
-  { id: 'day', label: 'هر روز' },
-];
+export function clampPriceInterval(value: unknown) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return 3600;
+  return Math.min(MAX_PRICE_INTERVAL_SECONDS, Math.max(MIN_PRICE_INTERVAL_SECONDS, n));
+}
+
+export function tickerItems(prices: PublicMarketPrices): TickerPrice[] {
+  const items: TickerPrice[] = [];
+  for (const row of prices.currencies) {
+    if (row.value == null || !row.label) continue;
+    items.push({ id: row.id, label: row.label, value: row.value, unit: row.unit });
+  }
+  for (const row of prices.statics) {
+    if (!row.label) continue;
+    items.push({ id: row.id, label: row.label, value: row.value, unit: row.unit });
+  }
+  return items;
+}
 
 const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
-
-export function isDollarInterval(value: unknown): value is DollarInterval {
-  return value === 'manual' || value === 'hour' || value === 'day';
-}
-
-export function dollarIntervalMs(interval: DollarInterval) {
-  if (interval === 'hour') return 60 * 60 * 1000;
-  if (interval === 'day') return 24 * 60 * 60 * 1000;
-  return 0;
-}
 
 /** Turn a JSON path such as `data.usd` or `items[0].price` into keys. */
 export function jsonPathKeys(path: string) {

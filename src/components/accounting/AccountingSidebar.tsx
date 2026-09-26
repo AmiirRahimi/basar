@@ -110,6 +110,7 @@ export function AccountingSidebar({
   hideWorkspace = false,
   caption = 'پنل حسابداری',
   navLabel = 'منوی حسابداری',
+  tickerOffset = false,
 }: {
   pathname: string;
   menuSections: AccountingMenuSection[];
@@ -123,6 +124,7 @@ export function AccountingSidebar({
   hideWorkspace?: boolean;
   caption?: string;
   navLabel?: string;
+  tickerOffset?: boolean;
 }) {
   const grouped = groups.map((group) => ({
     ...group,
@@ -153,7 +155,8 @@ export function AccountingSidebar({
         }}
         className={cn(
           'fixed z-30 flex flex-col overflow-hidden rounded-3xl bg-sidebar-gradient py-3 text-white shadow-lg shadow-black/15',
-          'start-5 top-14 bottom-16',
+          'start-5 bottom-16',
+          tickerOffset ? 'top-16' : 'top-14',
           'transition-[width]',
           EASE,
           expanded ? 'w-[256px]' : 'w-[72px]',

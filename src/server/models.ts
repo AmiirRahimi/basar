@@ -661,6 +661,8 @@ const MarketPriceSchema = defineSchema(
     dollarValue: { type: Number, default: null },
     dollarFetchedAt: { type: Date, default: null },
     dollarError: { type: String, default: '' },
+    currencies: { type: Schema.Types.Mixed, default: [] },
+    statics: { type: Schema.Types.Mixed, default: [] },
     fabrics: { type: Schema.Types.Mixed, default: [] },
     fabricLabel: { type: String, default: '' },
     fabricUnit: { type: String, default: '' },
