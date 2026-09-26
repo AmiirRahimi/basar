@@ -19,6 +19,13 @@ const UserSchema = defineSchema(
     email: { type: String, default: null },
     city: { type: String, default: null },
     address: { type: String, default: null },
+    /** Buyer name on the shop. Counting fullName stays as entered there. */
+    shopFullName: { type: String, default: '' },
+    /** Delivery address for website orders. Counting address stays separate until the buyer accepts it. */
+    shopAddress: { type: String, default: '' },
+    shopCity: { type: String, default: '' },
+    postalCode: { type: String, default: '' },
+    landlines: { type: [String], default: [] },
     sheba: { type: String, default: '' },
     bankName: { type: String, default: '' },
     cardNumber: { type: String, default: '' },

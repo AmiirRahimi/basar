@@ -1,5 +1,9 @@
 export const ACCESS_COOKIE = 'basar_access';
 export const REFRESH_COOKIE = 'basar_refresh';
+/** Shop buyer session. Separate from the counting app session. */
+export const SHOP_COOKIE = 'basar_shop';
+/** When set, the shop does not treat a counting login as a shop login. */
+export const SHOP_GUEST_COOKIE = 'basar_shop_guest';
 export const CART_COOKIE = 'basar_wholesale_cart';
 export const SHARE_TOKEN_COOKIE = 'basar_share_token';
 /** Shop guest support-chat resume cookie (`conversationId.token`). */

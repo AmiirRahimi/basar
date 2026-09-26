@@ -6,10 +6,16 @@ import { shopInputClass, ShopButton, ShopField } from './ShopUi';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-export function CheckoutForm({ storefront = false }: { storefront?: boolean }) {
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+export function CheckoutForm({
+  storefront = false,
+  initial,
+}: {
+  storefront?: boolean;
+  initial?: { fullName: string; phone: string; address: string };
+}) {
+  const [fullName, setFullName] = useState(initial?.fullName || '');
+  const [phone, setPhone] = useState(initial?.phone || '');
+  const [address, setAddress] = useState(initial?.address || '');
   const [message, setMessage] = useState('');
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -35,6 +41,14 @@ export function CheckoutForm({ storefront = false }: { storefront?: boolean }) {
       }}
     >
       <p className="text-[11px] tracking-[0.22em] text-shop-ink/45">دفتر سفارش عمده</p>
+      {!initial ? (
+        <p className="text-sm leading-7 text-shop-ink/65">
+          <a href="/login?next=/checkout" className="text-shop-ink underline decoration-shop-saffron underline-offset-4">
+            ورود با موبایل
+          </a>{' '}
+          آدرس و سفارش‌های قبلی را نگه می‌دارد. اگر در شمارش حساب دارید، همان شماره کافی است.
+        </p>
+      ) : null}
       <ShopField label="نام فروشگاه / خریدار">
         <input className={shopInputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} required />
       </ShopField>

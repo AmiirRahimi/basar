@@ -3,7 +3,7 @@
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { BRAND, BRAND_ADDRESSES, BRAND_PHONES, BRAND_SOCIAL } from '@/lib/brand';
 import { cn } from '@/ui/lib/cn';
-import { Instagram, Linkedin, Menu, Phone, Send, X } from 'lucide-react';
+import { Instagram, Linkedin, Menu, Phone, Send, UserRound, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -20,9 +20,14 @@ function activePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function ShopHeader() {
+export function ShopHeader({
+  account,
+}: {
+  account?: { fullName: string; phonenumber: string } | null;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const accountLabel = account?.fullName || 'حساب من';
   const sharePage = pathname.startsWith('/s/');
 
   if (sharePage) {
@@ -74,6 +79,18 @@ export function ShopHeader() {
             <Phone className="h-3.5 w-3.5 text-shop-saffron" />
             <span dir="ltr">{BRAND_PHONES[0].display}</span>
           </Link>
+          <Link
+            href={account ? '/account' : '/login'}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs',
+              activePath(pathname, account ? '/account' : '/login')
+                ? 'bg-shop-saffron text-shop-ink'
+                : 'border border-white/15 text-shop-bone/85 hover:bg-white/5',
+            )}
+          >
+            <UserRound className="h-3.5 w-3.5" />
+            <span className="max-w-[8rem] truncate">{account ? accountLabel : 'ورود'}</span>
+          </Link>
           <button type="button" className="rounded-full p-2 text-shop-bone md:hidden" onClick={() => setOpen((v) => !v)} aria-label="منو">
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -92,6 +109,9 @@ export function ShopHeader() {
                 {link.label}
               </Link>
             ))}
+            <Link href={account ? '/account' : '/login'} onClick={() => setOpen(false)} className="text-shop-saffron">
+              {account ? accountLabel : 'ورود'}
+            </Link>
             <a href={BRAND_PHONES[0].href} dir="ltr" className="text-shop-bone/70">
               {BRAND_PHONES[0].display}
             </a>
@@ -123,6 +143,9 @@ export function ShopFooter() {
               {link.label}
             </Link>
           ))}
+          <Link href="/account" className="hover:text-shop-bone">
+            حساب من
+          </Link>
         </div>
         <div className="grid gap-2 text-sm">
           <p className="mb-1 text-xs tracking-[0.18em] text-shop-saffron">تلفن</p>
