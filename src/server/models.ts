@@ -34,6 +34,8 @@ const UserSchema = defineSchema(
     imageTokens: { type: Number, default: 0 },
     /** Admin allows every brand and store of this user to request website publishing. */
     websiteListing: { type: Boolean, default: false },
+    /** Admin panel sections the superuser granted. The env superuser ignores this and has every section. */
+    adminPermissions: { type: [String], default: [] },
     timeStamp: { type: Date, default: Date.now },
   },
   { collection: 'users' },

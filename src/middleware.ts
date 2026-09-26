@@ -49,15 +49,6 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/counting/login';
     return withHeaders(NextResponse.redirect(url));
   }
-  if (isAdminApp || pathname.startsWith('/counting/admin')) {
-    const admin = (process.env.ADMIN_PHONENUMBER || '').trim();
-    const phone = accessSession?.phonenumber || refreshSession?.phonenumber || '';
-    if (!admin || phone !== admin) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/counting/dashboard';
-      return withHeaders(NextResponse.redirect(url));
-    }
-  }
   return withHeaders(NextResponse.next());
 }
 

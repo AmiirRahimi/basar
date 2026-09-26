@@ -6,8 +6,9 @@ import * as mongo from './models';
 import mongoose from 'mongoose';
 import { fail, ok, type ActionResult } from './result';
 import { adminSetSubscription, snapshotFromRow } from './subscription';
-import type { Session } from './session';
-import { withWorkspace } from './workspace';
+import { normalizeAdminPermissions, resolveAdminPermissions, type AdminPermissionId } from '@/lib/admin-permissions';
+import { isSuperuserPhone } from './teams';
+import { requireSession, type Session } from './session';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -32,13 +33,21 @@ function monthsBetween(start?: string | Date, end?: string | Date) {
   return (to - from) / (1000 * 60 * 60 * 24 * 30);
 }
 
-export async function requirePlatformAdmin(): Promise<{ session: Session } | { error: ActionResult }> {
-  const access = await withWorkspace();
-  if ('error' in access) return { error: access.error };
-  if (!access.session.isPlatformAdmin) {
-    return { error: fail('فقط سوپریوزر به این بخش دسترسی دارد', 403) };
+export async function requirePlatformAdmin(
+  permission?: AdminPermissionId | AdminPermissionId[],
+): Promise<{ session: Session; superuser: boolean; permissions: string[] } | { error: ActionResult }> {
+  const auth = await requireSession();
+  if ('error' in auth) return { error: auth.error };
+  await db();
+  const user = await M().User.findById(auth.session._id).select('phonenumber adminPermissions').lean();
+  if (!user) return { error: fail('وارد شوید', 401) };
+  const superuser = isSuperuserPhone(String(user.phonenumber || auth.session.phonenumber));
+  const permissions = resolveAdminPermissions(superuser, (user as { adminPermissions?: unknown }).adminPermissions);
+  const need = permission == null ? [] : Array.isArray(permission) ? permission : [permission];
+  if (!superuser && (!need.length || !need.some((id) => permissions.includes(id)))) {
+    return { error: fail('به این بخش از پنل ادمین دسترسی ندارید', 403) };
   }
-  return { session: access.session };
+  return { session: auth.session, superuser, permissions };
 }
 
 function registeredAt(user: { _id?: unknown; timeStamp?: unknown }) {
@@ -62,7 +71,7 @@ function shiftPersianMonth(key: string, delta: number) {
 }
 
 export async function getAdminOverview(): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin(['dashboard', 'users']);
   if ('error' in access) return access.error;
   await db();
   const [users, subscriptions, codes, conversations] = await Promise.all([
@@ -109,6 +118,7 @@ export async function getAdminOverview(): Promise<ActionResult> {
       sheba: user.sheba || '',
       bankName: user.bankName || '',
       imageTokens: Number(user.imageTokens || 0),
+      adminPermissions: resolveAdminPermissions(isSuperuserPhone(String(user.phonenumber || '')), user.adminPermissions),
     };
   });
   const purchases = subscriptions.map((row: any) => {
@@ -190,7 +200,7 @@ export async function getAdminOverview(): Promise<ActionResult> {
 }
 
 export async function createDiscountCode(payload: Record<string, unknown>): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('users');
   if ('error' in access) return access.error;
   await db();
   const code = normalizeCode(payload.code);
@@ -213,7 +223,7 @@ export async function createDiscountCode(payload: Record<string, unknown>): Prom
 }
 
 export async function updateDiscountCode(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('users');
   if ('error' in access) return access.error;
   await db();
   const next: Record<string, unknown> = {};
@@ -233,7 +243,7 @@ export async function updateDiscountCode(id: string, payload: Record<string, unk
 }
 
 export async function deleteDiscountCode(id: string): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('users');
   if ('error' in access) return access.error;
   await db();
   await M().DiscountCode.findByIdAndDelete(id);
@@ -241,11 +251,14 @@ export async function deleteDiscountCode(id: string): Promise<ActionResult> {
 }
 
 export async function updateAdminUser(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('users');
   if ('error' in access) return access.error;
   await db();
   const user = await M().User.findById(id).lean();
   if (!user) return fail('کاربر پیدا نشد', 404);
+  if (payload.adminPermissions != null && !access.superuser) {
+    return fail('فقط سوپریوزر می‌تواند دسترسی پنل ادمین را بدهد', 403);
+  }
 
   const next: Record<string, unknown> = {};
   if (payload.fullName != null) next.fullName = String(payload.fullName).trim();
@@ -263,18 +276,21 @@ export async function updateAdminUser(id: string, payload: Record<string, unknow
     if (taken && String(taken._id) !== String(id)) return fail('این موبایل قبلاً ثبت شده');
     next.phonenumber = phonenumber;
   }
+  if (payload.adminPermissions != null && access.superuser && !isSuperuserPhone(String(user.phonenumber || ''))) {
+    next.adminPermissions = normalizeAdminPermissions(payload.adminPermissions);
+  }
   if (Object.keys(next).length) await M().User.findByIdAndUpdate(id, next);
   return ok(null, Object.keys(next).length ? 'اطلاعات کاربر ذخیره شد' : '');
 }
 
 export async function setAdminSubscription(userId: string, payload: Record<string, unknown>): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('users');
   if ('error' in access) return access.error;
   return adminSetSubscription(userId, payload);
 }
 
 export async function saveAdminUser(id: string, payload: Record<string, unknown>): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('users');
   if ('error' in access) return access.error;
   const info = await updateAdminUser(id, payload);
   if (!info.ok) return info;

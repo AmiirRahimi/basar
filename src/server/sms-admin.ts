@@ -81,7 +81,7 @@ async function remainingByPerson() {
 }
 
 export async function getSmsBoard(): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('sms');
   if ('error' in access) return access.error;
   await db();
 
@@ -143,7 +143,7 @@ export async function sendAdminSms(payload: {
   link?: string;
   discountPercent?: number;
 }): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('sms');
   if ('error' in access) return access.error;
 
   const ip = await clientIp();

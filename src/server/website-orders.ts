@@ -12,6 +12,7 @@ import { STOREFRONT_CHANNEL } from '@/lib/storefront';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
+import { clothLabel } from '@/lib/cloth-label';
 import { fail, ok, type ActionResult } from './result';
 import { requirePlatformAdmin } from './admin';
 import { getShopIdentity } from './shop-account';
@@ -48,10 +49,7 @@ function packsLabel(packs: unknown) {
 }
 
 function clothName(cloth: unknown) {
-  if (!cloth || typeof cloth !== 'object') return 'لباس';
-  const row = cloth as { code?: unknown; _type?: unknown; _style?: unknown };
-  const label = [nameOf(row._type), nameOf(row._style)].filter(Boolean).join(' ');
-  return label || (row.code ? `لباس ${row.code}` : 'لباس');
+  return clothLabel(cloth);
 }
 
 function paymentAmount(row: Record<string, unknown>) {
@@ -104,7 +102,7 @@ function orderTotal(lines: Record<string, unknown>[]) {
 }
 
 export async function getWebsiteOrderBoard(): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin(['orders', 'dashboard']);
   if ('error' in access) return access.error;
   await db();
   const loaded = await loadWebsiteOrders();
@@ -233,7 +231,7 @@ export async function getWebsiteInvoiceDocument(id: string): Promise<ActionResul
   if (!invoice || !text((invoice as { publicToken?: unknown }).publicToken)) {
     return fail('سفارش وب‌سایت پیدا نشد', 404);
   }
-  const admin = await requirePlatformAdmin();
+  const admin = await requirePlatformAdmin('orders');
   if ('error' in admin) {
     const identity = await getShopIdentity();
     const client = (invoice as { _client?: { phoneNumber?: unknown } })._client;
@@ -268,7 +266,7 @@ export async function getWebsiteInvoiceDocument(id: string): Promise<ActionResul
 }
 
 export async function setWebsiteOrderStatus(id: string, status: string): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('orders');
   if ('error' in access) return access.error;
   await db();
   const next = WEBSITE_ORDER_STATUSES.find((item) => item.id === status)?.id as WebsiteOrderStatus | undefined;

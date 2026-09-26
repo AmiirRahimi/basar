@@ -176,6 +176,7 @@ export type Workspace = {
   isPlatformAdmin: boolean;
   isSuperuser: boolean;
   permissions: string[];
+  adminPermissions: string[];
   accessSource: AccessSource;
   teams: WorkspaceTeam[];
   teamPeople: TeamMember[];

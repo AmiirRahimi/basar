@@ -326,6 +326,14 @@ function UserTable({
     () => [
       helper.accessor('fullName', { header: 'نام', cell: (info) => info.getValue() || '—' }),
       helper.accessor('phonenumber', { header: 'موبایل', cell: (info) => <span dir="ltr">{info.getValue()}</span> }),
+      helper.accessor((row) => row.adminPermissions?.length || 0, {
+        id: 'adminAccess',
+        header: 'پنل ادمین',
+        cell: (info) => {
+          const count = Number(info.getValue() || 0);
+          return count ? `${faNumber(count)} بخش` : '—';
+        },
+      }),
       helper.accessor('loggedIn', { header: 'ورود', cell: (info) => (info.getValue() ? 'وارد شده' : 'خارج') }),
       helper.accessor('registeredAt', { header: 'ثبت‌نام', cell: (info) => faDate(info.getValue()) }),
       helper.accessor((row) => (row.active ? row.planName || 'فعال' : 'ندارد'), {

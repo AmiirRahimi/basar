@@ -10,8 +10,7 @@ import {
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
-import { fail, ok, type ActionResult } from './result';
-import { withWorkspace } from './workspace';
+import { ok, type ActionResult } from './result';
 
 const CATALOG_KEY = 'subscription-plans';
 
@@ -24,10 +23,8 @@ function catalogFilter() {
 }
 
 async function requireAdmin() {
-  const access = await withWorkspace();
-  if ('error' in access) return { error: (access.error || fail('وارد شوید', 401)) as ActionResult };
-  if (!access.session.isPlatformAdmin) return { error: fail('فقط سوپریوزر به این بخش دسترسی دارد', 403) };
-  return { session: access.session };
+  const { requirePlatformAdmin } = await import('./admin');
+  return requirePlatformAdmin('plans');
 }
 
 export type LivePlanCatalog = {

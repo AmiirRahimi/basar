@@ -73,7 +73,7 @@ async function ownedByAdmin(userId: unknown, adminIds: Set<string>) {
 }
 
 export async function getWebsiteListingBoard(): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('website');
   if ('error' in access) return access.error;
   await db();
   const adminIds = await adminUserIds();
@@ -172,7 +172,7 @@ export async function setWebsiteListing(
   id: string,
   enabled: boolean,
 ): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('website');
   if ('error' in access) return access.error;
   await db();
   const adminIds = await adminUserIds();
@@ -241,7 +241,7 @@ async function sellerClothIds(ids: string[]) {
 }
 
 export async function publishWebsiteClothes(ids: string[]): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('website');
   if ('error' in access) return access.error;
   await db();
   const kept = await sellerClothIds(ids);
@@ -253,7 +253,7 @@ export async function publishWebsiteClothes(ids: string[]): Promise<ActionResult
 }
 
 export async function dismissWebsiteClothes(ids: string[]): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('website');
   if ('error' in access) return access.error;
   await db();
   const kept = await sellerClothIds(ids);

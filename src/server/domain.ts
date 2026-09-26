@@ -1,5 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import mongoose from 'mongoose';
+import { clothLabel } from '@/lib/cloth-label';
 import { fabricLotTotal, fabricUnitCost, clothFinishedUnitCost, clothPayTotal, clothUnitPrice } from '@/lib/cloth-price';
 import { sanitizeClothExtras } from '@/lib/cloth-extras';
 import { sanitizeFabricExtras } from '@/lib/fabric-extras';
@@ -225,7 +226,9 @@ function denyWrite(session: Session, resource: string) {
   if (read) return read;
   if (session.isPlatformAdmin) return null;
   if (PLATFORM_WRITE.has(resource)) {
-    return fail('فقط سوپریوزر می‌تواند این بخش را ویرایش کند', 403);
+    const dropdown = resource === 'color' || resource === 'size' || resource === 'cloth-kind' || resource === 'cloth-style';
+    if (dropdown && session.adminPermissions?.includes('dropdowns')) return null;
+    return fail('به این بخش از پنل ادمین دسترسی ندارید', 403);
   }
   const subscriptionActive = session.subscriptionActive !== false;
   if (!subscriptionActive) {
@@ -408,9 +411,14 @@ export async function getResource(resource: string, id: string): Promise<ActionR
     const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: id })).lean();
     if (!invoice) return fail('پیدا نشد', 404);
     const lines = await M().CustomerCart.find(storeFilter(auth.session, { _invoice: oid(id) }))
-      .populate('_cloth')
+      .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
       .lean();
-    return ok(serialize(lines));
+    const named = (lines as Record<string, unknown>[]).map((line) => {
+      const cloth = line._cloth;
+      if (!cloth || typeof cloth !== 'object') return line;
+      return { ...line, _cloth: { ...cloth, name: clothLabel(cloth) } };
+    });
+    return ok(serialize(named));
   }
   const cfg = lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
@@ -1992,7 +2000,9 @@ function storefrontTotals(orders: StorefrontOrder[]) {
 export async function listStorefrontOrders(): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
-  if (!access.session.isPlatformAdmin) return fail('فقط سوپریوزر به این بخش دسترسی دارد', 403);
+  if (!access.session.adminPermissions?.includes('storefront')) {
+    return fail('به این بخش از پنل ادمین دسترسی ندارید', 403);
+  }
   await db();
   const rows = await (M().Invoice.find({ channel: STOREFRONT_CHANNEL, isDeleted: false }) as any)
     .populate('_client', 'fullName phoneNumber')
@@ -2018,7 +2028,9 @@ export async function markStorefrontPayout(
 ): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
-  if (!access.session.isPlatformAdmin) return fail('فقط سوپریوزر به این بخش دسترسی دارد', 403);
+  if (!access.session.adminPermissions?.includes('storefront')) {
+    return fail('به این بخش از پنل ادمین دسترسی ندارید', 403);
+  }
   await db();
   const row = await (
     M().Invoice.findOne({ _id: oid(invoiceId), channel: STOREFRONT_CHANNEL, isDeleted: false }) as any

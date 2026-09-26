@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { MainWrapper, PageHeader } from '@/ui';
+import { adminPermissionForPath, firstAdminHref, hasAdminPermission } from '@/lib/admin-permissions';
 import { canAccessMenu, pathMenuId } from '@/lib/roles';
 import { countingMenuSections } from './counting-menu';
 import { ResultToast } from './ResultToast';
@@ -34,8 +35,9 @@ export function CountingShell({
   );
   const role = workspace?.storeRole || 'owner';
   const menuId = pathMenuId(pathname) || 'dashboard';
+  const adminNeed = pathname.startsWith('/admin') ? adminPermissionForPath(pathname) : '';
   const allowed = pathname.startsWith('/admin')
-    ? Boolean(workspace?.isPlatformAdmin)
+    ? Boolean(adminNeed && hasAdminPermission(workspace?.adminPermissions, adminNeed))
     : canAccessMenu(role, menuId, workspace?.isPlatformAdmin, workspace?.permissions);
   const activeBrand = workspace?.brands.find((brand) => brand._id === workspace.activeBrandId);
   const activeStore = workspace?.stores.find((store) => store._id === workspace.activeStoreId);
@@ -43,10 +45,11 @@ export function CountingShell({
 
   useEffect(() => {
     if (!workspace || allowed) return;
-    const fallback =
-      countingMenuSections.find((section) =>
-        canAccessMenu(role, section.id, workspace.isPlatformAdmin, workspace.permissions),
-      )?.href || '/counting/profile';
+    const fallback = pathname.startsWith('/admin')
+      ? firstAdminHref(workspace.adminPermissions) || '/counting/dashboard'
+      : countingMenuSections.find((section) =>
+          canAccessMenu(role, section.id, workspace.isPlatformAdmin, workspace.permissions),
+        )?.href || '/counting/profile';
     if (fallback !== pathname) router.replace(fallback);
   }, [allowed, pathname, role, router, workspace]);
 

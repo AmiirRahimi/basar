@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getInvoiceCart, getResource } from '@/actions/crud';
-import { InvoicePrintView } from '@/components/counting/InvoicePrintView';
+import { InvoiceDocument } from '@/components/counting/InvoiceDocument';
 import type { CartLine, Invoice } from '@/lib/types';
 
 export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,5 +20,5 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
     );
   }
 
-  return <InvoicePrintView invoice={invoice} lines={lines} />;
+  return <InvoiceDocument kind="print" invoice={invoice} lines={lines} />;
 }

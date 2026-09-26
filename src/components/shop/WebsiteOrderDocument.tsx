@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { InvoiceBijakView } from '@/components/counting/InvoiceBijakView';
-import { InvoicePrintView } from '@/components/counting/InvoicePrintView';
+import { InvoiceDocument } from '@/components/counting/InvoiceDocument';
 import type { CartLine, Invoice } from '@/lib/types';
 import { getWebsiteInvoiceDocument } from '@/server/website-orders';
 
@@ -29,16 +28,15 @@ export async function WebsiteOrderDocument({
   }
 
   const root = backHref.startsWith('/admin') ? `/admin/orders/${id}` : `/account/orders/${id}`;
-  if (kind === 'bijak') {
-    return <InvoiceBijakView invoice={data.invoice} backHref={`${root}/print`} invoiceHref={`${root}/print`} />;
-  }
   return (
-    <InvoicePrintView
+    <InvoiceDocument
+      kind={kind}
       invoice={data.invoice}
       lines={data.lines}
-      backHref={backHref}
+      backHref={kind === 'bijak' ? `${root}/print` : backHref}
       backLabel={backLabel}
       bijakHref={`${root}/bijak`}
+      invoiceHref={`${root}/print`}
     />
   );
 }

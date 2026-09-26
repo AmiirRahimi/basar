@@ -25,7 +25,7 @@ function phoneOf(row: { phoneNumber?: unknown; phonenumber?: unknown }) {
 }
 
 export async function getTelegramPublishBoard(): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('telegram');
   if ('error' in access) return access.error;
   await db();
 
@@ -64,7 +64,7 @@ export async function getTelegramPublishBoard(): Promise<ActionResult> {
 export async function publishClothesToTelegram(payload: {
   clothIds?: unknown;
 }): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('telegram');
   if ('error' in access) return access.error;
   const clothIds = asIdList(payload.clothIds);
   if (!clothIds.length) return fail('حداقل یک لباس انتخاب کنید');
@@ -152,7 +152,7 @@ export async function publishClothesToTelegram(payload: {
 export async function invitePeopleToTelegramChannel(payload: {
   personIds?: unknown;
 }): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('telegram');
   if ('error' in access) return access.error;
   const personIds = asIdList(payload.personIds);
   if (!personIds.length) return fail('حداقل یک شخص انتخاب کنید');

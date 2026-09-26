@@ -26,6 +26,7 @@ import {
   permissionsForStore,
   storesForTeams,
 } from './teams';
+import { resolveAdminPermissions } from '@/lib/admin-permissions';
 import { OWNER_PERMISSIONS } from '@/lib/permissions';
 
 function M() {
@@ -282,6 +283,8 @@ export async function withWorkspace() {
   const role = await resolveStoreRole(auth.session);
   if (!role) return { error: fail('به این فروشگاه دسترسی ندارید', 403) as ActionResult };
   const isAdmin = isPlatformAdmin(auth.session.phonenumber);
+  const adminRow = await M().User.findById(auth.session._id).select('adminPermissions').lean();
+  const adminPermissions = resolveAdminPermissions(isAdmin, (adminRow as { adminPermissions?: unknown } | null)?.adminPermissions);
   const meta = await resolveAccessMeta(auth.session, role);
   const subscription = await subscriptionForSession({ ...auth.session, storeRole: role, isPlatformAdmin: isAdmin });
   return {
@@ -291,6 +294,7 @@ export async function withWorkspace() {
       isPlatformAdmin: isAdmin,
       isSuperuser: meta.isSuperuser,
       permissions: meta.permissions,
+      adminPermissions,
       subscriptionActive: subscription.active,
     },
   };
@@ -467,6 +471,7 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       isPlatformAdmin: isAdmin,
       isSuperuser: meta.isSuperuser,
       permissions: meta.permissions,
+      adminPermissions: resolveAdminPermissions(isAdmin, user.adminPermissions),
       accessSource: meta.accessSource,
       teams,
       teamPeople,

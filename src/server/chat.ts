@@ -509,7 +509,7 @@ export async function listAdminConversations(
   channel?: ChatChannel | 'all',
   status?: 'open' | 'closed' | 'all',
 ): Promise<ActionResult<{ conversations: ChatConversationDto[]; unread: number }>> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('messages');
   if ('error' in access) {
     return access.error as ActionResult<{ conversations: ChatConversationDto[]; unread: number }>;
   }
@@ -543,7 +543,7 @@ export async function listAdminConversations(
 }
 
 export async function getAdminThread(conversationId: string): Promise<ActionResult<ChatThreadDto>> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('messages');
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   await db();
 
@@ -568,7 +568,7 @@ export async function sendAdminMessage(
   conversationId: string,
   bodyRaw: unknown,
 ): Promise<ActionResult<ChatThreadDto>> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('messages');
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   const body = clipBody(bodyRaw);
   if (!body) return failDto('متن پیام خالی است');
@@ -596,7 +596,7 @@ export async function sendAdminMessage(
 }
 
 export async function closeAdminConversation(conversationId: string): Promise<ActionResult<ChatThreadDto>> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('messages');
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   await db();
   const row = await M().Conversation.findById(oid(conversationId)).lean();
@@ -606,7 +606,7 @@ export async function closeAdminConversation(conversationId: string): Promise<Ac
 }
 
 export async function reopenAdminConversation(conversationId: string): Promise<ActionResult<ChatThreadDto>> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('messages');
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
   await db();
   const row = await M().Conversation.findById(oid(conversationId)).lean();
@@ -616,7 +616,7 @@ export async function reopenAdminConversation(conversationId: string): Promise<A
 }
 
 export async function adminUnread(): Promise<ActionResult<{ unread: number }>> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('messages');
   if ('error' in access) return access.error as ActionResult<{ unread: number }>;
   await db();
   const rows = await M()

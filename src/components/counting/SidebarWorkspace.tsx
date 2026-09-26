@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Check, ChevronDown, Loader2, Settings2, Store, User } from 'lucide-react';
 import { logout } from '@/actions/auth';
 import { switchWorkspace } from '@/actions/workspace';
+import { firstAdminHref } from '@/lib/admin-permissions';
 import { STORE_STAFF_ROLES } from '@/lib/constants';
 import { cn, toast } from '@/ui';
 import { SidebarCollapseItem, SidebarCollapsible, SidebarReveal } from './SidebarCollapsible';
@@ -334,10 +335,10 @@ export function SidebarUser({ expanded = true }: { expanded?: boolean }) {
         leading={avatar}
       >
         <div className="rounded-xl bg-black/20 p-1">
-          {workspace?.isPlatformAdmin ? (
+          {workspace?.isPlatformAdmin || (workspace?.adminPermissions?.length || 0) > 0 ? (
             <>
               <Link
-                href="/admin"
+                href={firstAdminHref(workspace?.adminPermissions) || '/admin'}
                 onClick={() => setOpen(false)}
                 className="flex w-full rounded-lg px-2.5 py-1.5 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
               >

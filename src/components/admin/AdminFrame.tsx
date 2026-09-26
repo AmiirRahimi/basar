@@ -1,15 +1,19 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { CountingSidebar } from '@/components/counting/CountingSidebar';
+import { useWorkspace } from '@/components/counting/WorkspaceProvider';
+import { adminPermissionForPath, firstAdminHref, hasAdminPermission, type AdminPermissionId } from '@/lib/admin-permissions';
 import { adminMenuGroups, adminMenuSections } from './admin-menu';
 
 const EASE = 'duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]';
 
 export function AdminFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const workspace = useWorkspace();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
@@ -27,6 +31,19 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  const need = adminPermissionForPath(pathname);
+  const allowed = Boolean(need && hasAdminPermission(workspace?.adminPermissions, need));
+  const sections = adminMenuSections.filter((section) =>
+    hasAdminPermission(workspace?.adminPermissions, section.id as AdminPermissionId),
+  );
+
+  useEffect(() => {
+    if (!workspace || allowed) return;
+    const next = firstAdminHref(workspace.adminPermissions) || '/counting/dashboard';
+    if (next !== pathname) router.replace(next);
+  }, [allowed, pathname, router, workspace]);
+
+  if (!allowed) return null;
   if (pathname.includes('/print') || pathname.endsWith('/bijak')) return children;
 
   function setPinned(next: boolean) {
@@ -43,7 +60,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     <main className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
       <CountingSidebar
         pathname={pathname}
-        menuSections={adminMenuSections}
+        menuSections={sections}
         groups={adminMenuGroups}
         hideWorkspace
         caption="پنل ادمین"

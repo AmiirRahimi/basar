@@ -29,7 +29,7 @@ function emptyMonths() {
 }
 
 export async function getAdminUsageReport(): Promise<ActionResult> {
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin(['usage', 'dashboard']);
   if ('error' in access) return access.error;
   await db();
 

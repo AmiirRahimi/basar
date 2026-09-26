@@ -46,6 +46,7 @@ const ADMIN_MENU_IDS = new Set([
   'sms',
   'telegram',
   'storefront',
+  'orders',
   'website',
   'dropdowns',
 ]);
@@ -129,6 +130,7 @@ export function pathMenuId(pathname: string) {
   if (pathname.startsWith('/admin/messages')) return 'messages';
   if (pathname.startsWith('/admin/sms')) return 'sms';
   if (pathname.startsWith('/admin/telegram')) return 'telegram';
+  if (pathname.startsWith('/admin/orders')) return 'orders';
   if (pathname.startsWith('/admin/storefront')) return 'storefront';
   if (pathname.startsWith('/admin/website')) return 'website';
   if (pathname.startsWith('/admin/dropdowns')) return 'dropdowns';

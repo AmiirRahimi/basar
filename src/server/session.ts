@@ -13,6 +13,7 @@ export type Session = {
   isPlatformAdmin?: boolean;
   isSuperuser?: boolean;
   permissions?: string[];
+  adminPermissions?: string[];
   subscriptionActive?: boolean;
 };
 

@@ -237,7 +237,7 @@ export async function previewSubscriptionDiscount(payload: Record<string, unknow
 
 export async function listUsers(page = 1, skip = 50): Promise<ActionResult> {
   const { requirePlatformAdmin } = await import('./admin');
-  const access = await requirePlatformAdmin();
+  const access = await requirePlatformAdmin('users');
   if ('error' in access) return access.error;
   await db();
   const paging = clampPage(page, skip);

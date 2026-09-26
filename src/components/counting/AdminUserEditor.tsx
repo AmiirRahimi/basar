@@ -13,7 +13,8 @@ import {
 } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { Button, FormCard, Input, Modal, Select, toast } from '@/ui';
+import { ADMIN_PERMISSIONS } from '@/lib/admin-permissions';
+import { Button, Checkbox, FormCard, Input, Modal, Select, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 
 const selectLabels = {
@@ -35,6 +36,7 @@ export type EditableAdminUser = {
   planId?: string;
   billingCycle?: string;
   endDate?: string;
+  adminPermissions?: string[];
 };
 
 function emptyForm(user: EditableAdminUser, planId: PlanId) {
@@ -47,6 +49,7 @@ function emptyForm(user: EditableAdminUser, planId: PlanId) {
     planId,
     addMonths: '0',
     price: '',
+    adminPermissions: user.adminPermissions || [],
   };
 }
 
@@ -68,8 +71,21 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
   const addMonths = Math.max(0, Math.trunc(Number(form?.addMonths || 0)));
   const suggestedPrice = addMonths > 0 ? plan.monthlyPrice * addMonths : 0;
 
-  function set<K extends keyof NonNullable<typeof form>>(key: K, value: string) {
+  function set<K extends keyof NonNullable<typeof form>>(key: K, value: NonNullable<typeof form>[K]) {
     setForm((current) => (current ? { ...current, [key]: value } : current));
+  }
+
+  function togglePermission(id: string) {
+    setForm((current) => {
+      if (!current) return current;
+      const has = current.adminPermissions.includes(id);
+      return {
+        ...current,
+        adminPermissions: has
+          ? current.adminPermissions.filter((item) => item !== id)
+          : [...current.adminPermissions, id],
+      };
+    });
   }
 
   function save(endSubscription = false) {
@@ -79,7 +95,8 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
       toast.error('تعداد ماه نامعتبر است');
       return;
     }
-    if (!endSubscription && !user.active && months < 1) {
+    const grantingAccess = Boolean(workspace?.isSuperuser && user._id !== workspace.user._id);
+    if (!endSubscription && !user.active && months < 1 && !grantingAccess) {
       toast.error('برای فعال‌کردن اشتراک، تعداد ماه را وارد کنید');
       return;
     }
@@ -100,6 +117,9 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
         addMonths: months,
         endSubscription,
         ...(price !== undefined ? { price } : {}),
+        ...(workspace?.isSuperuser && user._id !== workspace.user._id
+          ? { adminPermissions: form.adminPermissions }
+          : {}),
       });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
@@ -200,6 +220,31 @@ export function AdminUserEditor({ user, onClose }: { user: EditableAdminUser | n
               />
             </div>
           </section>
+
+          {workspace?.isSuperuser ? (
+            <section className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800">دسترسی پنل ادمین</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  هر بخش را جدا می‌توانید بدهید. فقط سوپریوزر این دسترسی‌ها را تنظیم می‌کند.
+                </p>
+              </div>
+              {user._id === workspace.user._id ? (
+                <p className="text-sm text-gray-600">سوپریوزر همه بخش‌ها را دارد و این فهرست برای خودش عوض نمی‌شود.</p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {ADMIN_PERMISSIONS.map((item) => (
+                    <Checkbox
+                      key={item.id}
+                      checked={form.adminPermissions.includes(item.id)}
+                      label={item.label}
+                      onChange={() => togglePermission(item.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Button variant="danger" disabled={pending || !user.active} onClick={() => save(true)}>
