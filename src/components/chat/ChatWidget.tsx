@@ -27,11 +27,14 @@ export function ChatWidget({
   variant,
   className,
   openSignal,
+  account = null,
 }: {
   variant: Variant;
   className?: string;
   /** Increment to force-open (e.g. contact page CTA). */
   openSignal?: number;
+  /** Logged-in shop visitor. Name and phone are already known. */
+  account?: { name: string; phone: string } | null;
 }) {
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
@@ -43,7 +46,7 @@ export function ChatWidget({
   const [guestBody, setGuestBody] = useState('');
   const [pending, start] = useTransition();
   const lastAdminReply = useRef<string>('');
-  const needsGuestForm = variant === 'shop' && !thread;
+  const needsGuestForm = variant === 'shop' && !account && !thread;
 
   const refreshUnread = useCallback(async () => {
     const res = variant === 'accounting' ? await accountingUnread() : await shopUnread();
@@ -178,20 +181,24 @@ export function ChatWidget({
       ? 'bg-shop-saffron text-shop-ink shadow-shop-saffron/30 hover:bg-[#d4ae5a]'
       : 'bg-teal-700 text-white shadow-teal-900/25 hover:bg-teal-800';
 
+  const anchor = cn(
+    'right-4 sm:right-6',
+    variant === 'shop' ? 'bottom-24 sm:bottom-6' : 'bottom-6',
+  );
+
   return (
-    <div className={cn('pointer-events-none fixed z-[60]', className)} dir="rtl">
+    <div className={cn('pointer-events-none fixed z-[90]', anchor, className)}>
+      <div className="relative">
       <AnimatePresence>
         {open ? (
           <motion.div
             key="panel"
-            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            className={cn(
-              'pointer-events-auto fixed bottom-20 left-4 flex w-[min(100vw-1.5rem,20rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-xl shadow-black/15 sm:bottom-24 sm:left-6',
-              'h-[min(65vh,28rem)]',
-            )}
+            className="pointer-events-auto absolute bottom-full right-0 mb-3 flex h-[min(65vh,28rem)] w-[min(100vw-2rem,20rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-xl shadow-black/15"
+            dir="rtl"
           >
             {needsGuestForm ? (
               <div className="flex h-full flex-col bg-white p-3">
@@ -281,22 +288,19 @@ export function ChatWidget({
           </motion.div>
         ) : null}
       </AnimatePresence>
-
       <button
         type="button"
         aria-label="گفتگو با پشتیبانی"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'pointer-events-auto relative flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition',
+          'pointer-events-auto relative z-10 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition',
           fabClass,
-          variant === 'shop'
-            ? 'fixed bottom-24 left-4 sm:bottom-6 sm:left-6 md:bottom-6'
-            : 'fixed bottom-6 left-4 sm:left-6',
         )}
       >
         {open ? <X className="h-[18px] w-[18px]" /> : <MessageCircle className="h-[18px] w-[18px]" />}
         {!open ? <NewMessageBadge count={unread} className="absolute -top-1 -start-1" /> : null}
       </button>
+      </div>
     </div>
   );
 }

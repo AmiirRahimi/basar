@@ -17,7 +17,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         <main className="overflow-x-clip pb-24 md:pb-10">{children}</main>
         <ShopFooter />
         <CartDock />
-        <ChatWidget variant="shop" />
+        <ChatWidget variant="shop" account={viewer ? { name: viewer.fullName, phone: viewer.phonenumber } : null} />
       </ShopCartProvider>
     </div>
   );

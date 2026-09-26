@@ -174,6 +174,34 @@ async function findGuestConversation() {
   return row as any;
 }
 
+async function loggedInShopUser() {
+  const { getShopIdentity } = await import('./shop-account');
+  const identity = await getShopIdentity();
+  if (!identity) return null;
+  const user = await M()
+    .User.findById(oid(identity._id))
+    .select('fullName shopFullName phonenumber')
+    .lean();
+  if (!user || String(user.phonenumber || '') !== identity.phonenumber) return null;
+  const name = String(user.shopFullName || user.fullName || '').trim() || identity.phonenumber;
+  return { userId: identity._id, name: name.slice(0, 80), phone: identity.phonenumber };
+}
+
+async function findShopConversation() {
+  const guest = await findGuestConversation();
+  if (guest) return guest;
+  const profile = await loggedInShopUser();
+  if (!profile) return null;
+  const row = await M()
+    .Conversation.findOne({
+      channel: 'shop',
+      $or: [{ userId: oid(profile.userId) }, { userId: profile.userId }],
+    })
+    .sort({ lastMessageAt: -1 })
+    .lean();
+  return row as any;
+}
+
 async function insertMessage(input: {
   conversationId: string;
   body: string;
@@ -396,7 +424,7 @@ export async function accountingUnread(): Promise<ActionResult<{ unread: number 
 
 export async function getShopThread(): Promise<ActionResult<ChatThreadDto | null>> {
   await db();
-  const row = await findGuestConversation();
+  const row = await findShopConversation();
   if (!row) return ok(null);
   return ok(await threadFor(row));
 }
@@ -405,11 +433,13 @@ async function createShopConversation(input: {
   name: string;
   phone: string;
   body: string;
+  userId?: string;
 }) {
   const token = newGuestToken();
   const created = await M().Conversation.create({
     channel: 'shop',
     status: 'open',
+    userId: input.userId ? oid(input.userId) : null,
     visitorName: input.name,
     visitorPhone: input.phone,
     guestTokenHash: hashToken(token),
@@ -435,19 +465,20 @@ export async function startShopThread(input: {
   phone?: string;
   body?: string;
 }): Promise<ActionResult<ChatThreadDto>> {
-  const name = String(input.name || '').trim().slice(0, 80);
-  const phone = normalizeMobile(input.phone);
+  const profile = await loggedInShopUser();
+  const name = (profile?.name || String(input.name || '').trim()).slice(0, 80);
+  const phone = profile?.phone || normalizeMobile(input.phone);
   const body = clipBody(input.body);
-  if (!name) return failDto('نام را وارد کنید');
-  if (!PHONE_RE.test(phone)) return failDto('شماره موبایل معتبر نیست');
+  if (!profile && !name) return failDto('نام را وارد کنید');
+  if (!profile && !PHONE_RE.test(phone)) return failDto('شماره موبایل معتبر نیست');
   if (!body) return failDto('متن پیام خالی است');
-  if (!(await allowSend(`guest:${phone}`))) {
+  if (!(await allowSend(`guest:${phone || profile?.userId}`))) {
     return failDto('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
   }
 
   await db();
 
-  const existing = await findGuestConversation();
+  const existing = await findShopConversation();
   if (existing && (existing as any).status !== 'closed') {
     await insertMessage({
       conversationId: String(existing._id),
@@ -460,25 +491,31 @@ export async function startShopThread(input: {
   }
 
   // Closed cookie thread stays archived — start a new conversation
-  return ok(await createShopConversation({ name, phone, body }));
+  return ok(await createShopConversation({ name, phone, body, userId: profile?.userId }));
 }
 
 export async function sendShopMessage(bodyRaw: unknown): Promise<ActionResult<ChatThreadDto>> {
   const body = clipBody(bodyRaw);
   if (!body) return failDto('متن پیام خالی است');
   await db();
-  const row = await findGuestConversation();
-  if (!row) return failDto('گفتگو پیدا نشد؛ دوباره شروع کنید', 404);
+  const row = await findShopConversation();
+  if (!row) {
+    const profile = await loggedInShopUser();
+    if (!profile) return failDto('گفتگو پیدا نشد؛ دوباره شروع کنید', 404);
+    return ok(await createShopConversation({ name: profile.name, phone: profile.phone, body, userId: profile.userId }));
+  }
   if (!(await allowSend(`guest:${row.visitorPhone || row._id}`))) {
     return failDto('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
   }
 
   if ((row as any).status === 'closed') {
+    const profile = await loggedInShopUser();
     return ok(
       await createShopConversation({
-        name: String(row.visitorName || 'مهمان'),
-        phone: String(row.visitorPhone || ''),
+        name: profile?.name || String(row.visitorName || 'مهمان'),
+        phone: profile?.phone || String(row.visitorPhone || ''),
         body,
+        userId: profile?.userId,
       }),
     );
   }
@@ -495,7 +532,7 @@ export async function sendShopMessage(bodyRaw: unknown): Promise<ActionResult<Ch
 
 export async function markShopRead(): Promise<ActionResult<{ unread: number }>> {
   await db();
-  const row = await findGuestConversation();
+  const row = await findShopConversation();
   if (!row) return ok({ unread: 0 });
   await M().Conversation.updateOne({ _id: oid(row._id) }, { unreadForVisitor: 0 });
   return ok({ unread: 0 });
@@ -503,7 +540,7 @@ export async function markShopRead(): Promise<ActionResult<{ unread: number }>> 
 
 export async function shopUnread(): Promise<ActionResult<{ unread: number }>> {
   await db();
-  const row = await findGuestConversation();
+  const row = await findShopConversation();
   if (!row) return ok({ unread: 0 });
   return ok({ unread: Number(row.unreadForVisitor || 0) });
 }
