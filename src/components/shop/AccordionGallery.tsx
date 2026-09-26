@@ -31,6 +31,7 @@ type AccordionGalleryProps = {
   expandRatio?: number;
   orientation?: 'horizontal' | 'vertical';
   className?: string;
+  onOpen?: (index: number) => void;
 };
 
 const DEFAULT_ITEMS: AccordionGalleryItem[] = [
@@ -61,6 +62,7 @@ export default function AccordionGallery({
   showLabels = true,
   grayscale = true,
   className = '',
+  onOpen,
 }: AccordionGalleryProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRefs = useRef<(HTMLElement | null)[]>([]);
@@ -174,6 +176,12 @@ export default function AccordionGallery({
   };
 
   const handleClick = (i: number, e: MouseEvent) => {
+    if (onOpen) {
+      e.preventDefault();
+      setActive(i);
+      onOpen(i);
+      return;
+    }
     if (i !== active) {
       e.preventDefault();
       setActive(i);
@@ -181,6 +189,11 @@ export default function AccordionGallery({
   };
 
   const handleKeyDown = (i: number, e: KeyboardEvent) => {
+    if ((e.key === 'Enter' || e.key === ' ') && onOpen) {
+      e.preventDefault();
+      onOpen(i);
+      return;
+    }
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
       setActive((i + 1) % count);
