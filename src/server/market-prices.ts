@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   dollarIntervalMs,
   isDollarInterval,
@@ -6,6 +7,7 @@ import {
   readJsonPath,
   type AdminMarketPrices,
   type DollarInterval,
+  type FabricPrice,
   type PublicMarketPrices,
 } from '@/lib/market-prices';
 import { db, dbEngine, serialize } from './db';
@@ -48,8 +50,75 @@ function emptyAdmin(): AdminMarketPrices {
       interval: 'manual',
       error: '',
     },
-    fabric: { value: null, unit: 'تومان', label: 'پارچه', updatedAt: null },
+    fabrics: [],
   };
+}
+
+function fabricId(value: unknown) {
+  const id = String(value || '').trim();
+  return /^[a-zA-Z0-9_-]{8,80}$/.test(id) ? id : randomUUID();
+}
+
+function fabricsFromRow(row: Record<string, unknown>): FabricPrice[] {
+  const stored = Array.isArray(row.fabrics) ? row.fabrics : [];
+  const parsed = stored
+    .map((item) => {
+      const entry = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+      const value = quoteValue(entry.value);
+      const label = text(entry.label).slice(0, 40);
+      if (!label || value == null || value <= 0) return null;
+      return {
+        id: fabricId(entry.id),
+        label,
+        value,
+        unit: text(entry.unit, 'تومان').slice(0, 40),
+        updatedAt: iso(entry.updatedAt),
+      };
+    })
+    .filter((item): item is FabricPrice => Boolean(item));
+  if (parsed.length) return parsed;
+  const legacy = quoteValue(row.fabricValue);
+  if (legacy == null || legacy <= 0) return [];
+  return [
+    {
+      id: 'legacy-fabric',
+      label: text(row.fabricLabel, 'پارچه').slice(0, 40),
+      value: legacy,
+      unit: text(row.fabricUnit, 'تومان').slice(0, 40),
+      updatedAt: iso(row.fabricUpdatedAt),
+    },
+  ];
+}
+
+function normalizeFabrics(input: unknown, previous: FabricPrice[]): { fabrics: FabricPrice[] } | { error: string } {
+  const list = Array.isArray(input) ? input : [];
+  if (list.length > 40) return { error: 'بیشتر از ۴۰ پارچه نمی‌شود' };
+  const previousById = new Map(previous.map((item) => [item.id, item]));
+  const names = new Set<string>();
+  const fabrics: FabricPrice[] = [];
+  for (const item of list) {
+    const entry = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+    const label = text(entry.label).slice(0, 40);
+    const unit = text(entry.unit, 'تومان').slice(0, 40);
+    const value = parsePriceNumber(entry.value as never);
+    if (!label && (value == null || value <= 0)) continue;
+    if (!label) return { error: 'نام پارچه را بنویسید' };
+    if (value == null || value <= 0) return { error: `قیمت «${label}» را وارد کنید` };
+    const nameKey = label.toLocaleLowerCase('fa');
+    if (names.has(nameKey)) return { error: `نام «${label}» تکرار شده است` };
+    names.add(nameKey);
+    const id = fabricId(entry.id);
+    const prior = previousById.get(id);
+    const unchanged = prior && prior.label === label && prior.unit === unit && prior.value === value;
+    fabrics.push({
+      id,
+      label,
+      unit,
+      value,
+      updatedAt: unchanged ? prior.updatedAt : new Date().toISOString(),
+    });
+  }
+  return { fabrics };
 }
 
 function toAdmin(row: Record<string, unknown> | null | undefined): AdminMarketPrices {
@@ -66,19 +135,14 @@ function toAdmin(row: Record<string, unknown> | null | undefined): AdminMarketPr
       interval,
       error: text(row.dollarError),
     },
-    fabric: {
-      value: quoteValue(row.fabricValue),
-      unit: text(row.fabricUnit, 'تومان'),
-      label: text(row.fabricLabel, 'پارچه'),
-      updatedAt: iso(row.fabricUpdatedAt),
-    },
+    fabrics: fabricsFromRow(row),
   };
 }
 
 function toPublic(prices: AdminMarketPrices): PublicMarketPrices {
   return {
     dollar: { value: prices.dollar.value, unit: prices.dollar.unit, updatedAt: prices.dollar.updatedAt },
-    fabric: prices.fabric,
+    fabrics: prices.fabrics,
   };
 }
 
@@ -239,24 +303,22 @@ export async function refreshDollarPrice(input: {
   return ok(serialize(prices), 'قیمت دلار به‌روز شد');
 }
 
-export async function saveFabricPrice(input: {
-  value?: number | string;
-  unit?: string;
-  label?: string;
+export async function saveFabricPrices(input: {
+  fabrics?: Array<{ id?: string; label?: string; unit?: string; value?: number | string }>;
 }): Promise<ActionResult<AdminMarketPrices>> {
   const access = await requireSuperuser();
   if ('error' in access) return access.error as ActionResult<AdminMarketPrices>;
-  const value = parsePriceNumber(input.value as never);
-  const unit = text(input.unit, 'تومان').slice(0, 40);
-  const label = text(input.label, 'پارچه').slice(0, 40);
-  if (value == null || value <= 0) return fail('قیمت پارچه را وارد کنید');
+  const current = toAdmin(await loadRow());
+  const normalized = normalizeFabrics(input.fabrics, current.fabrics);
+  if ('error' in normalized) return fail(normalized.error);
   const prices = await saveRow({
-    fabricValue: value,
-    fabricUnit: unit,
-    fabricLabel: label,
-    fabricUpdatedAt: new Date(),
+    fabrics: normalized.fabrics,
+    fabricValue: null,
+    fabricLabel: '',
+    fabricUnit: '',
+    fabricUpdatedAt: null,
   });
-  return ok(serialize(prices), 'قیمت پارچه ذخیره شد');
+  return ok(serialize(prices), 'قیمت پارچه‌ها ذخیره شد');
 }
 
 let refreshing: Promise<AdminMarketPrices> | null = null;

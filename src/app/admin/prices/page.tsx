@@ -11,7 +11,7 @@ export default async function AdminPricesPage() {
   return (
     <AccountingShell
       title="قیمت‌ها"
-      description="سوپریوزر قیمت دلار را از API و قیمت پارچه را دستی به‌روز می‌کند. این قیمت‌ها روی داشبورد حسابداری همه کاربران دیده می‌شود."
+      description="سوپریوزر قیمت دلار را از API می‌خواند و برای هر پارچه یک قیمت جدا می‌گذارد. این قیمت‌ها روی داشبورد حسابداری همه کاربران دیده می‌شود."
       error={errorMessage(res)}
     >
       {prices ? <MarketPricesBoard prices={prices} /> : <p className="text-sm text-muted-foreground">{res.message || 'به این بخش دسترسی ندارید.'}</p>}

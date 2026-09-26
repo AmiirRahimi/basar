@@ -5,7 +5,7 @@ import {
   getPublicMarketPrices as loadPublicPrices,
   refreshDollarPrice as pullDollar,
   saveDollarPriceSettings as saveDollar,
-  saveFabricPrice as saveFabric,
+  saveFabricPrices as saveFabrics,
 } from '@/server/market-prices';
 
 export async function getPublicMarketPrices() {
@@ -34,6 +34,8 @@ export async function refreshDollarPrice(input: {
   return pullDollar(input);
 }
 
-export async function saveFabricPrice(input: { value?: number | string; unit?: string; label?: string }) {
-  return saveFabric(input);
+export async function saveFabricPrices(input: {
+  fabrics?: Array<{ id?: string; label?: string; unit?: string; value?: number | string }>;
+}) {
+  return saveFabrics(input);
 }

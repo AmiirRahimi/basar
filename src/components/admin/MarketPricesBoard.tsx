@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { refreshDollarPrice, saveDollarPriceSettings, saveFabricPrice } from '@/actions/market-prices';
+import { refreshDollarPrice, saveDollarPriceSettings, saveFabricPrices } from '@/actions/market-prices';
 import type { AdminMarketPrices, DollarInterval } from '@/lib/market-prices';
 import { DOLLAR_INTERVALS } from '@/lib/market-prices';
 import { faDate, faNumber, faTime } from '@/lib/format';
@@ -20,6 +20,12 @@ function when(value: string | null) {
   return `${faDate(value)}، ${faTime(value)}`;
 }
 
+type FabricDraft = { id: string; label: string; unit: string; value: number };
+
+function blankFabric(): FabricDraft {
+  return { id: crypto.randomUUID(), label: '', unit: 'تومان', value: 0 };
+}
+
 export function MarketPricesBoard({ prices }: { prices: AdminMarketPrices }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -27,9 +33,11 @@ export function MarketPricesBoard({ prices }: { prices: AdminMarketPrices }) {
   const [path, setPath] = useState(prices.dollar.path);
   const [interval, setInterval] = useState<DollarInterval>(prices.dollar.interval);
   const [dollarUnit, setDollarUnit] = useState(prices.dollar.unit);
-  const [fabricLabel, setFabricLabel] = useState(prices.fabric.label);
-  const [fabricUnit, setFabricUnit] = useState(prices.fabric.unit);
-  const [fabricValue, setFabricValue] = useState(prices.fabric.value ?? 0);
+  const [fabrics, setFabrics] = useState<FabricDraft[]>(() =>
+    prices.fabrics.length
+      ? prices.fabrics.map((item) => ({ id: item.id, label: item.label, unit: item.unit, value: item.value }))
+      : [blankFabric()],
+  );
 
   const dollarInput = { url, path, interval, unit: dollarUnit };
 
@@ -59,9 +67,13 @@ export function MarketPricesBoard({ prices }: { prices: AdminMarketPrices }) {
     });
   }
 
-  function saveFabric() {
+  function updateFabric(id: string, patch: Partial<FabricDraft>) {
+    setFabrics((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }
+
+  function saveFabrics() {
     start(async () => {
-      const res = await saveFabricPrice({ value: fabricValue, unit: fabricUnit, label: fabricLabel });
+      const res = await saveFabricPrices({ fabrics });
       if (redirectIfUnauthorized(res)) return;
       if (!res.ok) {
         toast.error(res.message || 'ذخیره نشد');
@@ -121,27 +133,46 @@ export function MarketPricesBoard({ prices }: { prices: AdminMarketPrices }) {
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-base font-semibold text-gray-900">قیمت پارچه</h2>
+        <h2 className="text-base font-semibold text-gray-900">قیمت پارچه‌ها</h2>
         <p className="mt-1 text-sm leading-7 text-gray-500">
-          این قیمت را خودتان وارد می‌کنید و هر وقت خواستید عوض می‌کنید. روی داشبورد حسابداری همه کاربران دیده می‌شود.
+          برای هر پارچه یک نام و قیمت بگذارید. هر وقت خواستید یکی را عوض کنید، یکی اضافه کنید، یا یکی را بردارید. همه روی
+          داشبورد حسابداری دیده می‌شوند.
         </p>
         <div className="mt-4 space-y-3">
-          <Input label="نام" value={fabricLabel} onChange={(event) => setFabricLabel(event.target.value)} />
-          <PriceField label="قیمت" value={fabricValue || ''} onChange={setFabricValue} />
-          <Input
-            label="واحد"
-            hint="مثلاً تومان یا تومان / متر"
-            value={fabricUnit}
-            onChange={(event) => setFabricUnit(event.target.value)}
-          />
+          {fabrics.map((fabric, index) => (
+            <div key={fabric.id} className="space-y-3 rounded-xl border border-gray-200 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-gray-700">پارچه {faNumber(index + 1)}</p>
+                <Button
+                  type="button"
+                  variant="danger"
+                  disabled={pending}
+                  onClick={() => setFabrics((current) => current.filter((item) => item.id !== fabric.id))}
+                >
+                  حذف
+                </Button>
+              </div>
+              <Input label="نام" value={fabric.label} onChange={(event) => updateFabric(fabric.id, { label: event.target.value })} />
+              <PriceField
+                label="قیمت"
+                value={fabric.value || ''}
+                onChange={(value) => updateFabric(fabric.id, { value })}
+              />
+              <Input
+                label="واحد"
+                hint="مثلاً تومان یا تومان / متر"
+                value={fabric.unit}
+                onChange={(event) => updateFabric(fabric.id, { unit: event.target.value })}
+              />
+            </div>
+          ))}
         </div>
-        <p className="mt-4 text-sm text-gray-700">
-          قیمت فعلی: <span className="font-semibold">{shown(prices.fabric.value, prices.fabric.unit)}</span>
-          {when(prices.fabric.updatedAt) ? <span className="text-gray-500"> — {when(prices.fabric.updatedAt)}</span> : null}
-        </p>
-        <div className="mt-4">
-          <Button disabled={pending} onClick={saveFabric}>
-            {pending ? 'در حال ذخیره...' : 'ذخیره قیمت پارچه'}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button type="button" variant="outline" disabled={pending} onClick={() => setFabrics((current) => [...current, blankFabric()])}>
+            افزودن پارچه
+          </Button>
+          <Button disabled={pending} onClick={saveFabrics}>
+            {pending ? 'در حال ذخیره...' : 'ذخیره قیمت پارچه‌ها'}
           </Button>
         </div>
       </section>

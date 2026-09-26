@@ -208,9 +208,19 @@ function MarketPricesCard({ prices }: { prices: PublicMarketPrices }) {
   return (
     <section>
       <h2 className="mb-3 text-sm font-semibold text-gray-700">قیمت‌های بازار</h2>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <QuoteCard title="دلار" quote={prices.dollar} />
-        <QuoteCard title={prices.fabric.label || 'پارچه'} quote={prices.fabric} />
+        {prices.fabrics.length ? (
+          prices.fabrics.map((fabric) => (
+            <QuoteCard
+              key={fabric.id}
+              title={fabric.label}
+              quote={{ value: fabric.value, unit: fabric.unit, updatedAt: fabric.updatedAt }}
+            />
+          ))
+        ) : (
+          <QuoteCard title="پارچه" quote={{ value: null, unit: 'تومان', updatedAt: null }} />
+        )}
       </div>
     </section>
   );

@@ -6,9 +6,17 @@ export type MarketPriceQuote = {
   updatedAt: string | null;
 };
 
+export type FabricPrice = {
+  id: string;
+  label: string;
+  value: number;
+  unit: string;
+  updatedAt: string | null;
+};
+
 export type PublicMarketPrices = {
   dollar: MarketPriceQuote;
-  fabric: MarketPriceQuote & { label: string };
+  fabrics: FabricPrice[];
 };
 
 export type AdminMarketPrices = PublicMarketPrices & {
