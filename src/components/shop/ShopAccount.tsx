@@ -12,10 +12,12 @@ function toEnDigits(value: string) {
   return value.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))).replace(/\s/g, '');
 }
 
-function statusLabel(order: ShopAccountView['orders'][number]) {
-  if (order.sent) return 'ارسال شده';
-  if (order.paid) return 'پرداخت شده';
-  return 'ثبت شده';
+function statusTone(status: string) {
+  if (status === 'delivered') return 'bg-emerald-100 text-emerald-800';
+  if (status === 'shipped') return 'bg-teal-100 text-teal-800';
+  if (status === 'preparing' || status === 'confirmed') return 'bg-sky-100 text-sky-800';
+  if (status === 'cancelled') return 'bg-shop-ink/10 text-shop-ink/50';
+  return 'bg-shop-saffron/20 text-shop-ink';
 }
 
 export function ShopAccount({ account }: { account: ShopAccountView }) {
@@ -255,7 +257,7 @@ export function ShopAccount({ account }: { account: ShopAccountView }) {
                       <p className="text-sm font-medium text-shop-ink">فاکتور {faNumber(order.invoiceNumber)}</p>
                       <p className="mt-1 text-xs text-shop-ink/50">{order.date ? faDate(order.date) : '—'}</p>
                     </div>
-                    <span className="rounded-full bg-shop-ink/5 px-2.5 py-1 text-[11px] text-shop-ink/70">{statusLabel(order)}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] ${statusTone(order.status)}`}>{order.statusLabel}</span>
                   </div>
                   <ul className="mt-3 space-y-1 text-sm text-shop-ink/75">
                     {order.lines.map((line, index) => (

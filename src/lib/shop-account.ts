@@ -20,6 +20,8 @@ export type ShopOrder = {
   total: number;
   sent: boolean;
   paid: boolean;
+  status: string;
+  statusLabel: string;
   lines: ShopOrderLine[];
 };
 

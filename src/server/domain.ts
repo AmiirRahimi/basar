@@ -1710,6 +1710,7 @@ async function invoicesFromSoldGroups(input: {
       payoutPaidAt: storefront && sellerIsAdmin ? new Date() : null,
       payoutNote: storefront && sellerIsAdmin ? 'دریافت مستقیم در حساب درگاه' : '',
       isSent: false,
+      orderStatus: 'new',
       isDeleted: false,
     });
     if (soldItems.length) {

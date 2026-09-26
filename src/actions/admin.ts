@@ -9,6 +9,7 @@ import {
   updateAdminUser as updateUser,
   updateDiscountCode as updateCode,
 } from '@/server/admin';
+import { getWebsiteOrderBoard as websiteOrders, setWebsiteOrderStatus as setOrderStatus } from '@/server/website-orders';
 import {
   getPlanCatalog as loadPlanCatalog,
   resetPlanCatalog as restorePlanCatalog,
@@ -17,6 +18,14 @@ import {
 
 export async function getAdminOverview() {
   return overview();
+}
+
+export async function getWebsiteOrderBoard() {
+  return websiteOrders();
+}
+
+export async function setWebsiteOrderStatus(id: string, status: string) {
+  return setOrderStatus(id, status);
 }
 
 export async function createDiscountCode(payload: Record<string, unknown>) {

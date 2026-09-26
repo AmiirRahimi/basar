@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { cookies } from 'next/headers';
 import { mergePacks, parsePacks } from '@/lib/packs';
+import { normalizeWebsiteOrderStatus, websiteOrderStatusLabel } from '@/lib/website-orders';
 import { OTP_TTL_MS, PHONE_RE, SESSION_DAYS, SHOP_COOKIE, SHOP_GUEST_COOKIE } from '@/lib/constants';
 import type { CountingAddressOffer, ShopAccountView, ShopOrder, ShopViewer } from '@/lib/shop-account';
 import { db, dbEngine, serialize } from './db';
@@ -205,13 +206,16 @@ async function ordersForPhone(phone: string): Promise<ShopOrder[]> {
         total: count * price,
       };
     });
+    const status = normalizeWebsiteOrderStatus(invoice.orderStatus, Boolean(invoice.isSent));
     return {
       id: idOf(invoice._id),
       invoiceNumber: Number(invoice.invoiceNumber || 0),
       date: invoice.timeStamp ? new Date(String(invoice.timeStamp)).toISOString() : '',
       total: mapped.reduce((sum, line) => sum + line.total, 0),
-      sent: Boolean(invoice.isSent),
+      sent: status === 'shipped' || status === 'delivered',
       paid: Boolean(text(invoice.channel)),
+      status,
+      statusLabel: websiteOrderStatusLabel(status),
       lines: mapped,
     };
   });

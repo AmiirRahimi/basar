@@ -371,6 +371,8 @@ const InvoiceSchema = defineSchema(
     payoutPaidAt: { type: Date, default: null },
     payoutNote: { type: String, default: '' },
     isSent: { type: Boolean, required: true, default: false },
+    /** Website order progress. Empty on counting invoices. */
+    orderStatus: { type: String, default: '' },
     timeStamp: { type: Date, default: Date.now },
     isDeleted: { type: Boolean, default: false },
   },

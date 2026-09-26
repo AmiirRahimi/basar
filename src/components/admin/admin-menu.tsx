@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   Receipt,
   Send,
+  ShoppingBag,
   Sparkles,
   Ticket,
   Users,
@@ -18,7 +19,7 @@ export const adminMenuGroups = [
   { label: 'نمای کلی', ids: ['dashboard'] },
   { label: 'کاربران', ids: ['users', 'usage', 'plans'] },
   { label: 'ارتباط', ids: ['messages', 'sms', 'telegram'] },
-  { label: 'فروشگاه', ids: ['storefront', 'website', 'dropdowns'] },
+  { label: 'فروشگاه', ids: ['orders', 'storefront', 'website', 'dropdowns'] },
 ];
 
 export const adminMenuSections: CountingMenuSection[] = [
@@ -29,6 +30,7 @@ export const adminMenuSections: CountingMenuSection[] = [
   { id: 'messages', name: 'پیام‌ها', icon: MessageSquare, href: '/admin/messages', menuItems: [] },
   { id: 'sms', name: 'پیامک', icon: Send, href: '/admin/sms', menuItems: [] },
   { id: 'telegram', name: 'تلگرام', icon: MessageSquareText, href: '/admin/telegram', menuItems: [] },
+  { id: 'orders', name: 'سفارش‌های وب‌سایت', icon: ShoppingBag, href: '/admin/orders', menuItems: [] },
   { id: 'storefront', name: 'سفارش‌های ویترین', icon: Receipt, href: '/admin/storefront', menuItems: [] },
   { id: 'website', name: 'انتشار در وب‌سایت', icon: Globe, href: '/admin/website', menuItems: [] },
   { id: 'dropdowns', name: 'لیست‌های کمکی', icon: List, href: '/admin/dropdowns', menuItems: [] },

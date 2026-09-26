@@ -2,19 +2,22 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { BadgePercent, MessageSquare, Sparkles, Users } from 'lucide-react';
+import { BadgePercent, MessageSquare, ShoppingBag, Sparkles, Users } from 'lucide-react';
 import type { AdminOverview } from '@/components/counting/AdminPanel';
 import type { UsageReport } from '@/components/counting/AdminUsageBoard';
+import type { WebsiteOrderBoard } from '@/lib/website-orders';
 import { ChartCard, Donut, HBars, MonthBars } from '@/components/counting/DashboardCharts';
 import { PERSIAN_MONTHS, persianYearMonth } from '@/lib/checks';
-import { faNumber, toman } from '@/lib/format';
+import { faDate, faNumber, toman } from '@/lib/format';
 
 export function AdminDashboard({
   overview,
   usage,
+  website,
 }: {
   overview: AdminOverview;
   usage: UsageReport;
+  website?: WebsiteOrderBoard | null;
 }) {
   const currentMonth = Number(persianYearMonth().split('/')[1] || 0);
   const yearKey = persianYearMonth().slice(0, 4);
@@ -57,7 +60,7 @@ export function AdminDashboard({
 
   return (
     <div className="space-y-4" dir="rtl">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Stat
           icon={Users}
           label="کاربران واردشده"
@@ -83,7 +86,52 @@ export function AdminDashboard({
           value={toman(usage.stats.tokenRevenue)}
           hint={`این ماه ${toman(usage.stats.tokenRevenueThisMonth)}`}
         />
+        {website ? (
+          <Stat
+            icon={ShoppingBag}
+            label="فروش وب‌سایت"
+            value={toman(website.stats.total)}
+            hint={`این ماه ${toman(website.stats.thisMonth)} · ${faNumber(website.stats.orders)} سفارش`}
+            href="/admin/orders"
+          />
+        ) : null}
       </div>
+
+      {website ? (
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">آخرین سفارش‌های وب‌سایت</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                {faNumber(website.stats.buyers)} خریدار · مانده پرداخت‌نشده {toman(website.stats.unpaid)}
+              </p>
+            </div>
+            <Link href="/admin/orders" className="text-sm text-teal-700 hover:underline">
+              سفارش‌ها و پرداخت‌ها
+            </Link>
+          </div>
+          {website.orders.length ? (
+            <ul className="mt-4 divide-y divide-gray-100">
+              {website.orders.slice(0, 5).map((order) => (
+                <li key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      فاکتور {faNumber(order.invoiceNumber)} · {order.customerName || 'خریدار'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {order.statusLabel}
+                      {order.date ? ` · ${faDate(order.date)}` : ''}
+                    </p>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">{toman(order.total)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-gray-500">هنوز سفارشی از وب‌سایت ثبت نشده است.</p>
+          )}
+        </section>
+      ) : null}
 
       <section className="grid gap-4 lg:grid-cols-3">
         <ChartCard title="ورود و ثبت‌نام کاربران" className="lg:col-span-2">
