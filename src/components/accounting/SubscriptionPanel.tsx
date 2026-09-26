@@ -9,6 +9,7 @@ import {
   ANNUAL_DISCOUNT,
   SUBSCRIPTION_PLANS,
   cycleLabel,
+  planCardsGridClass,
   planFromList,
   planPrice,
   type BillingCycle,
@@ -232,7 +233,7 @@ export function SubscriptionPanel({
             </button>
           </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className={planCardsGridClass(plans.length)}>
           {plans.map((plan) => {
             const price = planPrice(plan, cycle, annualDiscount);
             const yearlyFull = plan.monthlyPrice * 12;

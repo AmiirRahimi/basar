@@ -1,5 +1,5 @@
 export type BillingCycle = 'month' | 'year';
-export type PlanId = 'starter' | 'partners' | 'brands';
+export type PlanId = string;
 
 export type SubscriptionPlan = {
   id: PlanId;
@@ -21,13 +21,40 @@ export const MONTHLY_BASE_TOMAN = 1_000_000;
 export const HIGHEST_PLAN_TOMAN = 4_000_000;
 export const ANNUAL_DISCOUNT = 0.2;
 export const ADMIN_ADD_MONTH_OPTIONS = [2, 3, 4, 6, 12] as const;
+export const MAX_SUBSCRIPTION_PLANS = 8;
 
-/** Old «shops` plan is now the same as `partners`. */
-export function resolvePlanId(id?: string | null): PlanId | undefined {
+/** Old `shops` plan is now the same as `partners`. */
+export function resolvePlanId(id?: string | null): string | undefined {
   if (!id) return undefined;
   if (id === 'shops') return 'partners';
-  if (id === 'starter' || id === 'partners' || id === 'brands') return id;
-  return undefined;
+  return String(id);
+}
+
+export function slugPlanId(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+}
+
+export function nextPlanId(existing: { id: string }[]) {
+  const used = new Set(existing.map((plan) => plan.id));
+  let index = existing.length + 1;
+  let id = `plan-${index}`;
+  while (used.has(id)) {
+    index += 1;
+    id = `plan-${index}`;
+  }
+  return id;
+}
+
+export function planCardsGridClass(count: number) {
+  if (count <= 1) return 'grid max-w-md gap-4';
+  if (count === 2) return 'grid gap-4 sm:grid-cols-2';
+  if (count === 3) return 'grid gap-4 md:grid-cols-3';
+  return 'grid gap-4 sm:grid-cols-2 xl:grid-cols-4';
 }
 
 const CORE_FEATURES = {
@@ -116,8 +143,9 @@ export function planById(id?: string | null) {
   return SUBSCRIPTION_PLANS.find((plan) => plan.id === resolvePlanId(id)) || SUBSCRIPTION_PLANS[0];
 }
 
-export function isHighestPlan(id?: string | null) {
-  return planById(id).id === 'brands';
+export function isHighestPlan(id?: string | null, plans: SubscriptionPlan[] = SUBSCRIPTION_PLANS) {
+  const plan = planFromList(plans, id);
+  return Boolean(plan.allowProductShare && plan.allowClothImages) || (plan.maxStores >= 99 && plan.maxBrands >= 99);
 }
 
 export function annualPrice(monthlyPrice: number, discount = ANNUAL_DISCOUNT) {
@@ -156,55 +184,97 @@ export function mergePlanCatalog(stored?: {
   const asRate = raw >= 1 && raw <= 90 ? raw / 100 : raw;
   const annualDiscount =
     Number.isFinite(asRate) && asRate >= 0 && asRate < 1 ? asRate : ANNUAL_DISCOUNT;
-  const byId = new Map<string, Partial<SubscriptionPlan> & { id?: string }>();
-  for (const plan of stored?.plans || []) {
-    if (!plan.id || plan.id === 'shops') continue;
-    byId.set(String(plan.id), plan);
+  const source =
+    Array.isArray(stored?.plans) && stored.plans.length ? stored.plans : SUBSCRIPTION_PLANS;
+  const used = new Set<string>();
+  const plans: SubscriptionPlan[] = [];
+  for (const rawPlan of source) {
+    if (String(rawPlan.id || '') === 'shops') continue;
+    const resolved = resolvePlanId(String(rawPlan.id || ''));
+    const base = SUBSCRIPTION_PLANS.find((plan) => plan.id === resolved) || blankPlan(nextPlanId(plans));
+    const plan = sanitizePlan(rawPlan, base, used);
+    if (!plan) continue;
+    plans.push(plan);
+    if (plans.length >= MAX_SUBSCRIPTION_PLANS) break;
   }
-  const plans = SUBSCRIPTION_PLANS.map((base) => {
-    const patch = byId.get(base.id);
-    if (!patch) return { ...base, features: base.features.map((row) => ({ ...row })) };
-    const features =
-      Array.isArray(patch.features) && patch.features.length
-        ? patch.features
-            .map((row) => ({
-              label: String(row?.label || '').trim().slice(0, 80),
-              included: Boolean(row?.included),
-            }))
-            .filter((row) => row.label)
-            .slice(0, 16)
-        : base.features.map((row) => ({ ...row }));
-    const storedName = String(patch.name || '').trim();
-    const storedBlurb = String(patch.blurb || '').trim();
-    const name =
-      base.id === 'partners' && (storedName === 'شرکا' || storedName === 'فروشگاه‌ها')
-        ? base.name
-        : storedName.slice(0, 40) || base.name;
-    const blurb =
-      base.id === 'partners' && storedBlurb.startsWith('همون چند حجره')
-        ? base.blurb
-        : storedBlurb.slice(0, 220) || base.blurb;
-    let monthlyPrice = Math.max(0, Math.round(Number(patch.monthlyPrice ?? base.monthlyPrice) || 0));
-    if (base.id === 'brands' && monthlyPrice === 5_000_000) monthlyPrice = base.monthlyPrice;
-    let maxStores = Math.min(99, Math.max(1, Math.round(Number(patch.maxStores ?? base.maxStores) || 1)));
-    if (base.id === 'partners' && maxStores === 5) maxStores = base.maxStores;
+  if (!plans.length) {
     return {
-      ...base,
-      name,
-      blurb,
-      monthlyPrice,
-      maxBrands: Math.min(99, Math.max(1, Math.round(Number(patch.maxBrands ?? base.maxBrands) || 1))),
-      maxStores,
-      allowPartners: Boolean(patch.allowPartners ?? base.allowPartners),
-      allowClothImages: Boolean(patch.allowClothImages ?? base.allowClothImages),
-      allowProductShare: Boolean(patch.allowProductShare ?? base.allowProductShare),
-      allowShareSms: Boolean(patch.allowShareSms ?? base.allowShareSms),
-      notifyCustomersOnNewProduct: Boolean(patch.notifyCustomersOnNewProduct ?? base.notifyCustomersOnNewProduct),
-      highlight: Boolean(patch.highlight ?? base.highlight),
-      features,
+      annualDiscount,
+      plans: SUBSCRIPTION_PLANS.map((plan) => ({ ...plan, features: plan.features.map((row) => ({ ...row })) })),
     };
-  });
+  }
   return { annualDiscount, plans };
+}
+
+function blankPlan(id: string): SubscriptionPlan {
+  const starter = SUBSCRIPTION_PLANS[0];
+  return {
+    ...starter,
+    id,
+    name: 'طرح جدید',
+    blurb: '',
+    monthlyPrice: MONTHLY_BASE_TOMAN,
+    maxBrands: 1,
+    maxStores: 1,
+    allowPartners: false,
+    allowClothImages: false,
+    allowProductShare: false,
+    allowShareSms: false,
+    notifyCustomersOnNewProduct: false,
+    highlight: false,
+    features: starter.features.map((row) => ({ ...row })),
+  };
+}
+
+function sanitizePlan(
+  patch: Partial<SubscriptionPlan> & { id?: string },
+  base: SubscriptionPlan,
+  used: Set<string>,
+): SubscriptionPlan | null {
+  let id = slugPlanId(String(resolvePlanId(patch.id) || base.id || ''));
+  if (!id) id = nextPlanId([...used].map((value) => ({ id: value })));
+  if (used.has(id)) id = nextPlanId([...used].map((value) => ({ id: value })));
+  used.add(id);
+  const features =
+    Array.isArray(patch.features) && patch.features.length
+      ? patch.features
+          .map((row) => ({
+            label: String(row?.label || '').trim().slice(0, 80),
+            included: Boolean(row?.included),
+          }))
+          .filter((row) => row.label)
+          .slice(0, 16)
+      : base.features.map((row) => ({ ...row }));
+  const storedName = String(patch.name || '').trim();
+  const storedBlurb = String(patch.blurb || '').trim();
+  const name =
+    base.id === 'partners' && (storedName === 'شرکا' || storedName === 'فروشگاه‌ها')
+      ? base.name
+      : storedName.slice(0, 40) || base.name;
+  const blurb =
+    base.id === 'partners' && storedBlurb.startsWith('همون چند حجره')
+      ? base.blurb
+      : storedBlurb.slice(0, 220) || base.blurb;
+  let monthlyPrice = Math.max(0, Math.round(Number(patch.monthlyPrice ?? base.monthlyPrice) || 0));
+  if (base.id === 'brands' && monthlyPrice === 5_000_000) monthlyPrice = base.monthlyPrice;
+  let maxStores = Math.min(99, Math.max(1, Math.round(Number(patch.maxStores ?? base.maxStores) || 1)));
+  if (base.id === 'partners' && maxStores === 5) maxStores = base.maxStores;
+  return {
+    ...base,
+    id,
+    name,
+    blurb,
+    monthlyPrice,
+    maxBrands: Math.min(99, Math.max(1, Math.round(Number(patch.maxBrands ?? base.maxBrands) || 1))),
+    maxStores,
+    allowPartners: Boolean(patch.allowPartners ?? base.allowPartners),
+    allowClothImages: Boolean(patch.allowClothImages ?? base.allowClothImages),
+    allowProductShare: Boolean(patch.allowProductShare ?? base.allowProductShare),
+    allowShareSms: Boolean(patch.allowShareSms ?? base.allowShareSms),
+    notifyCustomersOnNewProduct: Boolean(patch.notifyCustomersOnNewProduct ?? base.notifyCustomersOnNewProduct),
+    highlight: Boolean(patch.highlight ?? base.highlight),
+    features,
+  };
 }
 
 export function planFromList(plans: SubscriptionPlan[], id?: string | null) {

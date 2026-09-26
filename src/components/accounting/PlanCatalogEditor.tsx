@@ -4,7 +4,12 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2 } from 'lucide-react';
 import { resetPlanCatalog, savePlanCatalog } from '@/actions/admin';
-import { SUBSCRIPTION_PLANS, type SubscriptionPlan } from '@/lib/plans';
+import {
+  MAX_SUBSCRIPTION_PLANS,
+  nextPlanId,
+  SUBSCRIPTION_PLANS,
+  type SubscriptionPlan,
+} from '@/lib/plans';
 import { faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, Checkbox, FormCard, Input, Switch, toast } from '@/ui';
@@ -90,6 +95,43 @@ export function PlanCatalogEditor({ initial }: { initial: Catalog }) {
     }));
   }
 
+  function addPlan() {
+    setForm((current) => {
+      if (current.plans.length >= MAX_SUBSCRIPTION_PLANS) return current;
+      const starter = SUBSCRIPTION_PLANS[0];
+      const id = nextPlanId(current.plans);
+      return {
+        ...current,
+        plans: [
+          ...current.plans,
+          {
+            ...starter,
+            id,
+            name: 'طرح جدید',
+            blurb: '',
+            monthlyPrice: starter.monthlyPrice,
+            maxBrands: 1,
+            maxStores: 1,
+            allowPartners: false,
+            allowClothImages: false,
+            allowProductShare: false,
+            allowShareSms: false,
+            notifyCustomersOnNewProduct: false,
+            highlight: false,
+            features: starter.features.map((row) => ({ ...row })),
+          },
+        ],
+      };
+    });
+  }
+
+  function removePlan(id: string) {
+    setForm((current) => {
+      if (current.plans.length <= 1) return current;
+      return { ...current, plans: current.plans.filter((plan) => plan.id !== id) };
+    });
+  }
+
   function save() {
     start(async () => {
       const res = await savePlanCatalog({
@@ -128,7 +170,7 @@ export function PlanCatalogEditor({ initial }: { initial: Catalog }) {
           <div className="max-w-xl space-y-1">
             <p className="text-sm font-medium text-gray-900">تخفیف سالانه</p>
             <p className="text-xs text-gray-500">
-              همین مقادیر الان روی صفحه ورود و خرید اشتراک دیده می‌شود. شناسه طرح‌ها عوض نمی‌شود.
+              تعداد کارت‌های اشتراک همان تعداد طرح‌هایی است که اینجا می‌سازید. شناسه طرح‌های قبلی را عوض نکنید.
             </p>
           </div>
           <div className="w-40">
@@ -153,6 +195,19 @@ export function PlanCatalogEditor({ initial }: { initial: Catalog }) {
         </div>
       </FormCard>
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-gray-800">طرح‌ها ({form.plans.length})</p>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={form.plans.length >= MAX_SUBSCRIPTION_PLANS}
+          onClick={addPlan}
+          icon={<Plus className="h-4 w-4" />}
+        >
+          طرح
+        </Button>
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-2">
         {form.plans.map((plan) => {
           const base = SUBSCRIPTION_PLANS.find((row) => row.id === plan.id);
@@ -163,11 +218,23 @@ export function PlanCatalogEditor({ initial }: { initial: Catalog }) {
                   <p className="text-xs text-gray-400">{plan.id}</p>
                   <p className="text-base font-semibold text-gray-900">{plan.name || base?.name}</p>
                 </div>
-                <Switch
-                  label="پیشنهادی"
-                  checked={Boolean(plan.highlight)}
-                  onChange={(checked) => patchPlan(plan.id, { highlight: checked })}
-                />
+                <div className="flex items-center gap-2">
+                  <Switch
+                    label="پیشنهادی"
+                    checked={Boolean(plan.highlight)}
+                    onChange={(checked) => patchPlan(plan.id, { highlight: checked })}
+                  />
+                  {form.plans.length > 1 ? (
+                    <button
+                      type="button"
+                      className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                      onClick={() => removePlan(plan.id)}
+                      aria-label="حذف طرح"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input

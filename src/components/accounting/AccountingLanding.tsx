@@ -21,7 +21,7 @@ import { BrandLogo } from '@/components/brand/BrandLogo';
 import { BRAND } from '@/lib/brand';
 import { faNumber, toman } from '@/lib/format';
 import { accountingSoftwareLd } from '@/lib/json-ld';
-import { ANNUAL_DISCOUNT, SUBSCRIPTION_PLANS } from '@/lib/plans';
+import { ANNUAL_DISCOUNT, SUBSCRIPTION_PLANS, planCardsGridClass } from '@/lib/plans';
 import { ShopButton } from '@/components/shop/ShopUi';
 import { cn } from '@/ui';
 
@@ -305,7 +305,7 @@ export function AccountingLanding({
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className={planCardsGridClass(plans.length)}>
             {plans.map((plan) => (
               <article
                 key={plan.id}

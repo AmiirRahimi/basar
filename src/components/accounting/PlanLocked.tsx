@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { isHighestPlan } from '@/lib/plans';
 import { useWorkspace } from './WorkspaceProvider';
 
 export function PlanLocked({
@@ -33,12 +32,11 @@ export function PlanLocked({
 export function PlanCapacityBanner() {
   const workspace = useWorkspace();
   if (!workspace || workspace.isPlatformAdmin) return null;
-  const planId = workspace.subscription?.planId;
-  if (isHighestPlan(planId)) return null;
-  const brands = workspace.brands?.length || 0;
-  const stores = workspace.stores?.length || 0;
   const maxBrands = workspace.subscription?.maxBrands ?? 1;
   const maxStores = workspace.subscription?.maxStores ?? 1;
+  if (maxBrands >= 99 && maxStores >= 99) return null;
+  const brands = workspace.brands?.length || 0;
+  const stores = workspace.stores?.length || 0;
   const brandFull = brands >= maxBrands;
   const storeFull = stores >= maxStores;
   const detail = brandFull && storeFull
