@@ -289,19 +289,21 @@ export function SubscriptionPanel({
                       : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  {plan.highlight ? (
-                    <span className="w-fit rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-800">
-                      پیشنهادی
-                    </span>
-                  ) : null}
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="min-w-0 text-right">
+                    {plan.highlight ? (
+                      <span className="mb-1.5 inline-block w-fit rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-800">
+                        پیشنهادی
+                      </span>
+                    ) : null}
+                    <h4 className="text-base font-semibold text-gray-900">{plan.name}</h4>
+                  </div>
                   {selected ? (
-                    <span className="w-fit rounded-full bg-teal-600 px-2 py-0.5 text-[11px] font-medium text-white">
+                    <span className="shrink-0 rounded-full bg-teal-600 px-2 py-0.5 text-[11px] font-medium text-white">
                       انتخاب شده
                     </span>
                   ) : null}
                 </div>
-                <h4 className="text-base font-semibold text-gray-900">{plan.name}</h4>
                 <p className="mt-1 min-h-10 text-xs text-gray-500">{plan.blurb}</p>
                 <PriceSection
                   className="mt-3"
