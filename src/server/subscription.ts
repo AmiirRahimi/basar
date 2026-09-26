@@ -5,6 +5,7 @@ import {
   cycleFromLegacy,
   planFeatureFlags,
   planPrice,
+  resolvePlanId,
   type BillingCycle,
   type PlanId,
 } from '@/lib/plans';
@@ -89,7 +90,7 @@ export function denyPlanFeature(
     return fail('ثبت تصویر لباس فقط در طرح ویترین است. طرح را ارتقا دهید.');
   }
   if (feature === 'partners' && !sub.allowPartners) {
-    return fail('ثبت شریک در این طرح نیست. طرح شرکا یا ویترین را فعال کنید.');
+    return fail('ثبت شریک در این طرح نیست. طرح فروشگاه و شرکا یا ویترین را فعال کنید.');
   }
   if (feature === 'share' && !sub.allowProductShare) {
     return fail('ساخت لینک محصول فقط در طرح ویترین است؛ این قابلیت مثل داشتن فروشگاه خودتان است. از تنظیمات طرح را ارتقا دهید.');
@@ -166,8 +167,8 @@ export async function previewPlanDiscount(
 ): Promise<ActionResult> {
   await db();
   const catalog = await livePlanCatalog();
-  const plan = catalog.plans.find((row) => row.id === planId);
-  if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
+  const plan = catalog.plans.find((row) => row.id === resolvePlanId(planId));
+  if (!plan) return fail('طرح اشتراک نامعتبر است');
   const originalPrice = planPrice(plan, cycle, catalog.annualDiscount);
   const { consumeDiscountCode } = await import('./admin');
   const discounted = await consumeDiscountCode(discountCode, originalPrice, session._id);
@@ -195,8 +196,8 @@ export async function buyPlan(
     return fail('فقط صاحب برند می‌تواند اشتراک بخرد', 403);
   }
   const catalog = await livePlanCatalog();
-  const plan = catalog.plans.find((row) => row.id === planId);
-  if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
+  const plan = catalog.plans.find((row) => row.id === resolvePlanId(planId));
+  if (!plan) return fail('طرح اشتراک نامعتبر است');
   const current = await activeSubscription(session._id);
   const now = Date.now();
   const startMs = current.active && current.endDate ? Math.max(now, new Date(current.endDate).getTime()) : now;
@@ -265,10 +266,10 @@ export async function adminSetSubscription(
   if (hasAdd && (!Number.isFinite(addMonths) || addMonths < 0)) return fail('تعداد ماه نامعتبر است');
   if (addMonths > 120) return fail('تعداد ماه بیش از حد مجاز است');
 
-  const planId = String(payload.planId || overlapping[0]?.planId || 'starter');
+  const planId = resolvePlanId(String(payload.planId || overlapping[0]?.planId || 'starter')) || 'starter';
   const catalog = await livePlanCatalog();
   const plan = catalog.plans.find((row) => row.id === planId);
-  if (!plan || plan.id !== planId) return fail('طرح اشتراک نامعتبر است');
+  if (!plan) return fail('طرح اشتراک نامعتبر است');
   const cycle: BillingCycle =
     addMonths >= 12
       ? 'year'
