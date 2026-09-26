@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Toaster } from '@/ui/components/Toast';
 import { siteOrigin } from '@/lib/site';
 import { pageShare } from '@/lib/share-meta';
+import { NavigationProgress } from '@/components/NavigationProgress';
 import { GoogleAnalytics } from '@/components/seo/GoogleAnalytics';
 import './globals.css';
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fa" dir="rtl">
       <body>
         <GoogleAnalytics />
+        <NavigationProgress />
         {children}
         <Toaster />
       </body>
