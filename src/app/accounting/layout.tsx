@@ -11,7 +11,9 @@ export default async function AccountingLayout({ children }: { children: React.R
   const [workspace, prices] = await Promise.all([getWorkspace(), readPublicMarketPrices()]);
   return (
     <WorkspaceProvider workspace={workspace.ok ? workspace.data : null}>
-      <AccountingFrame prices={tickerItems(prices)}>{children}</AccountingFrame>
+      <AccountingFrame prices={tickerItems(prices)} tickerVisible={prices.tickerVisible}>
+        {children}
+      </AccountingFrame>
     </WorkspaceProvider>
   );
 }

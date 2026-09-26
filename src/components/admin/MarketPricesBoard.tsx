@@ -3,13 +3,13 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
-import { refreshCurrencyNow, saveCurrencyPrices, saveStaticPrices } from '@/actions/market-prices';
+import { refreshCurrencyNow, saveCurrencyPrices, saveStaticPrices, saveTickerVisible } from '@/actions/market-prices';
 import type { AdminMarketPrices } from '@/lib/market-prices';
 import { MIN_PRICE_INTERVAL_SECONDS } from '@/lib/market-prices';
 import { faDate, faNumber, faTime } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { PriceField } from '@/components/accounting/Price';
-import { Button, Input, toast } from '@/ui';
+import { Button, Input, Switch, toast } from '@/ui';
 
 type CurrencyDraft = {
   id: string;
@@ -61,6 +61,7 @@ export function MarketPricesBoard({ prices }: { prices: AdminMarketPrices }) {
         }))
       : [blankCurrency()],
   );
+  const [visible, setVisible] = useState(prices.tickerVisible !== false);
   const [statics, setStatics] = useState<StaticDraft[]>(() =>
     prices.statics.length
       ? prices.statics.map((item) => ({ id: item.id, label: item.label, unit: item.unit, value: item.value }))
@@ -73,6 +74,21 @@ export function MarketPricesBoard({ prices }: { prices: AdminMarketPrices }) {
 
   function updateStatic(id: string, patch: Partial<StaticDraft>) {
     setStatics((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }
+
+  function setTicker(next: boolean) {
+    setVisible(next);
+    start(async () => {
+      const res = await saveTickerVisible(next);
+      if (redirectIfUnauthorized(res)) return;
+      if (!res.ok) {
+        setVisible(!next);
+        toast.error(res.message || 'ذخیره نشد');
+        return;
+      }
+      toast.success(res.message || 'ذخیره شد');
+      router.refresh();
+    });
   }
 
   function saveCurrencies() {
@@ -122,6 +138,16 @@ export function MarketPricesBoard({ prices }: { prices: AdminMarketPrices }) {
 
   return (
     <div className="space-y-4" dir="rtl">
+      <section className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">نوار قیمت</h2>
+          <p className="mt-1 text-sm leading-7 text-gray-500">
+            متن متحرک بالای منو، بدون پس‌زمینه و هم‌عرض همان منو. خاموش که باشد کسی آن را نمی‌بیند.
+          </p>
+        </div>
+        <Switch checked={visible} disabled={pending} label={visible ? 'نمایان' : 'مخفی'} onChange={setTicker} />
+      </section>
+
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <SectionHeader title="قیمت ارز" onAdd={() => setCurrencies((current) => [...current, blankCurrency()])} />
         <p className="mt-1 text-sm leading-7 text-gray-500">

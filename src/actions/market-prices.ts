@@ -6,6 +6,7 @@ import {
   refreshCurrencyNow as pullCurrency,
   saveCurrencyPrices as saveCurrencies,
   saveStaticPrices as saveStatics,
+  saveTickerVisible as saveTicker,
 } from '@/server/market-prices';
 
 export async function getPublicMarketPrices() {
@@ -26,4 +27,8 @@ export async function refreshCurrencyNow(input: { id?: string; url?: string; pat
 
 export async function saveStaticPrices(input: { statics?: Array<Record<string, unknown>> }) {
   return saveStatics(input);
+}
+
+export async function saveTickerVisible(visible: boolean) {
+  return saveTicker(visible);
 }

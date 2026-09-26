@@ -11,7 +11,7 @@ export default async function AdminPricesPage() {
   return (
     <AccountingShell
       title="قیمت‌ها"
-      description="یک بخش برای قیمت ارز از API و یک بخش برای قیمت‌های ثابت. هر دو روی نوار متحرک بالای منوی حسابداری دیده می‌شوند."
+      description="یک بخش برای قیمت ارز از API و یک بخش برای قیمت‌های ثابت. نوار متحرک بالای منو را از همین صفحه می‌توانید نمایان یا مخفی کنید."
       error={errorMessage(res)}
     >
       {prices ? <MarketPricesBoard prices={prices} /> : <p className="text-sm text-muted-foreground">{res.message || 'به این بخش دسترسی ندارید.'}</p>}

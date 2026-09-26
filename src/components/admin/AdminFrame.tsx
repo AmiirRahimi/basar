@@ -4,16 +4,27 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { AccountingSidebar } from '@/components/accounting/AccountingSidebar';
+import { PriceTicker, usePriceTicker } from '@/components/accounting/PriceTicker';
+import type { TickerPrice } from '@/lib/market-prices';
 import { useWorkspace } from '@/components/accounting/WorkspaceProvider';
 import { canOpenAdminPath, firstAdminHref, hasAdminPermission, type AdminPermissionId } from '@/lib/admin-permissions';
 import { adminMenuGroups, adminMenuSections } from './admin-menu';
 
 const EASE = 'duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]';
 
-export function AdminFrame({ children }: { children: ReactNode }) {
+export function AdminFrame({
+  children,
+  prices = [],
+  tickerVisible = true,
+}: {
+  children: ReactNode;
+  prices?: TickerPrice[];
+  tickerVisible?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const workspace = useWorkspace();
+  const ticker = usePriceTicker(prices, tickerVisible);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
@@ -59,6 +70,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
 
   return (
     <main className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
+      {ticker.visible ? <PriceTicker items={ticker.items} variant="sidebar" expanded={sidebarExpanded} /> : null}
       <AccountingSidebar
         pathname={pathname}
         menuSections={sections}
@@ -78,6 +90,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
           sidebarExpanded ? 'md:ms-[17.75rem]' : 'md:ms-[6.25rem]'
         }`}
       >
+        {ticker.visible ? <PriceTicker items={ticker.items} variant="inline" /> : null}
         <div className="flex items-center gap-2 rounded-2xl bg-sidebar-gradient px-3 py-2 text-white md:hidden">
           <button
             type="button"

@@ -19,16 +19,36 @@ function isBareRoute(pathname: string) {
   return pathname.includes('/print') || pathname.endsWith('/bijak');
 }
 
-export function AccountingFrame({ children, prices = [] }: { children: ReactNode; prices?: TickerPrice[] }) {
+export function AccountingFrame({
+  children,
+  prices = [],
+  tickerVisible = true,
+}: {
+  children: ReactNode;
+  prices?: TickerPrice[];
+  tickerVisible?: boolean;
+}) {
   const pathname = usePathname();
   if (isBareRoute(pathname)) return children;
-  return <AccountingChrome prices={prices}>{children}</AccountingChrome>;
+  return (
+    <AccountingChrome prices={prices} tickerVisible={tickerVisible}>
+      {children}
+    </AccountingChrome>
+  );
 }
 
-function AccountingChrome({ children, prices }: { children: ReactNode; prices: TickerPrice[] }) {
+function AccountingChrome({
+  children,
+  prices,
+  tickerVisible,
+}: {
+  children: ReactNode;
+  prices: TickerPrice[];
+  tickerVisible: boolean;
+}) {
   const pathname = usePathname();
   const workspace = useWorkspace();
-  const ticker = usePriceTicker(prices);
+  const ticker = usePriceTicker(prices, tickerVisible);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
@@ -61,8 +81,8 @@ function AccountingChrome({ children, prices }: { children: ReactNode; prices: T
   }
 
   return (
-    <main className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100 p-3 md:p-5 md:pt-14" dir="rtl">
-      <PriceTicker items={ticker} variant="sidebar" />
+    <main className="relative min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100 p-3 md:p-5" dir="rtl">
+      {ticker.visible ? <PriceTicker items={ticker.items} variant="sidebar" expanded={sidebarExpanded} /> : null}
       <AccountingSidebar
         pathname={pathname}
         menuSections={visibleMenu}
@@ -72,14 +92,13 @@ function AccountingChrome({ children, prices }: { children: ReactNode; prices: T
         onExpandedChange={setSidebarHovered}
         onPinnedChange={setPinned}
         onClose={() => setMobileOpen(false)}
-        tickerOffset
       />
       <div
         className={`relative z-10 flex min-h-[calc(100vh-1.5rem)] min-w-0 flex-col gap-3 transition-[margin] ${EASE} md:min-h-[calc(100vh-2.5rem)] ${
           sidebarExpanded ? 'md:ms-[17.75rem]' : 'md:ms-[6.25rem]'
         }`}
       >
-        <PriceTicker items={ticker} variant="inline" />
+        {ticker.visible ? <PriceTicker items={ticker.items} variant="inline" /> : null}
         <div className="flex items-center gap-2 rounded-2xl bg-sidebar-gradient px-3 py-2 text-white md:hidden">
           <button
             type="button"

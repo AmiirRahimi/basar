@@ -11,7 +11,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ items: [] }, { status: 401 });
   const prices = await readPublicMarketPrices();
   return NextResponse.json(
-    { items: tickerItems(prices) },
+    { items: tickerItems(prices), visible: prices.tickerVisible },
     { headers: { 'cache-control': 'private, max-age=5' } },
   );
 }

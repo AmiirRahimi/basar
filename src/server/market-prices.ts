@@ -42,7 +42,7 @@ function priceId(value: unknown) {
 }
 
 function emptyAdmin(): AdminMarketPrices {
-  return { currencies: [], statics: [] };
+  return { tickerVisible: true, currencies: [], statics: [] };
 }
 
 function legacyIntervalSeconds(value: unknown) {
@@ -124,11 +124,16 @@ function staticsFromRow(row: Record<string, unknown>): StaticPrice[] {
 
 function toAdmin(row: Record<string, unknown> | null | undefined): AdminMarketPrices {
   if (!row) return emptyAdmin();
-  return { currencies: currenciesFromRow(row), statics: staticsFromRow(row) };
+  return {
+    tickerVisible: row.tickerVisible !== false,
+    currencies: currenciesFromRow(row),
+    statics: staticsFromRow(row),
+  };
 }
 
 function toPublic(prices: AdminMarketPrices): PublicMarketPrices {
   return {
+    tickerVisible: prices.tickerVisible,
     currencies: prices.currencies.map((item) => ({
       id: item.id,
       label: item.label,
@@ -160,6 +165,7 @@ async function writeRow(data: AdminMarketPrices) {
   await db();
   const payload = {
     key: KEY,
+    tickerVisible: data.tickerVisible !== false,
     currencies: data.currencies,
     statics: data.statics,
     fabrics: data.statics,
@@ -369,6 +375,16 @@ export async function saveStaticPrices(input: {
   rememberMarketPrices(next);
   await writeRow(next);
   return ok(serialize(next), 'قیمت‌های ثابت ذخیره شد');
+}
+
+export async function saveTickerVisible(visible: boolean): Promise<ActionResult<AdminMarketPrices>> {
+  const access = await requireSuperuser();
+  if ('error' in access) return access.error as ActionResult<AdminMarketPrices>;
+  const current = await readAdminMarketPrices();
+  const next = { ...current, tickerVisible: visible !== false };
+  rememberMarketPrices(next);
+  await writeRow(next);
+  return ok(serialize(next), next.tickerVisible ? 'نوار قیمت نمایان شد' : 'نوار قیمت مخفی شد');
 }
 
 export async function refreshCurrencyNow(input: { id?: string; url?: string; path?: string }): Promise<ActionResult<AdminMarketPrices>> {

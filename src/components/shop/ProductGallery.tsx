@@ -1,40 +1,29 @@
 'use client';
 
-import { useState } from 'react';
-import { cn } from '@/ui/lib/cn';
+import { faNumber } from '@/lib/format';
+import AccordionGallery from './AccordionGallery';
 
 export function ProductGallery({ images, name }: { images: string[]; name: string }) {
-  const list = images.length ? images : [];
-  const [active, setActive] = useState(0);
+  const list = images.filter(Boolean);
   if (!list.length) return <div className="h-64 rounded-[2rem] bg-shop-mill/20 sm:h-96 md:h-[32rem]" />;
 
+  const items = list.map((image, index) => ({
+    image,
+    label: list.length > 1 ? `تصویر ${faNumber(index + 1)}` : name,
+    alt: name,
+  }));
+
   return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-[2rem] bg-shop-ink">
-        <div
-          className="h-64 bg-cover bg-center sm:h-96 md:h-[32rem] lg:h-[560px]"
-          style={{ backgroundImage: `url(${list[active] || list[0]})` }}
-          role="img"
-          aria-label={name}
-        />
-      </div>
-      {list.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto">
-          {list.map((src, index) => (
-            <button
-              key={src + index}
-              type="button"
-              onClick={() => setActive(index)}
-              className={cn(
-                'h-16 w-14 shrink-0 rounded-xl bg-cover bg-center border',
-                index === active ? 'border-shop-saffron' : 'border-transparent opacity-70',
-              )}
-              style={{ backgroundImage: `url(${src})` }}
-              aria-label={`تصویر ${index + 1}`}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <AccordionGallery
+      items={items}
+      defaultIndex={0}
+      accentColor="#c49440"
+      overlayColor="#101c30"
+      textColor="#f3efe6"
+      expandRatio={items.length <= 2 ? 0.72 : 0.52}
+      trigger="hover"
+      height={520}
+      showLabels
+    />
   );
 }

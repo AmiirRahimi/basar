@@ -5,7 +5,10 @@ async function pull() {
     const response = await fetch('/api/market-prices', { credentials: 'same-origin', cache: 'no-store' });
     if (!response.ok) return;
     const data = await response.json();
-    if (Array.isArray(data.items)) postMessage({ items: data.items });
+    postMessage({
+      items: Array.isArray(data.items) ? data.items : [],
+      visible: data.visible !== false,
+    });
   } catch {
     // The next tick tries again. A failed poll must not touch the page thread.
   }

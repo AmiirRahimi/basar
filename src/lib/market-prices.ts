@@ -30,11 +30,13 @@ export type TickerPrice = {
 };
 
 export type PublicMarketPrices = {
+  tickerVisible: boolean;
   currencies: Array<Pick<CurrencyPrice, 'id' | 'label' | 'unit' | 'value' | 'updatedAt'>>;
   statics: StaticPrice[];
 };
 
 export type AdminMarketPrices = {
+  tickerVisible: boolean;
   currencies: CurrencyPrice[];
   statics: StaticPrice[];
 };
