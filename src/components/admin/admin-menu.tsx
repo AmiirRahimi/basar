@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   Receipt,
   Send,
+  Shield,
   ShoppingBag,
   Sparkles,
   Ticket,
@@ -16,6 +17,7 @@ import {
 import type { CountingMenuSection } from '@/components/counting/CountingSidebar';
 
 export const adminMenuGroups = [
+  { label: 'سوپریوزر', ids: ['access'] },
   { label: 'نمای کلی', ids: ['dashboard'] },
   { label: 'کاربران', ids: ['users', 'usage', 'plans'] },
   { label: 'ارتباط', ids: ['messages', 'sms', 'telegram'] },
@@ -23,6 +25,7 @@ export const adminMenuGroups = [
 ];
 
 export const adminMenuSections: CountingMenuSection[] = [
+  { id: 'access', name: 'دسترسی پنل ادمین', icon: Shield, href: '/admin/access', menuItems: [] },
   { id: 'dashboard', name: 'داشبورد', icon: LayoutDashboard, href: '/admin', menuItems: [] },
   { id: 'users', name: 'کاربران و اشتراک', icon: Users, href: '/admin/users', menuItems: [] },
   { id: 'usage', name: 'اشتراک و توکن', icon: Sparkles, href: '/admin/usage', menuItems: [] },

@@ -59,6 +59,21 @@ export function hasAdminPermission(permissions: readonly string[] | undefined, p
   return Boolean(permissions?.includes(permission));
 }
 
+/** The access page is superuser-only. It is not one of the sections that can be granted. */
+export function isSuperuserAccessPath(pathname: string) {
+  const path = pathname.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/';
+  return path === '/admin/access' || path.startsWith('/admin/access/');
+}
+
+export function canOpenAdminPath(
+  pathname: string,
+  input: { superuser?: boolean; permissions?: readonly string[] },
+) {
+  if (isSuperuserAccessPath(pathname)) return Boolean(input.superuser);
+  const need = adminPermissionForPath(pathname);
+  return Boolean(need && hasAdminPermission(input.permissions, need));
+}
+
 export function firstAdminHref(permissions: readonly string[] | undefined) {
   return ADMIN_PERMISSIONS.find((item) => permissions?.includes(item.id))?.href || '';
 }

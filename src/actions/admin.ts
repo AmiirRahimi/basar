@@ -4,6 +4,8 @@ import {
   createDiscountCode as createCode,
   deleteDiscountCode as removeCode,
   getAdminOverview as overview,
+  listAdminPanelAccess as listAccess,
+  saveAdminPanelGrant as saveGrant,
   saveAdminUser as saveUser,
   setAdminSubscription as setSubscription,
   updateAdminUser as updateUser,
@@ -50,6 +52,18 @@ export async function setAdminSubscription(userId: string, payload: Record<strin
 
 export async function saveAdminUser(id: string, payload: Record<string, unknown>) {
   return saveUser(id, payload);
+}
+
+export async function getAdminPanelAccess() {
+  return listAccess();
+}
+
+export async function saveAdminPanelGrant(payload: {
+  userId?: string;
+  phonenumber?: string;
+  permissions?: string[];
+}) {
+  return saveGrant(payload);
 }
 
 export async function getPlanCatalog() {

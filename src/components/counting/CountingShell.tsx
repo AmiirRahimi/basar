@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { MainWrapper, PageHeader } from '@/ui';
-import { adminPermissionForPath, firstAdminHref, hasAdminPermission } from '@/lib/admin-permissions';
+import { canOpenAdminPath, firstAdminHref } from '@/lib/admin-permissions';
 import { canAccessMenu, pathMenuId } from '@/lib/roles';
 import { countingMenuSections } from './counting-menu';
 import { ResultToast } from './ResultToast';
@@ -35,9 +35,11 @@ export function CountingShell({
   );
   const role = workspace?.storeRole || 'owner';
   const menuId = pathMenuId(pathname) || 'dashboard';
-  const adminNeed = pathname.startsWith('/admin') ? adminPermissionForPath(pathname) : '';
   const allowed = pathname.startsWith('/admin')
-    ? Boolean(adminNeed && hasAdminPermission(workspace?.adminPermissions, adminNeed))
+    ? canOpenAdminPath(pathname, {
+        superuser: Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin),
+        permissions: workspace?.adminPermissions,
+      })
     : canAccessMenu(role, menuId, workspace?.isPlatformAdmin, workspace?.permissions);
   const activeBrand = workspace?.brands.find((brand) => brand._id === workspace.activeBrandId);
   const activeStore = workspace?.stores.find((store) => store._id === workspace.activeStoreId);

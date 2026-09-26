@@ -118,7 +118,6 @@ export async function getAdminOverview(): Promise<ActionResult> {
       sheba: user.sheba || '',
       bankName: user.bankName || '',
       imageTokens: Number(user.imageTokens || 0),
-      adminPermissions: resolveAdminPermissions(isSuperuserPhone(String(user.phonenumber || '')), user.adminPermissions),
     };
   });
   const purchases = subscriptions.map((row: any) => {
@@ -256,9 +255,6 @@ export async function updateAdminUser(id: string, payload: Record<string, unknow
   await db();
   const user = await M().User.findById(id).lean();
   if (!user) return fail('کاربر پیدا نشد', 404);
-  if (payload.adminPermissions != null && !access.superuser) {
-    return fail('فقط سوپریوزر می‌تواند دسترسی پنل ادمین را بدهد', 403);
-  }
 
   const next: Record<string, unknown> = {};
   if (payload.fullName != null) next.fullName = String(payload.fullName).trim();
@@ -275,9 +271,6 @@ export async function updateAdminUser(id: string, payload: Record<string, unknow
     const taken = await M().User.findOne({ phonenumber }).lean();
     if (taken && String(taken._id) !== String(id)) return fail('این موبایل قبلاً ثبت شده');
     next.phonenumber = phonenumber;
-  }
-  if (payload.adminPermissions != null && access.superuser && !isSuperuserPhone(String(user.phonenumber || ''))) {
-    next.adminPermissions = normalizeAdminPermissions(payload.adminPermissions);
   }
   if (Object.keys(next).length) await M().User.findByIdAndUpdate(id, next);
   return ok(null, Object.keys(next).length ? 'اطلاعات کاربر ذخیره شد' : '');
@@ -345,4 +338,69 @@ export async function commitDiscountUse(id: string) {
   const matched = Number((res as { matchedCount?: number; modifiedCount?: number })?.matchedCount ?? (res as { modifiedCount?: number })?.modifiedCount ?? 0);
   if (!matched) return { ok: false as const, message: 'ظرفیت استفاده از این کد تمام شده است' };
   return { ok: true as const };
+}
+
+function phoneText(value: unknown) {
+  return String(value || '')
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/\s/g, '')
+    .trim();
+}
+
+function userIdOf(value: { _id?: unknown }) {
+  return String(value._id || '');
+}
+
+export async function listAdminPanelAccess(): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  await db();
+  const users = await M().User.find().select('_id fullName phonenumber adminPermissions').lean();
+  const accounts: { id: string; fullName: string; phonenumber: string }[] = [];
+  const grants: { id: string; fullName: string; phonenumber: string; permissions: string[] }[] = [];
+  for (const user of users as { _id?: unknown; fullName?: string; phonenumber?: string; adminPermissions?: unknown }[]) {
+    const phonenumber = String(user.phonenumber || '');
+    if (!phonenumber || isSuperuserPhone(phonenumber)) continue;
+    const row = {
+      id: userIdOf(user),
+      fullName: String(user.fullName || ''),
+      phonenumber,
+    };
+    accounts.push(row);
+    const permissions = normalizeAdminPermissions(user.adminPermissions);
+    if (permissions.length) grants.push({ ...row, permissions });
+  }
+  accounts.sort((a, b) => (a.fullName || a.phonenumber).localeCompare(b.fullName || b.phonenumber, 'fa'));
+  grants.sort((a, b) => (a.fullName || a.phonenumber).localeCompare(b.fullName || b.phonenumber, 'fa'));
+  return ok(serialize({ accounts, grants }));
+}
+
+export async function saveAdminPanelGrant(payload: {
+  userId?: string;
+  phonenumber?: string;
+  permissions?: unknown;
+}): Promise<ActionResult> {
+  const access = await requirePlatformAdmin();
+  if ('error' in access) return access.error;
+  await db();
+  const permissions = normalizeAdminPermissions(payload.permissions);
+  const userId = String(payload.userId || '').trim();
+  let user: { _id?: unknown; phonenumber?: string } | null = null;
+  if (userId) {
+    user = await M().User.findById(userId).select('_id fullName phonenumber').lean();
+    if (!user) return fail('کاربر پیدا نشد', 404);
+  } else {
+    const phonenumber = phoneText(payload.phonenumber);
+    if (!PHONE_RE.test(phonenumber)) return fail('شماره موبایل معتبر نیست');
+    if (!permissions.length) return fail('حداقل یک بخش از پنل ادمین را انتخاب کنید');
+    user = await M().User.findOne({ phonenumber }).select('_id fullName phonenumber').lean();
+    if (!user) user = await M().User.create({ phonenumber });
+  }
+  if (!user) return fail('کاربر پیدا نشد', 404);
+  if (isSuperuserPhone(String(user.phonenumber || ''))) return fail('سوپریوزر همه بخش‌های پنل را دارد');
+  await M().User.findByIdAndUpdate(userIdOf(user), { adminPermissions: permissions });
+  return ok(
+    { id: userIdOf(user), permissions },
+    permissions.length ? 'دسترسی پنل ادمین ذخیره شد' : 'دسترسی پنل ادمین برداشته شد',
+  );
 }

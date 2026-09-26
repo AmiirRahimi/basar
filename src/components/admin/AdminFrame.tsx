@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { CountingSidebar } from '@/components/counting/CountingSidebar';
 import { useWorkspace } from '@/components/counting/WorkspaceProvider';
-import { adminPermissionForPath, firstAdminHref, hasAdminPermission, type AdminPermissionId } from '@/lib/admin-permissions';
+import { canOpenAdminPath, firstAdminHref, hasAdminPermission, type AdminPermissionId } from '@/lib/admin-permissions';
 import { adminMenuGroups, adminMenuSections } from './admin-menu';
 
 const EASE = 'duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]';
@@ -31,11 +31,12 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
-  const need = adminPermissionForPath(pathname);
-  const allowed = Boolean(need && hasAdminPermission(workspace?.adminPermissions, need));
-  const sections = adminMenuSections.filter((section) =>
-    hasAdminPermission(workspace?.adminPermissions, section.id as AdminPermissionId),
-  );
+  const superuser = Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin);
+  const allowed = canOpenAdminPath(pathname, { superuser, permissions: workspace?.adminPermissions });
+  const sections = adminMenuSections.filter((section) => {
+    if (section.id === 'access') return superuser;
+    return hasAdminPermission(workspace?.adminPermissions, section.id as AdminPermissionId);
+  });
 
   useEffect(() => {
     if (!workspace || allowed) return;
