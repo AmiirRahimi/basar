@@ -20,6 +20,8 @@ import {
   listPayments as payments,
   listPublicClothes,
   listPublicClothKinds,
+  listClothModelColors,
+  listPublicModelClothes as listPublicModelClothesDb,
   listResource as listByName,
   listUserPermisions,
   personAccount,
@@ -64,6 +66,14 @@ export async function listPublicCatalog() {
 
 export async function listPublicKinds() {
   return listPublicClothKinds();
+}
+
+export async function listPublicModelClothes(modelGroup: string) {
+  return listPublicModelClothesDb(modelGroup);
+}
+
+export async function listClothColors(id: string) {
+  return listClothModelColors(id);
 }
 
 export async function getPublicCatalogProduct(id: string) {

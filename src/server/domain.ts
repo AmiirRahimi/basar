@@ -33,6 +33,7 @@ import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONT
 import { canAccessMenu, canReadResource, canWriteResource } from '@/lib/roles';
 import { allocateIncome, partnersForStore } from '@/lib/partners';
 import { clothAppliesToStore } from '@/lib/cloth-share';
+import { normalizeHex, swatchFor } from '@/lib/cloth-colors';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
@@ -114,6 +115,7 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     'discountPercent',
     'saleEndsAt',
     'newCollection',
+    'modelGroup',
   ],
   invoice: ['_client', 'receiverAddress', 'isSent'],
   'customer-cart': ['_invoice', '_cloth', 'count', 'packs', 'price'],
@@ -133,7 +135,7 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
   ],
   fabric: ['_mercer', '_tailor', 'amount', 'priceForUnit', 'priceForShipingForUnit', 'discount', 'extras'],
   returned: ['_returnedPerson', 'description'],
-  color: ['name'],
+  color: ['name', 'hex'],
   size: ['name', '_clothKind'],
   'cloth-kind': ['name'],
   'cloth-style': ['name', '_clothKind'],
@@ -892,6 +894,61 @@ async function restoreItems(items: any[]) {
   }
 }
 
+function refId(value: unknown) {
+  if (!value) return '';
+  if (typeof value === 'object' && '_id' in (value as Record<string, unknown>)) {
+    return String((value as { _id?: unknown })._id || '');
+  }
+  return String(value);
+}
+
+function siblingColorIds(value: unknown) {
+  const list = Array.isArray(value) ? value : String(value || '').split(/[,\s]+/);
+  return [...new Set(list.map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
+async function syncClothColorSiblings(primary: Record<string, any>, siblingColors: string[]) {
+  const primaryColor = refId(primary._color);
+  const wanted = siblingColors.filter((id) => id && id !== primaryColor);
+  if (!wanted.length && !primary.modelGroup) return 0;
+  const group = String(primary.modelGroup || primary._id);
+  if (!primary.modelGroup) {
+    await M().Cloth.updateOne({ _id: primary._id }, { modelGroup: group });
+    primary.modelGroup = group;
+  }
+  const existing = await M().Cloth.find({ modelGroup: group, isDeleted: false }).select('_color').lean();
+  const have = new Set(existing.map((row: any) => String(row._color || '')));
+  let added = 0;
+  for (const colorId of wanted) {
+    if (have.has(colorId)) continue;
+    const copy = { ...primary };
+    delete copy._id;
+    delete copy.__v;
+    copy._color = oid(colorId);
+    copy.modelGroup = group;
+    copy.images = [];
+    copy.packs = [];
+    copy.openingPacks = [];
+    copy.count = 0;
+    copy.openingCount = 0;
+    copy.published = false;
+    copy.publishRequested = false;
+    copy.timeStamp = new Date();
+    copy.isDeleted = false;
+    await M().Cloth.create(copy);
+    have.add(colorId);
+    added += 1;
+  }
+  return added;
+}
+
+function applyColorHex(body: Record<string, unknown>) {
+  const hex = normalizeHex(body.hex);
+  if (!hex) return 'رنگ را از تخته رنگ انتخاب کنید';
+  body.hex = hex;
+  return '';
+}
+
 export async function createResource(resource: string, payload: unknown): Promise<ActionResult> {
   const auth = await withSession();
   if ('error' in auth) return auth.error;
@@ -940,6 +997,10 @@ export async function createResource(resource: string, payload: unknown): Promis
   const cfg = lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
   let next = preparePayload(auth.session, resource, body);
+  if (resource === 'color') {
+    const colorError = applyColorHex(next);
+    if (colorError) return fail(colorError);
+  }
   if (resource === 'cloth') {
     const shared = await applyClothShare(auth.session, { ...next, _brandIds: body._brandIds, _storeIds: body._storeIds, _partner: body._partner });
     if (!shared.ok) return shared;
@@ -969,7 +1030,13 @@ export async function createResource(resource: string, payload: unknown): Promis
     });
   }
   if (resource === 'cloth') {
+    const plain = created.toObject({ depopulate: true });
+    const added = await syncClothColorSiblings(plain, siblingColorIds(body.siblingColors));
     void notifyCustomersOfNewCloth(auth.session, created);
+    return ok(
+      serialize(created.toObject ? created.toObject() : created),
+      added ? `ثبت شد. ${added} رنگ دیگر با موجودی صفر به همین مدل اضافه شد` : 'ثبت شد',
+    );
   }
   return ok(serialize(created.toObject ? created.toObject() : created), 'ثبت شد');
 }
@@ -1032,6 +1099,10 @@ export async function updateResource(resource: string, id: string, payload: unkn
   }
 
   let body = preparePayload(auth.session, resource, raw);
+  if (resource === 'color') {
+    const colorError = applyColorHex(body);
+    if (colorError) return fail(colorError);
+  }
   delete body._storeId;
   const cfg = resource === 'customer-cart' ? { model: M().CustomerCart, populate: { path: '_cloth' } } : lookups()[resource];
   if (!cfg) return fail('منبع ناشناخته');
@@ -1065,15 +1136,19 @@ export async function updateResource(resource: string, id: string, payload: unkn
   }
   const updated = await cfg.model.findOneAndUpdate(filter, body, { new: true });
   if (!updated) return fail('پیدا نشد', 404);
-  if (cfg.populate) await updated.populate(cfg.populate);
-  if (
-    resource === 'cloth' &&
-    isTruthyFlag((updated as any).published) &&
-    previous &&
-    !isTruthyFlag((previous as any).published)
-  ) {
-    void notifyCustomersOfNewCloth(auth.session, updated);
+  if (resource === 'cloth') {
+    const plain = updated.toObject({ depopulate: true });
+    const added = await syncClothColorSiblings(plain, siblingColorIds(raw.siblingColors));
+    if (cfg.populate) await updated.populate(cfg.populate);
+    if (isTruthyFlag((updated as any).published) && previous && !isTruthyFlag((previous as any).published)) {
+      void notifyCustomersOfNewCloth(auth.session, updated);
+    }
+    return ok(
+      serialize(updated.toObject ? updated.toObject() : updated),
+      added ? `ویرایش شد. ${added} رنگ دیگر با موجودی صفر به همین مدل اضافه شد` : 'ویرایش شد',
+    );
   }
+  if (cfg.populate) await updated.populate(cfg.populate);
   return ok(serialize(updated.toObject ? updated.toObject() : updated), 'ویرایش شد');
 }
 
@@ -1130,12 +1205,42 @@ const PUBLIC_CLOTH_POPULATE = [
 ];
 
 const PUBLIC_CLOTH_SELECT =
-  '_id code count packSize packs description images onSale discountPercent saleEndsAt newCollection published _type _style _size _color _storeId isProduced amountUsed boughtFee tailorFee washFee trimFee printFee extras';
+  '_id code count packSize packs description images onSale discountPercent saleEndsAt newCollection published _type _style _size _color _storeId isProduced amountUsed boughtFee tailorFee washFee trimFee printFee extras modelGroup';
 
 async function loadPublicCloth(filter: Record<string, unknown>) {
   await db();
   const query: any = M().Cloth.findOne(filter);
   return query.select(PUBLIC_CLOTH_SELECT).populate(PUBLIC_CLOTH_POPULATE).lean();
+}
+
+export async function listPublicModelClothes(modelGroup: string) {
+  await db();
+  if (!modelGroup) return ok([]);
+  const rows = await M().Cloth.find({ modelGroup, isDeleted: false, published: true })
+    .select(PUBLIC_CLOTH_SELECT)
+    .populate(PUBLIC_CLOTH_POPULATE)
+    .lean();
+  return ok(serialize(rows));
+}
+
+export async function listClothModelColors(id: string): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  const cloth = await M().Cloth.findOne({ _id: id, ...clothVisibleFilter(auth.session) }).select('modelGroup').lean();
+  if (!cloth?.modelGroup) return ok([]);
+  const rows = await M().Cloth.find({ modelGroup: cloth.modelGroup, ...clothVisibleFilter(auth.session) })
+    .select('_id code images _color count')
+    .populate({ path: '_color', select: '_id name hex' })
+    .lean();
+  return ok(
+    serialize(rows).map((row: any) => ({
+      id: String(row._id),
+      name: String(row._color?.name || ''),
+      hex: swatchFor(row._color?.name, row._color?.hex),
+      images: Array.isArray(row.images) ? row.images : [],
+      count: Number(row.count || 0),
+    })),
+  );
 }
 
 export async function listPublicClothes(): Promise<ActionResult> {

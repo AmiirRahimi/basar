@@ -12,6 +12,7 @@ import {
   getShopCartProduct,
   listPublicCatalog,
   listPublicKinds,
+  listPublicModelClothes,
   loadPublicOrders,
   loadSellerStorefrontOrders,
   loadStorefrontOrders,
@@ -65,9 +66,26 @@ export async function getSharedCatalog(token: string) {
 
 export async function getCatalogProduct(id: string): Promise<CatalogProduct | null> {
   const found = await getPublicCatalogProduct(id);
-  if (found.ok && found.data) return clothToProduct(found.data as Cloth);
+  if (found.ok && found.data) return withColorways(found.data as Cloth);
   const all = await getCatalog();
   return all.find((product) => product.id === id) || null;
+}
+
+async function withColorways(cloth: Cloth): Promise<CatalogProduct> {
+  const product = clothToProduct(cloth);
+  if (!cloth.modelGroup) return product;
+  const siblings = await listPublicModelClothes(cloth.modelGroup);
+  if (!siblings.ok || !Array.isArray(siblings.data) || siblings.data.length < 2) return product;
+  product.colorways = (siblings.data as Cloth[]).map((row) => {
+    const item = clothToProduct(row);
+    return {
+      id: item.id,
+      name: item.color || 'بدون رنگ',
+      hex: item.colorHex || '#64748b',
+      product: item,
+    };
+  });
+  return product;
 }
 
 async function getCartProduct(id: string): Promise<CatalogProduct | null> {

@@ -2,7 +2,7 @@ import { DEFAULT_MOQ } from './constants';
 import { clothUnitPrice } from './cloth-price';
 import { packsFromCloth, totalItems } from './packs';
 import { isTruthyFlag, saleState } from './product-sale';
-import type { CatalogFilters, CatalogProduct, Cloth } from './types';
+import { swatchFor } from './cloth-colors';
 
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1558171813-4c088753af8f?auto=format&fit=crop&w=1400&q=80';
@@ -47,6 +47,8 @@ export function clothToProduct(cloth: Cloth): CatalogProduct {
     styleId: style.id,
     sizeId: size.id,
     colorId: color.id,
+    colorHex: swatchFor(color.name, typeof cloth._color === 'object' ? cloth._color?.hex : ''),
+    modelGroup: cloth.modelGroup || '',
   };
 }
 

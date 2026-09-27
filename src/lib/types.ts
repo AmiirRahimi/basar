@@ -264,7 +264,8 @@ export type Cloth = {
   _type?: { name?: string; _id?: string } | string;
   _style?: { name?: string; _id?: string } | string;
   _size?: { name?: string; _id?: string } | string;
-  _color?: { name?: string; _id?: string } | string;
+  _color?: { name?: string; _id?: string; hex?: string } | string;
+  modelGroup?: string;
   _producedFrom?: {
     _id?: string;
     amount?: number;
@@ -348,6 +349,16 @@ export type CatalogProduct = {
   styleId?: string;
   sizeId?: string;
   colorId?: string;
+  colorHex?: string;
+  modelGroup?: string;
+  colorways?: CatalogColorway[];
+};
+
+export type CatalogColorway = {
+  id: string;
+  name: string;
+  hex: string;
+  product: CatalogProduct;
 };
 
 export type WholesaleCartItem = {
@@ -452,4 +463,5 @@ export type FieldOption = {
   /** Registered / first inventory. */
   openingPacks?: ClothPack[];
   openingCount?: number;
+  hex?: string;
 };

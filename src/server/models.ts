@@ -242,7 +242,10 @@ const ClothStyleSchema = defineSchema(
   },
   { collection: 'clothstyles' },
 );
-const ColorSchema = defineSchema({ name: { type: String, required: true } }, { collection: 'colors' });
+const ColorSchema = defineSchema(
+  { name: { type: String, required: true }, hex: { type: String, default: '' } },
+  { collection: 'colors' },
+);
 const SizeSchema = defineSchema(
   {
     name: { type: String, required: true },
@@ -288,6 +291,8 @@ const ClothSchema = defineSchema(
     _style: { type: Schema.Types.ObjectId, ref: 'ClothStyle' },
     _size: { type: Schema.Types.ObjectId, ref: 'Size' },
     _color: { type: Schema.Types.ObjectId, ref: 'Color' },
+    /** Links same model (type, style, size, code) across colors. Each color keeps its own stock and photos. */
+    modelGroup: { type: String, default: '', index: true },
     isProduced: { type: Boolean, default: false },
     fromPastStock: { type: Boolean, default: false },
     _tailor: { type: Schema.Types.ObjectId, ref: 'Person' },

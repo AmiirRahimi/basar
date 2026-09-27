@@ -16,6 +16,7 @@ import { formatPacksFa, openingFromCloth, packsFromCloth, totalItems } from '@/l
 import { errorMessage, guardSession } from '@/lib/auth-guard';
 import { saleState } from '@/lib/product-sale';
 import { clothPlacementAccess, clothShareLabel } from '@/lib/cloth-share';
+import { faNumber, displayName } from '@/lib/format';
 import { canWriteResource } from '@/lib/roles';
 
 export default async function ClothesPage() {
@@ -39,7 +40,13 @@ export default async function ClothesPage() {
   const data = workspace.data;
   const brands = data?.brands || [];
   const stores = data?.stores || [];
-  const rows = (Array.isArray(res.data) ? res.data : []).map((row: Record<string, any>) => {
+  const rawRows = Array.isArray(res.data) ? res.data : [];
+  const groupCount = new Map<string, number>();
+  for (const row of rawRows) {
+    const key = String(row.modelGroup || row._id);
+    groupCount.set(key, (groupCount.get(key) || 0) + 1);
+  }
+  const rows = rawRows.map((row: Record<string, any>) => {
     const current = packsFromCloth(row);
     const opening = openingFromCloth(row);
     const sale = saleState(row);
@@ -58,6 +65,10 @@ export default async function ClothesPage() {
       published: Boolean(row.published || row.publishRequested),
       publishLabel: row.published ? 'منتشر' : row.publishRequested ? 'در انتظار تایید' : '—',
       shareLabel: clothShareLabel(row, brands, stores),
+      colorLabel:
+        (groupCount.get(String(row.modelGroup || row._id)) || 1) > 1
+          ? `${displayName(row._color)} · ${faNumber(groupCount.get(String(row.modelGroup || row._id)) || 0)} رنگ`
+          : displayName(row._color),
     };
   });
   const brandOptions = brands.map((brand) => ({ value: brand._id, label: brand.name || 'برند' }));
@@ -122,7 +133,7 @@ export default async function ClothesPage() {
           { header: 'اشتراک', accessor: 'shareLabel' },
           { header: 'مانده بسته‌ها', accessor: 'packSummary' },
           { header: 'بسته‌های ثبت‌شده', accessor: 'openingSummary' },
-          { header: 'رنگ', accessor: '_color', format: 'name' },
+          { header: 'رنگ', accessor: 'colorLabel' },
           { header: 'پارچه', accessor: '_producedFrom', format: 'name' },
           { header: 'مصرف پارچه', accessor: 'amountUsed' },
           { header: 'خیاط', accessor: '_tailor', format: 'name' },
@@ -189,10 +200,9 @@ export default async function ClothesPage() {
           {
             name: '_color',
             label: 'رنگ',
-            type: 'relation',
+            type: 'color-family',
             options: colors,
             group: 'مشخصات لباس',
-            row: true,
           },
           { name: 'isProduced', label: 'تولید', type: 'boolean' },
           {

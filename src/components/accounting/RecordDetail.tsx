@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { InfoRow, SectionCard, TableOverflowText } from '@/ui';
 import { AdminUserEditTrigger } from './AdminUserEditor';
-import { ClothImageGallery } from './ClothImageGallery';
+import { ClothModelGallery } from './ClothModelGallery';
 import { Price } from './Price';
 import { PaymentRecordCard } from './PaymentRecordCard';
 import { CHECK_DIRECTIONS, CHECK_STATUSES, checkSourceLabel, checkStatus } from '@/lib/checks';
@@ -316,6 +316,13 @@ export type RecordDetailExtras = {
       packs?: unknown;
     }>;
   };
+  colorways?: {
+    id: string;
+    name: string;
+    hex: string;
+    images?: string[];
+    count?: number;
+  }[];
 };
 
 export function RecordDetail({
@@ -401,7 +408,12 @@ export function RecordDetail({
       </section>
 
       {resource === 'cloth' ? (
-        <ClothImageGallery clothId={String(row._id)} images={images} name={title} />
+        <ClothModelGallery
+          clothId={String(row._id)}
+          images={images}
+          name={title}
+          colors={extras?.colorways || []}
+        />
       ) : null}
 
       {extras?.profit ? (

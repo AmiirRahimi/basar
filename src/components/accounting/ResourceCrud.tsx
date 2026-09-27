@@ -17,6 +17,7 @@ import { ClothImagesEditor } from './ClothImagesEditor';
 import { useWorkspace } from './WorkspaceProvider';
 import { ClothPacksEditor } from './ClothPacksEditor';
 import { ClothShareFields } from './ClothShareFields';
+import { ClothColorFamily } from './ClothColorFamily';
 import { ClothExtrasEditor } from './ClothExtrasEditor';
 import { SearchableTable } from './SearchableTable';
 import { AddPlusButton, usePageAddButton } from './PageAction';
@@ -36,6 +37,7 @@ import {
   parseFabricExtras,
   sanitizeFabricExtras,
 } from '@/lib/fabric-extras';
+import { swatchFor } from '@/lib/cloth-colors';
 import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import type { FieldOption } from '@/lib/types';
 
@@ -59,7 +61,8 @@ export type Field = {
     | 'datetime'
     | 'images'
     | 'person-role'
-    | 'cloth-share';
+    | 'cloth-share'
+    | 'color-family';
   options?: FieldOption[];
   storeOptions?: FieldOption[];
   partnerOptions?: FieldOption[];
@@ -485,6 +488,14 @@ export function ResourceCrud({
           payload[f.name] = normalizePersonRoles(form[f.name]);
           return;
         }
+        if (f.type === 'color-family') {
+          payload._color = form._color || null;
+          payload.siblingColors = String(form.siblingColors || '')
+            .split(/[,\s]+/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+          return;
+        }
         if (f.type === 'cloth-share') {
           payload.sellInAllStores = false;
           if (f.assignPlace) {
@@ -550,6 +561,32 @@ export function ResourceCrud({
           placeholder="انتخاب کنید"
           hint={waitingOnParent ? `ابتدا ${parentLabel} را انتخاب کنید` : undefined}
           labels={{ search: 'جستجو', remove: 'حذف انتخاب', noOptionsFound: 'موردی یافت نشد' }}
+        />
+      );
+    }
+
+    if (field.type === 'color-family') {
+      const group = String(editing?.modelGroup || '');
+      const existing = group
+        ? rows
+            .filter((row) => String(row.modelGroup || '') === group)
+            .map((row) => {
+              const color = row._color as { _id?: string; name?: string } | string | undefined;
+              const id = color && typeof color === 'object' ? String(color._id || '') : String(color || '');
+              const option = (field.options || []).find((item) => item.value === id);
+              const name = option?.label || (color && typeof color === 'object' ? String(color.name || '') : '');
+              return { id, name, hex: swatchFor(name, option?.hex) };
+            })
+            .filter((color) => color.id)
+        : [];
+      return (
+        <ClothColorFamily
+          colors={field.options || []}
+          value={form._color || ''}
+          siblings={form.siblingColors || ''}
+          existing={existing}
+          onColor={(id) => setValue(field, id)}
+          onSiblings={(ids) => setForm((current) => ({ ...current, siblingColors: ids }))}
         />
       );
     }

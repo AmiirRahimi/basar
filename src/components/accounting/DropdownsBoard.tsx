@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Palette, Pencil, Plus, Ruler, Search, Shirt, SwatchBook, Trash2 } from 'lucide-react';
 import { Button, DeleteConfirmationTrigger, IconButton, Input, Select, Tabs, toast } from '@/ui';
 import { createResource, deleteResource, updateResource } from '@/actions/crud';
+import { COLOR_PALETTE, normalizeHex, swatchFor } from '@/lib/cloth-colors';
 import { displayName } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { relationId } from '@/lib/record-view';
@@ -56,6 +57,7 @@ export function DropdownsBoard({
   const [tab, setTab] = useState<TabId>('cloth-kind');
   const [query, setQuery] = useState('');
   const [name, setName] = useState('');
+  const [hex, setHex] = useState(COLOR_PALETTE[0].hex);
   const [kindId, setKindId] = useState(kindOptions[0]?.value || '');
   const [editing, setEditing] = useState<ListRow | null>(null);
   const [pending, start] = useTransition();
@@ -94,12 +96,14 @@ export function DropdownsBoard({
   function resetForm() {
     setEditing(null);
     setName('');
+    setHex(COLOR_PALETTE[0].hex);
     setKindId(kindOptions[0]?.value || '');
   }
 
   function startEdit(row: ListRow) {
     setEditing(row);
     setName(rowName(row));
+    setHex(normalizeHex(row.hex) || swatchFor(rowName(row)));
     setKindId(relationId(row._clothKind) || kindOptions[0]?.value || '');
   }
 
@@ -115,6 +119,14 @@ export function DropdownsBoard({
     }
     const payload: Record<string, unknown> = { name: nextName };
     if (active.needsKind) payload._clothKind = kindId;
+    if (tab === 'color') {
+      const picked = normalizeHex(hex);
+      if (!picked) {
+        toast.error('رنگ را از تخته رنگ انتخاب کنید');
+        return;
+      }
+      payload.hex = picked;
+    }
     start(async () => {
       const res = editing
         ? await updateResource(tab, editing._id, payload)
@@ -213,6 +225,36 @@ export function DropdownsBoard({
                     fullWidth
                   />
                 </div>
+                {tab === 'color' ? (
+                  <div className="flex flex-wrap items-center gap-1.5 sm:max-w-md">
+                    {COLOR_PALETTE.map((swatch) => (
+                      <button
+                        key={swatch.hex}
+                        type="button"
+                        title={swatch.name}
+                        aria-label={swatch.name}
+                        onClick={() => {
+                          setHex(swatch.hex);
+                          if (!name.trim()) setName(swatch.name);
+                        }}
+                        className={`h-7 w-7 rounded-full border ${
+                          normalizeHex(hex) === swatch.hex ? 'border-gray-900 ring-2 ring-amber-400 ring-offset-1' : 'border-black/10'
+                        }`}
+                        style={{ backgroundColor: swatch.hex }}
+                      />
+                    ))}
+                    <label className="ms-1 inline-flex items-center gap-2 text-xs text-gray-500">
+                      سفارشی
+                      <input
+                        type="color"
+                        value={normalizeHex(hex) || '#111111'}
+                        onChange={(event) => setHex(event.target.value)}
+                        className="h-8 w-8 cursor-pointer rounded-full border border-gray-200 bg-transparent p-0"
+                        aria-label="رنگ سفارشی"
+                      />
+                    </label>
+                  </div>
+                ) : null}
                 <div className="flex gap-2">
                   <Button type="submit" size="md" loading={pending} icon={<Plus className="size-4" />}>
                     {editing ? 'ذخیره' : 'افزودن'}
@@ -251,6 +293,7 @@ export function DropdownsBoard({
                         <ItemChip
                           key={row._id}
                           row={row}
+                          swatch={tab === 'color'}
                           writable={writable}
                           active={editing?._id === row._id}
                           onEdit={() => startEdit(row)}
@@ -270,6 +313,7 @@ export function DropdownsBoard({
                 <ItemChip
                   key={row._id}
                   row={row}
+                  swatch={tab === 'color'}
                   writable={writable}
                   active={editing?._id === row._id}
                   onEdit={() => startEdit(row)}
@@ -287,16 +331,19 @@ export function DropdownsBoard({
 function ItemChip({
   row,
   writable,
+  swatch,
   active,
   onEdit,
   onDelete,
 }: {
   row: ListRow;
   writable: boolean;
+  swatch?: boolean;
   active?: boolean;
   onEdit: () => void;
   onDelete: () => void | Promise<void>;
 }) {
+  const color = swatch ? swatchFor(rowName(row), row.hex) : '';
   return (
     <div
       className={`group inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition ${
@@ -305,6 +352,7 @@ function ItemChip({
           : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300'
       }`}
     >
+      {swatch ? <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/10" style={{ backgroundColor: color }} /> : null}
       <span className="truncate px-0.5">{rowName(row) || 'بدون نام'}</span>
       {writable ? (
         <span className="inline-flex items-center gap-0.5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">

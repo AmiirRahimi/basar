@@ -4,6 +4,7 @@ import {
   getInvoiceCart,
   getPersonAccount,
   getResource,
+  listClothColors,
 } from '@/actions/crud';
 import { AccountingShell } from '@/components/accounting/AccountingShell';
 import { RecordDetail, RecordMissing } from '@/components/accounting/RecordDetail';
@@ -49,7 +50,11 @@ export async function RecordDetailPage({ resource, id }: { resource: string; id:
         };
       }
     } else if (resource === 'cloth') {
-      const [profitRes, workspace] = await Promise.all([getClothProfit(id), getWorkspace()]);
+      const [profitRes, workspace, colorRes] = await Promise.all([
+        getClothProfit(id),
+        getWorkspace(),
+        listClothColors(id),
+      ]);
       const data = workspace.data;
       rowRes.data.shareLabel = clothShareLabel(rowRes.data, data?.brands || [], data?.stores || []);
       if (profitRes.ok && profitRes.data) {
@@ -86,6 +91,12 @@ export async function RecordDetailPage({ resource, id }: { resource: string; id:
                 }>)
               : [],
           },
+        };
+      }
+      if (colorRes.ok && Array.isArray(colorRes.data)) {
+        extras = {
+          ...extras,
+          colorways: colorRes.data as NonNullable<typeof extras>['colorways'],
         };
       }
     }

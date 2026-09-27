@@ -2,6 +2,7 @@
 
 import { listResource as listByName } from '@/server/domain';
 import { listPartners, getWorkspace } from '@/actions/workspace';
+import { swatchFor } from '@/lib/cloth-colors';
 import { clothUnitPrice, fabricUnitCost } from '@/lib/cloth-price';
 import { openingFromCloth, packsFromCloth, totalItems } from '@/lib/packs';
 import { partnerScopeLabel, partnersForStore } from '@/lib/partners';
@@ -70,7 +71,11 @@ export async function clothOptions(): Promise<FieldOption[]> {
 
 export async function colorOptions(): Promise<FieldOption[]> {
   const res = await listByName('color', 1, 200);
-  return toOptions(res.data, 'name');
+  if (!Array.isArray(res.data)) return [];
+  return res.data.map((row: { _id?: unknown; name?: unknown; hex?: unknown }) => {
+    const label = String(row.name ?? '').trim() || String(row._id);
+    return { value: String(row._id), label, hex: swatchFor(label, String(row.hex || '')) };
+  });
 }
 
 export async function clothKindOptions(): Promise<FieldOption[]> {
