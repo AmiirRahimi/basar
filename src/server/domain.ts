@@ -894,52 +894,28 @@ async function restoreItems(items: any[]) {
   }
 }
 
-function refId(value: unknown) {
-  if (!value) return '';
-  if (typeof value === 'object' && '_id' in (value as Record<string, unknown>)) {
-    return String((value as { _id?: unknown })._id || '');
+async function applyClothModelGroup(
+  session: Session,
+  next: Record<string, unknown>,
+  raw: Record<string, unknown>,
+  selfId?: string,
+): Promise<ActionResult<Record<string, unknown> | null>> {
+  const joinId = String(raw.modelJoin || '').trim();
+  if (joinId && joinId !== String(selfId || '')) {
+    const other = await M().Cloth.findOne({ _id: joinId, ...clothVisibleFilter(session) })
+      .select('modelGroup')
+      .lean();
+    if (!other) return fail('لباس انتخاب‌شده برای گروه پیدا نشد');
+    let group = String(other.modelGroup || '');
+    if (!group) {
+      group = randomBytes(8).toString('hex');
+      await M().Cloth.updateOne({ _id: other._id }, { modelGroup: group });
+    }
+    next.modelGroup = group;
+    return ok(next);
   }
-  return String(value);
-}
-
-function siblingColorIds(value: unknown) {
-  const list = Array.isArray(value) ? value : String(value || '').split(/[,\s]+/);
-  return [...new Set(list.map((item) => String(item || '').trim()).filter(Boolean))];
-}
-
-async function syncClothColorSiblings(primary: Record<string, any>, siblingColors: string[]) {
-  const primaryColor = refId(primary._color);
-  const wanted = siblingColors.filter((id) => id && id !== primaryColor);
-  if (!wanted.length && !primary.modelGroup) return 0;
-  const group = String(primary.modelGroup || primary._id);
-  if (!primary.modelGroup) {
-    await M().Cloth.updateOne({ _id: primary._id }, { modelGroup: group });
-    primary.modelGroup = group;
-  }
-  const existing = await M().Cloth.find({ modelGroup: group, isDeleted: false }).select('_color').lean();
-  const have = new Set(existing.map((row: any) => String(row._color || '')));
-  let added = 0;
-  for (const colorId of wanted) {
-    if (have.has(colorId)) continue;
-    const copy = { ...primary };
-    delete copy._id;
-    delete copy.__v;
-    copy._color = oid(colorId);
-    copy.modelGroup = group;
-    copy.images = [];
-    copy.packs = [];
-    copy.openingPacks = [];
-    copy.count = 0;
-    copy.openingCount = 0;
-    copy.published = false;
-    copy.publishRequested = false;
-    copy.timeStamp = new Date();
-    copy.isDeleted = false;
-    await M().Cloth.create(copy);
-    have.add(colorId);
-    added += 1;
-  }
-  return added;
+  next.modelGroup = String(raw.modelGroup || '').trim();
+  return ok(next);
 }
 
 function applyColorHex(body: Record<string, unknown>) {
@@ -1012,6 +988,9 @@ export async function createResource(resource: string, payload: unknown): Promis
     if (imagesBlocked) return imagesBlocked;
     await restrictClothPublish(auth.session, next, null);
     next = await applyClothCost(auth.session, next);
+    const grouped = await applyClothModelGroup(auth.session, next, body);
+    if (!grouped.ok) return grouped;
+    next = grouped.data || next;
   }
   if (resource === 'check') {
     const checked = await applyCheckPayload(auth.session, next, true);
@@ -1030,13 +1009,7 @@ export async function createResource(resource: string, payload: unknown): Promis
     });
   }
   if (resource === 'cloth') {
-    const plain = created.toObject({ depopulate: true });
-    const added = await syncClothColorSiblings(plain, siblingColorIds(body.siblingColors));
     void notifyCustomersOfNewCloth(auth.session, created);
-    return ok(
-      serialize(created.toObject ? created.toObject() : created),
-      added ? `ثبت شد. ${added} رنگ دیگر با موجودی صفر به همین مدل اضافه شد` : 'ثبت شد',
-    );
   }
   return ok(serialize(created.toObject ? created.toObject() : created), 'ثبت شد');
 }
@@ -1128,6 +1101,9 @@ export async function updateResource(resource: string, id: string, payload: unkn
     if (imagesBlocked) return imagesBlocked;
     await restrictClothPublish(auth.session, body, previous as Record<string, unknown> | null);
     body = await applyClothCost(auth.session, body);
+    const grouped = await applyClothModelGroup(auth.session, body, raw, id);
+    if (!grouped.ok) return grouped;
+    body = grouped.data || body;
   }
   if (resource === 'check') {
     const checked = await applyCheckPayload(auth.session, body, false);
@@ -1137,16 +1113,11 @@ export async function updateResource(resource: string, id: string, payload: unkn
   const updated = await cfg.model.findOneAndUpdate(filter, body, { new: true });
   if (!updated) return fail('پیدا نشد', 404);
   if (resource === 'cloth') {
-    const plain = updated.toObject({ depopulate: true });
-    const added = await syncClothColorSiblings(plain, siblingColorIds(raw.siblingColors));
     if (cfg.populate) await updated.populate(cfg.populate);
     if (isTruthyFlag((updated as any).published) && previous && !isTruthyFlag((previous as any).published)) {
       void notifyCustomersOfNewCloth(auth.session, updated);
     }
-    return ok(
-      serialize(updated.toObject ? updated.toObject() : updated),
-      added ? `ویرایش شد. ${added} رنگ دیگر با موجودی صفر به همین مدل اضافه شد` : 'ویرایش شد',
-    );
+    return ok(serialize(updated.toObject ? updated.toObject() : updated), 'ویرایش شد');
   }
   if (cfg.populate) await updated.populate(cfg.populate);
   return ok(serialize(updated.toObject ? updated.toObject() : updated), 'ویرایش شد');

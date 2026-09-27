@@ -37,7 +37,6 @@ import {
   parseFabricExtras,
   sanitizeFabricExtras,
 } from '@/lib/fabric-extras';
-import { swatchFor } from '@/lib/cloth-colors';
 import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import type { FieldOption } from '@/lib/types';
 
@@ -189,6 +188,8 @@ export function ResourceCrud({
         if (next._partner == null) next._partner = '';
       }
     });
+    next.modelGroup = '';
+    next.modelJoin = '';
     setForm(next);
     setShowErrors(false);
     setOpen(true);
@@ -300,6 +301,8 @@ export function ResourceCrud({
                             ? String(value._id || '')
                             : String(value ?? '');
                     });
+                    next.modelGroup = String(row.original.modelGroup || '');
+                    next.modelJoin = '';
                     setForm(next);
                     setShowErrors(false);
                     setOpen(true);
@@ -490,10 +493,8 @@ export function ResourceCrud({
         }
         if (f.type === 'color-family') {
           payload._color = form._color || null;
-          payload.siblingColors = String(form.siblingColors || '')
-            .split(/[,\s]+/)
-            .map((item) => item.trim())
-            .filter(Boolean);
+          payload.modelJoin = form.modelJoin || '';
+          payload.modelGroup = form.modelJoin ? '' : form.modelGroup || '';
           return;
         }
         if (f.type === 'cloth-share') {
@@ -566,27 +567,18 @@ export function ResourceCrud({
     }
 
     if (field.type === 'color-family') {
-      const group = String(editing?.modelGroup || '');
-      const existing = group
-        ? rows
-            .filter((row) => String(row.modelGroup || '') === group)
-            .map((row) => {
-              const color = row._color as { _id?: string; name?: string } | string | undefined;
-              const id = color && typeof color === 'object' ? String(color._id || '') : String(color || '');
-              const option = (field.options || []).find((item) => item.value === id);
-              const name = option?.label || (color && typeof color === 'object' ? String(color.name || '') : '');
-              return { id, name, hex: swatchFor(name, option?.hex) };
-            })
-            .filter((color) => color.id)
-        : [];
       return (
         <ClothColorFamily
           colors={field.options || []}
           value={form._color || ''}
-          siblings={form.siblingColors || ''}
-          existing={existing}
+          clothes={rows}
+          currentId={editing?._id ? String(editing._id) : ''}
+          modelGroup={form.modelGroup || ''}
+          modelJoin={form.modelJoin || ''}
           onColor={(id) => setValue(field, id)}
-          onSiblings={(ids) => setForm((current) => ({ ...current, siblingColors: ids }))}
+          onGroup={(id) => setForm((current) => ({ ...current, modelGroup: id, modelJoin: '' }))}
+          onJoin={(clothId) => setForm((current) => ({ ...current, modelJoin: clothId, modelGroup: '' }))}
+          onClear={() => setForm((current) => ({ ...current, modelGroup: '', modelJoin: '' }))}
         />
       );
     }

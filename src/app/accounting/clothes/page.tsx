@@ -43,7 +43,8 @@ export default async function ClothesPage() {
   const rawRows = Array.isArray(res.data) ? res.data : [];
   const groupCount = new Map<string, number>();
   for (const row of rawRows) {
-    const key = String(row.modelGroup || row._id);
+    const key = String(row.modelGroup || '');
+    if (!key) continue;
     groupCount.set(key, (groupCount.get(key) || 0) + 1);
   }
   const rows = rawRows.map((row: Record<string, any>) => {
@@ -65,10 +66,11 @@ export default async function ClothesPage() {
       published: Boolean(row.published || row.publishRequested),
       publishLabel: row.published ? 'منتشر' : row.publishRequested ? 'در انتظار تایید' : '—',
       shareLabel: clothShareLabel(row, brands, stores),
-      colorLabel:
-        (groupCount.get(String(row.modelGroup || row._id)) || 1) > 1
-          ? `${displayName(row._color)} · ${faNumber(groupCount.get(String(row.modelGroup || row._id)) || 0)} رنگ`
-          : displayName(row._color),
+      colorLabel: displayName(row._color),
+      groupLabel:
+        (groupCount.get(String(row.modelGroup || '')) || 0) > 1
+          ? `${faNumber(groupCount.get(String(row.modelGroup || '')) || 0)} لباس`
+          : '—',
     };
   });
   const brandOptions = brands.map((brand) => ({ value: brand._id, label: brand.name || 'برند' }));
@@ -134,6 +136,7 @@ export default async function ClothesPage() {
           { header: 'مانده بسته‌ها', accessor: 'packSummary' },
           { header: 'بسته‌های ثبت‌شده', accessor: 'openingSummary' },
           { header: 'رنگ', accessor: 'colorLabel' },
+          { header: 'گروه مدل', accessor: 'groupLabel' },
           { header: 'پارچه', accessor: '_producedFrom', format: 'name' },
           { header: 'مصرف پارچه', accessor: 'amountUsed' },
           { header: 'خیاط', accessor: '_tailor', format: 'name' },
