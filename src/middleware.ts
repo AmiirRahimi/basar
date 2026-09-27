@@ -30,13 +30,16 @@ function withHeaders(response: NextResponse) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+  const next = () => withHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
   const isPublicAccounting =
     pathname === '/accounting' ||
     pathname === '/accounting/' ||
     pathname.startsWith('/accounting/login');
   const isAdminApp = pathname === '/admin' || pathname.startsWith('/admin/');
   if ((!pathname.startsWith('/accounting') && !isAdminApp) || isPublicAccounting) {
-    return withHeaders(NextResponse.next());
+    return next();
   }
   const access = request.cookies.get(ACCESS_COOKIE)?.value || '';
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value || '';
@@ -49,9 +52,9 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/accounting/login';
     return withHeaders(NextResponse.redirect(url));
   }
-  return withHeaders(NextResponse.next());
+  return next();
 }
 
 export const config = {
-  matcher: ['/accounting/:path*', '/admin', '/admin/:path*'],
+  matcher: ['/accounting', '/accounting/:path*', '/admin', '/admin/:path*'],
 };

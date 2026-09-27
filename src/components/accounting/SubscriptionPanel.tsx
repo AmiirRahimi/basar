@@ -39,9 +39,11 @@ type DiscountPreview = {
 export function SubscriptionPanel({
   subscription,
   purchases = [],
+  successPath = '/accounting/profile?tab=subscription',
 }: {
   subscription?: Workspace['subscription'] & { active?: boolean };
   purchases?: Workspace['purchases'];
+  successPath?: string;
 }) {
   const router = useRouter();
   const [cycle, setCycle] = useState<BillingCycle>('month');
@@ -67,8 +69,8 @@ export function SubscriptionPanel({
     const params = new URLSearchParams(window.location.search);
     if (params.get('paid') !== '1') return;
     toast.success('پرداخت انجام شد و اشتراک فعال شد');
-    router.replace('/accounting/profile?tab=subscription', { scroll: false });
-  }, [router]);
+    router.replace(successPath, { scroll: false });
+  }, [router, successPath]);
 
   useEffect(() => {
     if (!selectedPlanId) {

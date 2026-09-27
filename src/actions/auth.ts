@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { getWorkspace } from '@/server/workspace';
 import {
   activateSubscription as activate,
   previewSubscriptionDiscount as previewDiscount,
@@ -25,7 +26,9 @@ export async function loginWithOtp(form: { phonenumber: string; code: string; pa
   const res = await loginDb(form);
   if (res.ok) {
     const admin = (process.env.ADMIN_PHONENUMBER || '').trim();
-    redirect(admin && form.phonenumber === admin ? '/admin' : '/accounting/dashboard');
+    if (admin && form.phonenumber === admin) redirect('/admin');
+    const workspace = await getWorkspace();
+    redirect(workspace.ok && !workspace.data.hasSubscription ? '/accounting/subscribe' : '/accounting/dashboard');
   }
   return res;
 }

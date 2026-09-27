@@ -12,12 +12,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!session) redirect('/accounting/login');
   const [workspace, prices] = await Promise.all([getWorkspace(), readPublicMarketPrices()]);
   if (!workspace.ok || !workspace.data?.adminPermissions?.length) {
-    redirect(workspace.ok ? '/accounting/dashboard' : '/accounting/login');
+    if (!workspace.ok) redirect('/accounting/login');
+    redirect(workspace.data.hasSubscription ? '/accounting/dashboard' : '/accounting/subscribe');
   }
-  if (!firstAdminHref(workspace.data.adminPermissions)) redirect('/accounting/dashboard');
+  if (!firstAdminHref(workspace.data.adminPermissions)) {
+    redirect(workspace.data.hasSubscription ? '/accounting/dashboard' : '/accounting/subscribe');
+  }
   return (
     <WorkspaceProvider workspace={workspace.data}>
-      <AdminFrame prices={tickerItems(prices)} tickerVisible={prices.tickerVisible}>
+      <AdminFrame
+        prices={workspace.data.hasSubscription ? tickerItems(prices) : []}
+        tickerVisible={workspace.data.hasSubscription && prices.tickerVisible}
+      >
         {children}
       </AdminFrame>
     </WorkspaceProvider>

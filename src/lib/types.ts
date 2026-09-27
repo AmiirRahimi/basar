@@ -184,6 +184,8 @@ export type Workspace = {
   teamPeople: TeamMember[];
   pendingInvites: TeamInvite[];
   subscriptionActive: boolean;
+  /** False only until this account, or the brand owner, has bought a plan at least once. */
+  hasSubscription: boolean;
   subscription?: {
     active?: boolean;
     remainingPeriods: number;

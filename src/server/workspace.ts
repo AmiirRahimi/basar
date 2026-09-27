@@ -443,6 +443,12 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
     storeRole: role || context.storeRole,
     isPlatformAdmin: isAdmin,
   });
+  const ownerId = brands.find((brand) => brand._id === context._brandId)?._userId || String(user._id);
+  const subscriptionCount = isAdmin
+    ? 1
+    : await M().UserSubscription.countDocuments({
+        $or: [{ _userId: oid(ownerId) }, { _userId: ownerId }],
+      });
   const [purchases, planCatalog] = await Promise.all([
     role === 'owner' || isAdmin ? listPurchases(String(user._id)) : Promise.resolve([]),
     livePlanCatalog(),
@@ -477,6 +483,7 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       teamPeople,
       pendingInvites,
       subscriptionActive: subscription.active,
+      hasSubscription: isAdmin || Number(subscriptionCount) > 0,
       subscription,
       planCatalog,
       imageTokens,
