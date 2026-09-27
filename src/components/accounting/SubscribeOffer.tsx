@@ -22,6 +22,7 @@ import { faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, FormCard, Input, Modal, cn, toast } from '@/ui';
 import { Price, PriceSection } from './Price';
+import { SubscribePanelBackdrop } from './SubscribePanelBackdrop';
 import { useWorkspace } from './WorkspaceProvider';
 
 type DiscountPreview = {
@@ -177,8 +178,10 @@ export function SubscribeOffer() {
   }
 
   return (
-    <div data-shop className="min-h-screen bg-shop-bone pb-28 text-shop-ink" dir="rtl">
-      <header className="sticky top-0 z-30 border-b border-shop-ink/10 bg-shop-bone/90 backdrop-blur-md">
+    <div className="relative min-h-screen">
+      <SubscribePanelBackdrop />
+      <div data-shop className="relative z-10 min-h-screen pb-28 text-shop-ink" dir="rtl">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-shop-bone/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
           <div className="flex items-center gap-2.5">
             <BrandLogo variant="mark" className="h-9 w-9 shrink-0" priority />
@@ -195,7 +198,7 @@ export function SubscribeOffer() {
         </div>
       </header>
 
-      <section data-shop-dark className="relative isolate overflow-hidden bg-shop-ink text-shop-bone">
+      <section data-shop-dark className="relative isolate mx-4 mt-4 max-w-6xl overflow-hidden rounded-[1.75rem] bg-shop-ink text-shop-bone shadow-2xl shadow-black/20 sm:mx-6 lg:mx-auto">
         <div className="shop-grain absolute inset-0 bg-gradient-to-bl from-shop-ink via-shop-mill/90 to-shop-ink" />
         <div className="pointer-events-none absolute -left-20 top-8 h-64 w-64 rounded-full bg-shop-saffron/20 blur-3xl" />
         <div className="relative mx-auto max-w-6xl px-4 py-12 sm:py-16 lg:px-6">
@@ -290,7 +293,7 @@ export function SubscribeOffer() {
         </div>
       </section>
 
-      <section className="border-t border-shop-ink/10 bg-shop-paper">
+      <section className="mx-4 mt-2 max-w-6xl rounded-[1.75rem] border border-white/40 bg-shop-paper/80 backdrop-blur-md sm:mx-6 lg:mx-auto">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-3 lg:px-6">
           {[
             'هر اشتراک ۳۰ روز است. سالانه یعنی دوازده اشتراک پشت سر هم، با تخفیف.',
@@ -378,6 +381,7 @@ export function SubscribeOffer() {
           </div>
         </FormCard>
       </Modal>
+      </div>
     </div>
   );
 }
