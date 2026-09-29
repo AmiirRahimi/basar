@@ -55,11 +55,11 @@ export function ClothColorFamily({
   const singles = others.filter((row) => !row.modelGroup);
 
   return (
-    <div className="space-y-5">
+    <div className="grid gap-4 lg:grid-cols-2">
       <div>
         <p className="text-sm font-medium text-gray-800">رنگ این لباس</p>
         <p className="mt-1 text-xs leading-6 text-gray-500">
-          از تخته‌رنگ مشترک انتخاب کنید. همین رنگ روی لباس‌های دیگر هم هست و گروه مدل را نمی‌سازد.
+          یکی را از تخته‌رنگ انتخاب کنید.
           {selected ? <span className="text-gray-800"> انتخاب: {selected.label}</span> : null}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -93,11 +93,9 @@ export function ClothColorFamily({
         {!colors.length ? <p className="mt-2 text-sm text-gray-500">اول مدیر باید رنگ‌ها را در لیست کمکی بسازد.</p> : null}
       </div>
 
-      <div>
+      <div className="border-t border-gray-100 pt-4 lg:border-s lg:border-t-0 lg:ps-4 lg:pt-0">
         <p className="text-sm font-medium text-gray-800">گروه مدل</p>
-        <p className="mt-1 text-xs leading-6 text-gray-500">
-          لباس‌های هم‌مدل را به یک گروه وصل کنید. هر کدام رنگ، موجودی و عکس خودش را دارد. مشکیِ یک شلوار با مشکیِ یک تیشرت یکی نیست.
-        </p>
+        <p className="mt-1 text-xs leading-6 text-gray-500">رنگ مشترک است. گروه، لباس‌های هم‌مدل را به هم وصل می‌کند.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"

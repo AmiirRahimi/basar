@@ -396,7 +396,7 @@ export function ResourceCrud({
     }
     if (field.type === 'cloth-share') {
       if (!field.assignPlace) return false;
-      return !String(form._brandIds || '').trim() || !String(form._storeIds || '').trim();
+      return !String(form._brandIds || '').trim();
     }
     return Boolean(field.required) && !String(form[field.name] ?? '').trim();
   }
@@ -849,20 +849,29 @@ export function ResourceCrud({
           <div className="grid min-w-0 gap-3">
             {formBlocks.map((block) => {
               if (block.kind === 'fields') {
+                const inline = block.fields.filter((field) => field.type !== 'color-family');
+                const wide = block.fields.filter((field) => field.type === 'color-family');
                 const body = (
-                  <div
-                    className={cn(
-                      'grid gap-3',
-                      block.row
-                        ? block.fields.length >= 4
-                          ? 'sm:grid-cols-2 xl:grid-cols-4'
-                          : block.fields.length === 3
-                            ? 'sm:grid-cols-2 lg:grid-cols-3'
-                            : 'sm:grid-cols-2'
-                        : undefined,
-                    )}
-                  >
-                    {block.fields.map((field) => (
+                  <div className="grid gap-4">
+                    <div
+                      className={cn(
+                        'grid gap-3',
+                        block.row
+                          ? inline.length >= 4
+                            ? 'sm:grid-cols-2 xl:grid-cols-4'
+                            : inline.length === 3
+                              ? 'sm:grid-cols-3'
+                              : 'sm:grid-cols-2'
+                          : undefined,
+                      )}
+                    >
+                      {inline.map((field) => (
+                        <div key={field.name} className="min-w-0 w-full">
+                          {renderField(field)}
+                        </div>
+                      ))}
+                    </div>
+                    {wide.map((field) => (
                       <div key={field.name} className="min-w-0 w-full">
                         {renderField(field)}
                       </div>

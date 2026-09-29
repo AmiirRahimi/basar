@@ -33,6 +33,7 @@ import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONT
 import { canAccessMenu, canReadResource, canWriteResource } from '@/lib/roles';
 import { allocateIncome, partnersForStore } from '@/lib/partners';
 import { wholesaleInvoiceStatus, wholesaleInvoiceStatusLabel } from '@/lib/invoice-status';
+import { clothAppliesToStore } from '@/lib/cloth-share';
 import { normalizeHex, swatchFor } from '@/lib/cloth-colors';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
@@ -197,8 +198,7 @@ function clothVisibleFilter(session: Session) {
       { sellInAllStores: true, _brandIds: brandId },
       { _storeIds: storeId },
       { _storeId: storeId },
-      { $and: [{ _brandIds: brandId }, { _storeIds: { $size: 0 } }] },
-      { $and: [{ _brandIds: brandId }, { _storeIds: { $exists: false } }] },
+      { _brandIds: brandId },
     ],
   };
 }
@@ -399,7 +399,8 @@ export async function listResource(resource: string, page = 1, skip = 50, extra 
       return ok(serialize(await markUsedChecks(auth.session, rows)));
     }
     return ok(serialize(rows));
-  } catch {
+  } catch (error) {
+    console.error('listResource failed', resource, error);
     return failDb();
   }
 }
