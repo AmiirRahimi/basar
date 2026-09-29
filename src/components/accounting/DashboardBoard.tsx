@@ -6,6 +6,7 @@ import { CHECK_DIRECTIONS, CHECK_STATUSES, checkStatus, persianMonthLabel } from
 import { displayName, faNumber, toman } from '@/lib/format';
 import type { Check } from '@/lib/types';
 import { Price } from './Price';
+import { InfoStat, InfoStatGrid } from '@/components/stats/InfoStat';
 import { TeamInviteInbox } from './TeamInviteInbox';
 
 type SalesPeriod = { amount?: number; count?: number };
@@ -52,56 +53,56 @@ export function DashboardBoard({
       <TeamInviteInbox />
       <section>
         <h2 className="mb-3 text-sm font-semibold text-gray-700">فروش</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <StatCard
-            title="این هفته"
-            amount={sales.week?.amount}
-            hint={`${faNumber(sales.week?.count)} فاکتور`}
+        <InfoStatGrid columns={3}>
+          <InfoStat
+            tone="sage"
             icon={TrendingUp}
-            tone="teal"
+            label="این هفته"
+            value={<Price value={sales.week?.amount} />}
+            hint={`${faNumber(sales.week?.count)} فاکتور`}
           />
-          <StatCard
-            title="این ماه"
-            amount={sales.month?.amount}
-            hint={`${faNumber(sales.month?.count)} فاکتور`}
+          <InfoStat
+            tone="mist"
             icon={Banknote}
-            tone="sky"
+            label="این ماه"
+            value={<Price value={sales.month?.amount} />}
+            hint={`${faNumber(sales.month?.count)} فاکتور`}
           />
-          <StatCard
-            title="امسال"
-            amount={sales.year?.amount}
-            hint={`${faNumber(sales.year?.count)} فاکتور`}
+          <InfoStat
+            tone="lilac"
             icon={Wallet}
-            tone="violet"
+            label="امسال"
+            value={<Price value={sales.year?.amount} />}
+            hint={`${faNumber(sales.year?.count)} فاکتور`}
           />
-        </div>
+        </InfoStatGrid>
       </section>
 
       <section>
         <h2 className="mb-3 text-sm font-semibold text-gray-700">چک و نسیه</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <StatCard
-            title={`سررسید ${monthLabel}`}
-            amount={dueTotal}
-            hint={`${faNumber(dueThisMonth.length)} چک در جریان`}
+        <InfoStatGrid columns={3}>
+          <InfoStat
+            tone="sand"
             icon={CalendarClock}
-            tone="amber"
+            label={`سررسید ${monthLabel}`}
+            value={<Price value={dueTotal} />}
+            hint={`${faNumber(dueThisMonth.length)} چک در جریان`}
           />
-          <StatCard
-            title="چک‌های برگشتی"
-            amount={returnedTotal}
-            hint={`${faNumber(returnedChecks.length)} فقره`}
+          <InfoStat
+            tone="clay"
             icon={FileWarning}
-            tone="rose"
+            label="چک‌های برگشتی"
+            value={<Price value={returnedTotal} />}
+            hint={`${faNumber(returnedChecks.length)} فقره`}
           />
-          <StatCard
-            title="مانده نسیه دفتر"
-            amount={debtTotal}
-            hint={`${faNumber(debtors.length)} مشتری`}
+          <InfoStat
+            tone="lilac"
             icon={AlertTriangle}
-            tone="orange"
+            label="مانده نسیه دفتر"
+            value={<Price value={debtTotal} />}
+            hint={`${faNumber(debtors.length)} مشتری`}
           />
-        </div>
+        </InfoStatGrid>
       </section>
 
       {partnerShares?.rows?.length ? (
@@ -202,42 +203,6 @@ export function DashboardBoard({
 
 function sumAmount(rows: { amount?: number }[]) {
   return rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-}
-
-const TONES = {
-  teal: 'border-teal-200 bg-teal-50/70 text-teal-800',
-  sky: 'border-sky-200 bg-sky-50/70 text-sky-800',
-  violet: 'border-violet-200 bg-violet-50/70 text-violet-800',
-  amber: 'border-amber-200 bg-amber-50/70 text-amber-800',
-  rose: 'border-rose-200 bg-rose-50/70 text-rose-800',
-  orange: 'border-orange-200 bg-orange-50/70 text-orange-800',
-} as const;
-
-function StatCard({
-  title,
-  amount,
-  hint,
-  icon: Icon,
-  tone,
-}: {
-  title: string;
-  amount?: number;
-  hint: string;
-  icon: typeof TrendingUp;
-  tone: keyof typeof TONES;
-}) {
-  return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${TONES[tone]}`}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold">{title}</p>
-        <Icon className="h-5 w-5 opacity-80" />
-      </div>
-      <p className="text-2xl font-semibold tracking-tight text-gray-900">
-        <Price value={amount} />
-      </p>
-      <p className="mt-1 text-sm opacity-80">{hint}</p>
-    </div>
-  );
 }
 
 function ListCard({

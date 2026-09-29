@@ -6,6 +6,7 @@ import { BadgePercent, Sparkles } from 'lucide-react';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { Tabs } from '@/ui';
 import { SearchableTable } from './SearchableTable';
+import { InfoStat, InfoStatGrid } from '@/components/stats/InfoStat';
 
 export type UsageReport = {
   months: {
@@ -89,16 +90,6 @@ export function AdminUsageBoard({ report }: { report: UsageReport }) {
 }
 
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-gray-900">{value}</p>
-      {hint ? <p className="mt-1 text-[11px] text-gray-400">{hint}</p> : null}
-    </div>
-  );
-}
-
 function MonthChart({
   title,
   months,
@@ -158,20 +149,22 @@ function SubscriptionsView({ report }: { report: UsageReport }) {
   const stats = report.stats;
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="اشتراک فعال" value={faNumber(stats.activeSubscriptions)} />
-        <Stat label="نزدیک به پایان" value={faNumber(stats.expiringSoon)} hint="۱ اشتراک یا کمتر" />
-        <Stat
+      <InfoStatGrid>
+        <InfoStat tone="sage" label="اشتراک فعال" value={faNumber(stats.activeSubscriptions)} />
+        <InfoStat tone="clay" label="نزدیک به پایان" value={faNumber(stats.expiringSoon)} hint="۱ اشتراک یا کمتر" />
+        <InfoStat
+          tone="sand"
           label="خرید این ماه"
           value={faNumber(stats.subscriptionsThisMonth)}
           hint={toman(stats.subscriptionRevenueThisMonth)}
         />
-        <Stat
+        <InfoStat
+          tone="mist"
           label="کل درآمد اشتراک"
           value={toman(stats.subscriptionRevenueTotal)}
           hint={`ماه قبل ${toman(stats.subscriptionRevenueLastMonth)}`}
         />
-      </div>
+      </InfoStatGrid>
       <MonthChart
         title="درآمد اشتراک در ماه‌های امسال"
         months={report.months}
@@ -221,17 +214,18 @@ function TokensView({ report }: { report: UsageReport }) {
   const stats = report.stats;
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="کل توکن خریداری‌شده" value={faNumber(stats.tokensBought)} hint={`${faNumber(stats.buyers)} خریدار`} />
-        <Stat label="کل توکن مصرف‌شده" value={faNumber(stats.tokensUsed)} hint={`این ماه ${faNumber(stats.tokensUsedThisMonth)}`} />
-        <Stat label="مانده روی حساب‌ها" value={faNumber(stats.tokensRemaining)} />
-        <Stat
+      <InfoStatGrid>
+        <InfoStat tone="mist" label="کل توکن خریداری‌شده" value={faNumber(stats.tokensBought)} hint={`${faNumber(stats.buyers)} خریدار`} />
+        <InfoStat tone="clay" label="کل توکن مصرف‌شده" value={faNumber(stats.tokensUsed)} hint={`این ماه ${faNumber(stats.tokensUsedThisMonth)}`} />
+        <InfoStat tone="sage" label="مانده روی حساب‌ها" value={faNumber(stats.tokensRemaining)} />
+        <InfoStat
+          tone="sand"
           label="خرید این ماه"
           value={faNumber(stats.tokensBoughtThisMonth)}
           hint={toman(stats.tokenRevenueThisMonth)}
         />
-        <Stat label="درآمد توکن" value={toman(stats.tokenRevenue)} />
-      </div>
+        <InfoStat tone="lilac" label="درآمد توکن" value={toman(stats.tokenRevenue)} />
+      </InfoStatGrid>
       <div className="grid gap-3 lg:grid-cols-2">
         <MonthChart title="توکن خریداری‌شده در ماه‌های امسال" months={report.months} valueOf={(row) => row.bought} format={faNumber} />
         <MonthChart title="توکن مصرف‌شده در ماه‌های امسال" months={report.months} valueOf={(row) => row.used} format={faNumber} />

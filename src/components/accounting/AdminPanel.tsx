@@ -14,6 +14,7 @@ import { Button, Input, MultiSelect, Tabs, toast } from '@/ui';
 import { AdminUserEditor, type EditableAdminUser } from './AdminUserEditor';
 import { RowActions } from './RowActions';
 import { SearchableTable } from './SearchableTable';
+import { InfoStat, InfoStatGrid } from '@/components/stats/InfoStat';
 
 const selectLabels = {
   search: 'جستجو',
@@ -158,15 +159,30 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="همه کاربران" value={overview.stats.users} />
-        <Stat label="ثبت‌نام این ماه" value={overview.stats.newUsersThisMonth || 0} hint={`ماه قبل ${faNumber(overview.stats.newUsersLastMonth || 0)}`} />
-        <Stat label="اشتراک فعال" value={overview.stats.active} />
-        <Stat label="الان وارد شده‌اند" value={overview.stats.loggedIn} />
-        <Stat label="خرید اشتراک این ماه" value={overview.stats.purchasesThisMonth || 0} hint={toman(overview.stats.purchasesThisMonthAmount || 0)} />
-        <Stat label="خرید ماه قبل" value={overview.stats.purchasesLastMonth || 0} hint={toman(overview.stats.purchasesLastMonthAmount || 0)} />
-        <Stat label="کل خرید اشتراک" value={overview.stats.purchases} />
-      </div>
+      <InfoStatGrid>
+        <InfoStat tone="mist" label="همه کاربران" value={overview.stats.users} />
+        <InfoStat
+          tone="sage"
+          label="ثبت‌نام این ماه"
+          value={overview.stats.newUsersThisMonth || 0}
+          hint={`ماه قبل ${faNumber(overview.stats.newUsersLastMonth || 0)}`}
+        />
+        <InfoStat tone="sand" label="اشتراک فعال" value={overview.stats.active} />
+        <InfoStat tone="lilac" label="الان وارد شده‌اند" value={overview.stats.loggedIn} />
+        <InfoStat
+          tone="sage"
+          label="خرید اشتراک این ماه"
+          value={overview.stats.purchasesThisMonth || 0}
+          hint={toman(overview.stats.purchasesThisMonthAmount || 0)}
+        />
+        <InfoStat
+          tone="clay"
+          label="خرید ماه قبل"
+          value={overview.stats.purchasesLastMonth || 0}
+          hint={toman(overview.stats.purchasesLastMonthAmount || 0)}
+        />
+        <InfoStat tone="sand" label="کل خرید اشتراک" value={overview.stats.purchases} />
+      </InfoStatGrid>
 
       <Tabs
         value={tab}
@@ -275,16 +291,6 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
         <UserTable rows={users} onCreateCode={createForUser} onEdit={setEditingUser} />
       )}
       <AdminUserEditor user={editingUser} onClose={() => setEditingUser(null)} />
-    </div>
-  );
-}
-
-function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{faNumber(value)}</p>
-      {hint ? <p className="mt-1 text-[11px] text-gray-400">{hint}</p> : null}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { WEBSITE_ORDER_STATUSES, type WebsiteOrderBoard } from '@/lib/website-orders';
 import { Select, toast } from '@/ui';
+import { InfoStat, InfoStatGrid } from '@/components/stats/InfoStat';
 
 export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
   const router = useRouter();
@@ -30,12 +31,12 @@ export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="فروش وب‌سایت" value={toman(board.stats.total)} hint={`${faNumber(board.stats.orders)} سفارش`} />
-        <Metric label="فروش این ماه" value={toman(board.stats.thisMonth)} hint={`${faNumber(board.stats.buyers)} خریدار`} />
-        <Metric label="مانده پرداخت‌نشده" value={toman(board.stats.unpaid)} hint="سفارش‌های لغوشده حساب نشده" />
-        <Metric label="لغو شده" value={faNumber(board.stats.cancelled)} hint="از جمع فروش کنار گذاشته شده" />
-      </div>
+      <InfoStatGrid>
+        <InfoStat tone="sand" label="فروش وب‌سایت" value={toman(board.stats.total)} hint={`${faNumber(board.stats.orders)} سفارش`} />
+        <InfoStat tone="sage" label="فروش این ماه" value={toman(board.stats.thisMonth)} hint={`${faNumber(board.stats.buyers)} خریدار`} />
+        <InfoStat tone="clay" label="مانده پرداخت‌نشده" value={toman(board.stats.unpaid)} hint="سفارش‌های لغوشده حساب نشده" />
+        <InfoStat tone="lilac" label="لغو شده" value={faNumber(board.stats.cancelled)} hint="از جمع فروش کنار گذاشته شده" />
+      </InfoStatGrid>
 
       <div className="flex flex-wrap gap-2">
         {board.statusCounts.map((item) => (
@@ -165,16 +166,6 @@ export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
           <Empty text="سفارشی از وب‌سایت نرسیده است." />
         )}
       </section>
-    </div>
-  );
-}
-
-function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
-      {hint ? <p className="mt-1 text-[11px] text-gray-400">{hint}</p> : null}
     </div>
   );
 }

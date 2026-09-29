@@ -10,6 +10,7 @@ import { GATEWAY_FEE_PERCENT } from '@/lib/storefront';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { StorefrontOrder, StorefrontOrderBoard } from '@/lib/types';
 import { Button, Checkbox, Input, Select, toast } from '@/ui';
+import { InfoStat } from '@/components/stats/InfoStat';
 
 const selectLabels = {
   search: 'جستجو',
@@ -128,10 +129,10 @@ export function StorefrontOrdersPanel({ board }: { board: StorefrontOrderBoard }
           کنید و اینجا ثبت کنید.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat label="جمع پرداخت مشتری‌ها" value={toman(totals.total)} hint={`${faNumber(totals.count)} سفارش`} />
-          <Stat label={`سهم باسار (${faNumber(fee)}٪)`} value={toman(totals.platformFee)} />
-          <Stat label="باید به فروشنده‌ها پرداخت شود" value={toman(totals.pendingPayout)} tone="warn" />
-          <Stat label="واریز شده به فروشنده‌ها" value={toman(totals.paidPayout)} tone="ok" />
+          <InfoStat tone="sand" label="جمع پرداخت مشتری‌ها" value={toman(totals.total)} hint={`${faNumber(totals.count)} سفارش`} />
+          <InfoStat tone="mist" label={`سهم باسار (${faNumber(fee)}٪)`} value={toman(totals.platformFee)} />
+          <InfoStat tone="clay" label="باید به فروشنده‌ها پرداخت شود" value={toman(totals.pendingPayout)} />
+          <InfoStat tone="sage" label="واریز شده به فروشنده‌ها" value={toman(totals.paidPayout)} />
         </div>
       </div>
 
@@ -216,32 +217,6 @@ export function StorefrontOrdersPanel({ board }: { board: StorefrontOrderBoard }
         </p>
       )}
     </section>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: 'warn' | 'ok';
-}) {
-  const toneClass =
-    tone === 'warn'
-      ? 'border-amber-100 bg-amber-50'
-      : tone === 'ok'
-        ? 'border-teal-100 bg-teal-50'
-        : 'border-gray-100 bg-gray-50';
-  return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-lg text-gray-900">{value}</p>
-      {hint ? <p className="text-[11px] text-gray-400">{hint}</p> : null}
-    </div>
   );
 }
 

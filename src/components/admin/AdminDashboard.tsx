@@ -7,6 +7,7 @@ import type { AdminOverview } from '@/components/accounting/AdminPanel';
 import type { UsageReport } from '@/components/accounting/AdminUsageBoard';
 import type { WebsiteOrderBoard } from '@/lib/website-orders';
 import { ChartCard, Donut, HBars, MonthBars } from '@/components/accounting/DashboardCharts';
+import { InfoStat, InfoStatGrid } from '@/components/stats/InfoStat';
 import { PERSIAN_MONTHS, persianYearMonth } from '@/lib/checks';
 import { faDate, faNumber, toman } from '@/lib/format';
 
@@ -60,34 +61,39 @@ export function AdminDashboard({
 
   return (
     <div className="space-y-4" dir="rtl">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Stat
+      <InfoStatGrid columns={5}>
+        <InfoStat
+          tone="mist"
           icon={Users}
           label="کاربران واردشده"
           value={faNumber(overview.stats.loggedIn)}
           hint={`از ${faNumber(overview.stats.users)} حساب`}
         />
-        <Stat
+        <InfoStat
+          tone="clay"
           icon={MessageSquare}
           label="پیام بی‌پاسخ"
           value={faNumber(unanswered)}
           hint={waiting ? `${faNumber(waiting)} گفتگو منتظر پاسخ` : 'گفتگوی معوقی نیست'}
           href="/admin/messages"
         />
-        <Stat
+        <InfoStat
+          tone="sand"
           icon={BadgePercent}
           label="سود اشتراک"
           value={toman(usage.stats.subscriptionRevenueTotal)}
           hint={`این ماه ${toman(usage.stats.subscriptionRevenueThisMonth)}`}
         />
-        <Stat
+        <InfoStat
+          tone="lilac"
           icon={Sparkles}
           label="سود توکن تصویر"
           value={toman(usage.stats.tokenRevenue)}
           hint={`این ماه ${toman(usage.stats.tokenRevenueThisMonth)}`}
         />
         {website ? (
-          <Stat
+          <InfoStat
+            tone="sage"
             icon={ShoppingBag}
             label="فروش وب‌سایت"
             value={toman(website.stats.total)}
@@ -95,7 +101,7 @@ export function AdminDashboard({
             href="/admin/orders"
           />
         ) : null}
-      </div>
+      </InfoStatGrid>
 
       {website ? (
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -186,37 +192,5 @@ export function AdminDashboard({
         </ChartCard>
       </section>
     </div>
-  );
-}
-
-function Stat({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  href,
-}: {
-  icon: typeof Users;
-  label: string;
-  value: string;
-  hint?: string;
-  href?: string;
-}) {
-  const body = (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-2 text-gray-500">
-        <Icon className="h-4 w-4" />
-        <p className="text-xs">{label}</p>
-      </div>
-      <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
-      {hint ? <p className="mt-1 text-[11px] text-gray-400">{hint}</p> : null}
-    </div>
-  );
-  return href ? (
-    <Link href={href} className="block transition hover:opacity-90">
-      {body}
-    </Link>
-  ) : (
-    body
   );
 }
