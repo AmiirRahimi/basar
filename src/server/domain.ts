@@ -2663,7 +2663,7 @@ export async function setWholesaleInvoiceStatus(id: string, status: string): Pro
   const next = wholesaleInvoiceStatus(status);
   const invoice = await M().Invoice.findOneAndUpdate(
     storeFilter(auth.session, { _id: id }),
-    { $set: { orderStatus: next, isSent: next === 'sent' || next === 'delivered' } },
+    { orderStatus: next, isSent: next === 'sent' || next === 'delivered' },
     { new: true },
   );
   if (!invoice) return fail('فاکتور پیدا نشد', 404);
@@ -2681,7 +2681,7 @@ export async function setLineLeftWarehouse(lineId: string, left: boolean): Promi
   });
   if (!line) return fail('قلم فاکتور پیدا نشد', 404);
   line.leftWarehouse = Boolean(left);
-  await M().CustomerCart.updateOne({ _id: line._id }, { $set: { leftWarehouse: Boolean(left) } });
+  await M().CustomerCart.updateOne({ _id: line._id }, { leftWarehouse: Boolean(left) });
   const siblings = await M().CustomerCart.find({
     _invoice: line._invoice,
     _storeId: oid(auth.session._storeId),
@@ -2698,7 +2698,7 @@ export async function setLineLeftWarehouse(lineId: string, left: boolean): Promi
       invoice.isSent = false;
       await M().Invoice.updateOne(
         { _id: invoice._id },
-        { $set: { orderStatus: invoice.orderStatus, isSent: false } },
+        { orderStatus: invoice.orderStatus, isSent: false },
       );
     }
   }
