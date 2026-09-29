@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import RubberSegment from './RubberSegment';
 import { cn } from '../lib/cn';
 
 export type TabItem = {
@@ -56,32 +57,32 @@ export function Tabs({
 
   return (
     <div className={cn('w-full', className)}>
-      <nav
-        className={cn(
-          'flex gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-800 dark:bg-gray-950',
-          navClassName,
-        )}
-      >
-        {normalizedTabs.map((tab) => {
-          const isActive = activeTab === tab.value;
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => handleChange(tab.value)}
-              className={cn(
-                'flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition',
-                isActive
-                  ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-900'
-                  : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900',
-              )}
-            >
-              {tab.icon ? <span className="inline-flex shrink-0">{tab.icon}</span> : null}
-              <span className="truncate">{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <div className="max-w-full overflow-x-auto">
+        <RubberSegment
+          items={normalizedTabs.map((tab) => ({
+            value: tab.value,
+            label: tab.label,
+            icon: tab.icon,
+          }))}
+          value={activeTab}
+          onChange={(next: string) => handleChange(next)}
+          trackColor="#f4f4f5"
+          thumbColor="#18181b"
+          textColor="#3f3f46"
+          activeTextColor="#fafafa"
+          size="md"
+          radius={16}
+          inset={4}
+          equalSlots
+          stretch={100}
+          squash={3}
+          speed={1}
+          glide={75}
+          draggable
+          className={cn('w-full', navClassName)}
+          aria-label="بخش‌ها"
+        />
+      </div>
       {hasContent ? (
         <div className={cn('mt-5', contentClassName)}>
           {normalizedTabs.map((tab) => {
