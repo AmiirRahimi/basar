@@ -21,14 +21,32 @@ export function InvoiceStatusButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const closeTimer = useRef<number | null>(null);
   const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState({ top: 0, right: 0 });
+  const [place, setPlace] = useState<{ top?: number; bottom?: number; right: number; maxHeight: number }>({
+    right: 8,
+    maxHeight: 320,
+  });
   const current = WHOLESALE_INVOICE_STATUSES.findIndex((item) => item.id === status);
 
   function show() {
     if (disabled) return;
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
     const rect = buttonRef.current?.getBoundingClientRect();
-    if (rect) setPlace({ top: rect.bottom + 8, right: Math.max(8, window.innerWidth - rect.right) });
+    if (!rect) return;
+    const gap = 8;
+    const panelHeight = 340;
+    const spaceBelow = window.innerHeight - rect.bottom - gap;
+    const spaceAbove = rect.top - gap;
+    const right = Math.max(8, window.innerWidth - rect.right);
+    if (spaceBelow >= panelHeight || spaceBelow >= spaceAbove) {
+      setPlace({ top: rect.bottom + gap, bottom: undefined, right, maxHeight: Math.max(180, spaceBelow - 8) });
+    } else {
+      setPlace({
+        top: undefined,
+        bottom: window.innerHeight - rect.top + gap,
+        right,
+        maxHeight: Math.max(180, spaceAbove - 8),
+      });
+    }
     setOpen(true);
   }
 
@@ -53,10 +71,10 @@ export function InvoiceStatusButton({
       {open
         ? createPortal(
             <div
-              style={{ top: place.top, right: place.right }}
+              style={{ top: place.top, bottom: place.bottom, right: place.right, maxHeight: place.maxHeight }}
               onMouseEnter={show}
               onMouseLeave={hide}
-              className="fixed z-[80] w-56 rounded-2xl border border-gray-200 bg-white p-3 shadow-lg"
+              className="fixed z-[80] w-56 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-3 shadow-lg"
               dir="rtl"
             >
               <p className="mb-2 text-xs text-gray-500">مراحل وضعیت فاکتور</p>
