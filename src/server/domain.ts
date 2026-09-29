@@ -32,7 +32,7 @@ import { DEFAULT_MOQ, isPayablePersonRole, normalizePersonRoles, personIsCustome
 import { checkAvailableToTransfer, dueDateMonthKey, paymentApplied, PERSIAN_MONTHS, persianYearMonth, statusToFlags } from '@/lib/checks';
 import { canAccessMenu, canReadResource, canWriteResource } from '@/lib/roles';
 import { allocateIncome, partnersForStore } from '@/lib/partners';
-import { clothAppliesToStore } from '@/lib/cloth-share';
+import { wholesaleInvoiceStatus, wholesaleInvoiceStatusLabel } from '@/lib/invoice-status';
 import { normalizeHex, swatchFor } from '@/lib/cloth-colors';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
@@ -523,12 +523,12 @@ async function applyClothShare(
     return store && brandIds.includes(String(store._brandId || ''));
   });
   if (!brandIds.length) return fail('برند را انتخاب کنید');
-  if (!storeIds.length) return fail('فروشگاه را انتخاب کنید');
   body.sellInAllStores = false;
   body._brandIds = brandIds.map((id) => oid(id));
   body._storeIds = storeIds.map((id) => oid(id));
-  body._storeId = oid(storeIds[0]);
   body._brandId = oid(brandIds[0]);
+  if (storeIds[0]) body._storeId = oid(storeIds[0]);
+  else delete body._storeId;
   return ok(body);
 }
 
@@ -964,6 +964,8 @@ export async function createResource(resource: string, payload: unknown): Promis
       ...preparePayload(auth.session, resource, { ...body, items: undefined }),
       invoiceNumber,
       publicToken: publicOrderToken(),
+      orderStatus: 'registered',
+      isSent: false,
     });
     if (soldItems.length) {
       await M().CustomerCart.insertMany(
@@ -2634,6 +2636,114 @@ export async function receiveReturnedCloth(payload: unknown): Promise<ActionResu
     })),
   );
   return ok(serialize(header.toObject ? header.toObject() : header), 'لباس دریافت شد و به حساب مشتری بستانکار شد');
+}
+
+function canChangeInvoiceStatus(session: Session) {
+  return (
+    session.isPlatformAdmin ||
+    session.storeRole === 'owner' ||
+    session.storeRole === 'admin' ||
+    session.storeRole === 'seller' ||
+    Boolean(session.permissions?.includes('invoice.write'))
+  );
+}
+
+function canLeaveWarehouse(session: Session) {
+  return (
+    canChangeInvoiceStatus(session) ||
+    session.storeRole === 'keeper' ||
+    Boolean(session.permissions?.includes('dispatch.write'))
+  );
+}
+
+export async function setWholesaleInvoiceStatus(id: string, status: string): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  if (!canChangeInvoiceStatus(auth.session)) return fail('اجازه این کار را ندارید', 403);
+  const next = wholesaleInvoiceStatus(status);
+  const invoice = await M().Invoice.findOneAndUpdate(
+    storeFilter(auth.session, { _id: id }),
+    { $set: { orderStatus: next, isSent: next === 'sent' || next === 'delivered' } },
+    { new: true },
+  );
+  if (!invoice) return fail('فاکتور پیدا نشد', 404);
+  return ok(serialize({ orderStatus: next }), 'وضعیت فاکتور به‌روز شد');
+}
+
+export async function setLineLeftWarehouse(lineId: string, left: boolean): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  if (!canLeaveWarehouse(auth.session)) return fail('اجازه این کار را ندارید', 403);
+  const line = await M().CustomerCart.findOne({
+    _id: lineId,
+    _storeId: oid(auth.session._storeId),
+    isDeleted: false,
+  });
+  if (!line) return fail('قلم فاکتور پیدا نشد', 404);
+  line.leftWarehouse = Boolean(left);
+  await M().CustomerCart.updateOne({ _id: line._id }, { $set: { leftWarehouse: Boolean(left) } });
+  const siblings = await M().CustomerCart.find({
+    _invoice: line._invoice,
+    _storeId: oid(auth.session._storeId),
+    isDeleted: false,
+  }).lean();
+  const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: line._invoice }));
+  if (invoice) {
+    const current = wholesaleInvoiceStatus(invoice.orderStatus, Boolean(invoice.isSent));
+    if (current !== 'sent' && current !== 'delivered') {
+      const rows = siblings as { leftWarehouse?: boolean }[];
+      const allLeft = rows.length > 0 && rows.every((row) => row.leftWarehouse);
+      const someLeft = rows.some((row) => row.leftWarehouse);
+      invoice.orderStatus = allLeft ? 'left' : someLeft ? 'packing' : 'registered';
+      invoice.isSent = false;
+      await M().Invoice.updateOne(
+        { _id: invoice._id },
+        { $set: { orderStatus: invoice.orderStatus, isSent: false } },
+      );
+    }
+  }
+  return ok(null, left ? 'این لباس از انبار خارج شد' : 'خروج از انبار برداشته شد');
+}
+
+export async function warehouseDesk(): Promise<ActionResult> {
+  const auth = await withSession();
+  if ('error' in auth) return auth.error;
+  const denied = denyMenu(auth.session, 'dispatch');
+  if (denied && !canLeaveWarehouse(auth.session)) return denied || fail('اجازه این کار را ندارید', 403);
+  const invoices = await M().Invoice.find(storeFilter(auth.session, {})).sort('-timeStamp').limit(80).lean();
+  const open = (invoices as any[]).filter((row) => {
+    const status = wholesaleInvoiceStatus(row.orderStatus, Boolean(row.isSent));
+    return status !== 'sent' && status !== 'delivered';
+  });
+  const ids = open.map((row) => oid(row._id));
+  const lines = ids.length
+    ? await M()
+        .CustomerCart.find({ _storeId: oid(auth.session._storeId), isDeleted: false, _invoice: { $in: ids } })
+        .populate({ path: '_cloth', populate: [{ path: '_type' }, { path: '_style' }] })
+        .lean()
+    : [];
+  const people = await M().Person.find({ _id: { $in: open.map((row) => oid(row._client)).filter(Boolean) } })
+    .select('_id fullName')
+    .lean();
+  const personName = new Map((people as any[]).map((row) => [String(row._id), row.fullName || '']));
+  const data = open.map((invoice) => ({
+    id: String(invoice._id),
+    invoiceNumber: invoice.invoiceNumber,
+    date: invoice.timeStamp,
+    customer: personName.get(relationKey(invoice._client)) || '',
+    status: wholesaleInvoiceStatus(invoice.orderStatus, Boolean(invoice.isSent)),
+    statusLabel: wholesaleInvoiceStatusLabel(invoice.orderStatus, Boolean(invoice.isSent)),
+    lines: (lines as any[])
+      .filter((line) => relationKey(line._invoice) === String(invoice._id))
+      .map((line) => ({
+        id: String(line._id),
+        label: clothDisplayName(line._cloth),
+        count: Number(line.count || 0),
+        packs: formatPacksFa(line.packs || []),
+        leftWarehouse: Boolean(line.leftWarehouse),
+      })),
+  }));
+  return ok(serialize(data));
 }
 
 export async function listAttachments(id: string): Promise<ActionResult> {

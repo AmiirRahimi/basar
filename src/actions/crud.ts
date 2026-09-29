@@ -28,6 +28,9 @@ import {
   personReturns,
   placeWholesaleOrder,
   receiveReturnedCloth as receiveCloth,
+  setLineLeftWarehouse as setLineLeftDb,
+  setWholesaleInvoiceStatus as setInvoiceStatusDb,
+  warehouseDesk as warehouseDeskDb,
   clothProfitSummary,
   updateResource as update,
   listStorefrontOrders,
@@ -214,6 +217,18 @@ export async function getPersonReturns(personId: string) {
 
 export async function receiveReturnedCloth(payload: unknown) {
   return receiveCloth(payload);
+}
+
+export async function setInvoiceStatus(id: string, status: string) {
+  return setInvoiceStatusDb(id, status);
+}
+
+export async function setLineLeftWarehouse(lineId: string, left: boolean) {
+  return setLineLeftDb(lineId, left);
+}
+
+export async function getWarehouseDesk() {
+  return warehouseDeskDb();
 }
 
 export async function getAttachments(id: string) {

@@ -28,6 +28,8 @@ import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { checkAvailableForPayment, checkSerialLabel } from '@/lib/checks';
 import { invoiceStatusLabel, STOREFRONT_CHANNEL } from '@/lib/storefront';
+import { WHOLESALE_INVOICE_STATUSES, wholesaleInvoiceStatus } from '@/lib/invoice-status';
+import { setInvoiceStatus } from '@/actions/crud';
 import { PaymentForm } from './PaymentForm';
 import { Price, PriceField, PriceSection } from './Price';
 import { RowActions } from './RowActions';
@@ -224,10 +226,32 @@ export function InvoiceCrud({
         header: 'تاریخ',
         cell: (info) => faDate(info.getValue()),
       }),
-      helper.accessor((row) => invoiceStatusLabel(row), {
-        id: 'isSent',
+      helper.accessor((row) => wholesaleInvoiceStatus(row.orderStatus, row.isSent), {
+        id: 'orderStatus',
         header: 'وضعیت',
-        cell: (info) => info.getValue(),
+        cell: (info) =>
+          writable && info.row.original.channel !== STOREFRONT_CHANNEL ? (
+            <Select
+              value={info.getValue()}
+              options={WHOLESALE_INVOICE_STATUSES.map((item) => ({ value: item.id, label: item.label }))}
+              onChange={(value) => {
+                const next = String(value ?? '');
+                if (!next || next === info.getValue()) return;
+                start(async () => {
+                  const res = await setInvoiceStatus(String(info.row.original._id), next);
+                  if (redirectIfUnauthorized(res)) return;
+                  if (!res.ok) {
+                    toast.error(res.message || 'وضعیت عوض نشد');
+                    return;
+                  }
+                  toast.success(res.message || 'وضعیت فاکتور به‌روز شد');
+                  router.refresh();
+                });
+              }}
+            />
+          ) : (
+            WHOLESALE_INVOICE_STATUSES.find((item) => item.id === info.getValue())?.label || invoiceStatusLabel(info.row.original)
+          ),
       }),
     ];
     defs.push(

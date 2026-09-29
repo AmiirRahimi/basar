@@ -94,6 +94,7 @@ export function personRoleLabel(role?: string | number | null | unknown) {
 export const STORE_STAFF_ROLES = {
   admin: 'مدیر فروشگاه',
   seller: 'فروشنده',
+  keeper: 'انباردار',
   other: 'سایر',
 } as const;
 

@@ -165,7 +165,7 @@ export default async function ClothesPage() {
                   assignPartner: placement.assignPartner,
                   defaultBrandId: data?.activeBrandId || '',
                   defaultStoreId: data?.activeStoreId || '',
-                  required: placement.assignPlace,
+                  required: false,
                 },
               ]
             : []),

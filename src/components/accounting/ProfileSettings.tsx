@@ -2,18 +2,14 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { BadgePercent, Building2, Handshake, UserRound, UsersRound } from 'lucide-react';
+import { BadgePercent, UserRound } from 'lucide-react';
 import { updateProfile } from '@/actions/auth';
 import { IRAN_CITY_OPTIONS } from '@/lib/iran-cities';
 import { STORE_STAFF_ROLES } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, Input, Select, Tabs, toast } from '@/ui';
-import { BrandStoreWorkspace } from './BrandStoreWorkspace';
 import { PageActionOutlet, usePageMeta } from './PageAction';
-import { PartnersPanel } from './PartnersPanel';
 import { SubscriptionPanel } from './SubscriptionPanel';
-import { TeamInviteInbox } from './TeamInviteInbox';
-import { TeamsPanel } from './TeamsPanel';
 import { useWorkspace } from './WorkspaceProvider';
 
 const selectLabels = {
@@ -24,9 +20,6 @@ const selectLabels = {
 
 const TABS = [
   { id: 'account', label: 'حساب کاربری', description: 'نام، شهر و حساب بانکی برای واریز سهم فروش', icon: UserRound },
-  { id: 'workspace', label: 'برند و فروشگاه', description: 'برندها و فروشگاه‌هایی که با آن‌ها کار می‌کنید', icon: Building2 },
-  { id: 'teams', label: 'اعضا', description: 'کسانی که به برند یا فروشگاه شما دسترسی دارند', icon: UsersRound },
-  { id: 'partners', label: 'شرکای درآمد', description: 'سهم درآمد شرکا از فروش', icon: Handshake },
   { id: 'subscription', label: 'اشتراک', description: 'طرح فعلی، تمدید و خرید اشتراک', icon: BadgePercent },
 ] as const;
 
@@ -57,22 +50,7 @@ export function ProfileSettings({
   const router = useRouter();
   const workspace = useWorkspace();
   const [tab, setTab] = useState<TabId>(isTab(initialTab) ? initialTab : 'account');
-  const canManageWorkspace =
-    workspace?.storeRole === 'owner' ||
-    workspace?.storeRole === 'admin' ||
-    Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin) ||
-    Boolean(workspace?.permissions?.includes('workspace.write'));
-  const canManageBrand =
-    workspace?.storeRole === 'owner' || Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin);
-  const ownsBrand = Boolean(
-    workspace?.brands.some((brand) => brand._userId === workspace.user._id) ||
-      workspace?.isSuperuser ||
-      workspace?.isPlatformAdmin,
-  );
-
   const visibleTabs = TABS.filter((item) => {
-    if (item.id === 'teams') return ownsBrand;
-    if (item.id === 'partners') return canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.view'));
     if (item.id === 'subscription') return workspace?.storeRole === 'owner' || Boolean(workspace?.isSuperuser || workspace?.isPlatformAdmin);
     return true;
   });
@@ -81,9 +59,6 @@ export function ProfileSettings({
 
   usePageMeta({ hasTabs: true });
 
-  const selectedBrand = workspace?.brands.find((brand) => brand._id === workspace.activeBrandId);
-  const selectedStore = workspace?.stores.find((store) => store._id === workspace.activeStoreId);
-
   function changeTab(next: TabId) {
     setTab(next);
     router.replace(`/accounting/profile?tab=${next}`, { scroll: false });
@@ -91,7 +66,6 @@ export function ProfileSettings({
 
   return (
     <div className="space-y-5">
-      <TeamInviteInbox />
       <Tabs
         value={activeTab}
         onChange={(next) => {
@@ -114,20 +88,6 @@ export function ProfileSettings({
       </div>
       <div>
         {activeTab === 'account' ? <AccountSection user={user} /> : null}
-        {activeTab === 'workspace' ? <BrandStoreWorkspace /> : null}
-        {activeTab === 'teams' && ownsBrand ? <TeamsPanel /> : null}
-        {activeTab === 'partners' &&
-        (canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.view'))) ? (
-          <PartnersPanel
-            brands={workspace?.brands || []}
-            stores={workspace?.stores || []}
-            selectedBrand={selectedBrand}
-            selectedStore={selectedStore}
-            partners={workspace?.partners || []}
-            canManageBrand={canManageBrand}
-            canManageStore={canManageWorkspace || Boolean(workspace?.permissions?.includes('partners.write'))}
-          />
-        ) : null}
         {activeTab === 'subscription' ? (
           <SubscriptionPanel subscription={workspace?.subscription} purchases={workspace?.purchases} />
         ) : null}

@@ -410,6 +410,7 @@ const CustomerCartSchema = defineSchema(
       ],
       default: [],
     },
+    leftWarehouse: { type: Boolean, default: false },
     price: { type: Number, required: true },
     timeStamp: { type: Date, default: Date.now },
     isDeleted: { type: Boolean, default: false },

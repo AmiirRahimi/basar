@@ -11,12 +11,15 @@ import {
   Undo2,
   Users,
   Wallet,
+  Warehouse,
+  Building2,
 } from 'lucide-react';
 import type { AccountingMenuSection } from './AccountingSidebar';
 
 export const accountingMenuSections: AccountingMenuSection[] = [
   { id: 'dashboard', name: 'داشبورد', icon: LayoutDashboard, href: '/accounting/dashboard', menuItems: [] },
   { id: 'invoice', name: 'فاکتور', icon: FileText, href: '/accounting/invoices', menuItems: [] },
+  { id: 'dispatch', name: 'خروج از انبار', icon: Warehouse, href: '/accounting/dispatch', menuItems: [] },
   { id: 'person', name: 'اشخاص', icon: Users, href: '/accounting/people', menuItems: [] },
   { id: 'cloth', name: 'البسه', icon: Shirt, href: '/accounting/clothes', menuItems: [] },
   { id: 'share', name: 'لینک محصول', icon: Link2, href: '/accounting/shares', menuItems: [] },
@@ -25,4 +28,5 @@ export const accountingMenuSections: AccountingMenuSection[] = [
   { id: 'fabric', name: 'خرید پارچه', icon: Scissors, href: '/accounting/fabric', menuItems: [] },
   { id: 'account', name: 'حساب', icon: Wallet, href: '/accounting/account', menuItems: [] },
   { id: 'returned', name: 'مرجوعی', icon: Undo2, href: '/accounting/returned', menuItems: [] },
+  { id: 'workspace', name: 'حجره', icon: Building2, href: '/accounting/workspace', menuItems: [] },
 ];

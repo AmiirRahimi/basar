@@ -77,6 +77,14 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    id: 'dispatch',
+    label: 'انبار',
+    items: [
+      { id: 'dispatch.view', label: 'دیدن لباس‌های آماده خروج' },
+      { id: 'dispatch.write', label: 'ثبت خروج از انبار' },
+    ],
+  },
+  {
     id: 'store',
     label: 'فروشگاه و کاتالوگ',
     items: [
@@ -157,6 +165,11 @@ export const PERMISSION_PRESETS = [
     ],
   },
   {
+    id: 'keeper',
+    label: 'انباردار',
+    permissions: ['dispatch.view', 'dispatch.write', 'invoice.view', 'cloth.view', 'profile.view'],
+  },
+  {
     id: 'view',
     label: 'فقط مشاهده',
     permissions: ALL_PERMISSION_IDS.filter((id) => id.endsWith('.view')),
@@ -174,6 +187,8 @@ const MENU_PERMISSION: Record<string, PermissionId> = {
   fabric: 'fabric.view',
   account: 'account.view',
   returned: 'returned.view',
+  dispatch: 'dispatch.view',
+  workspace: 'workspace.view',
   store: 'store.view',
   profile: 'profile.view',
   subscription: 'subscription.view',

@@ -293,6 +293,7 @@ export type Invoice = {
   sellerPayout?: number;
   timeStamp?: string;
   customDate?: boolean;
+  orderStatus?: string;
   _client?: Person | string;
   _storeId?: string | StoreRecord;
   _brandId?: string | Brand;

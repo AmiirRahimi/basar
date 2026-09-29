@@ -6,7 +6,7 @@ import {
   resourceWritePermission,
 } from './permissions';
 
-const ALL: StoreRole[] = ['owner', 'admin', 'seller', 'other'];
+const ALL: StoreRole[] = ['owner', 'admin', 'seller', 'keeper', 'other'];
 
 export const MENU_ACCESS: Record<string, StoreRole[]> = {
   dashboard: ALL,
@@ -19,6 +19,8 @@ export const MENU_ACCESS: Record<string, StoreRole[]> = {
   fabric: ['owner', 'admin', 'other'],
   account: ['owner', 'admin', 'seller'],
   returned: ['owner', 'admin', 'seller'],
+  dispatch: ['owner', 'admin', 'keeper'],
+  workspace: ['owner', 'admin'],
   store: ['owner', 'admin'],
   profile: ALL,
   subscription: ['owner'],

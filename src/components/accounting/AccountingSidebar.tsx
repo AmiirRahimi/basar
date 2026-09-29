@@ -26,7 +26,8 @@ export type AccountingMenuSection = {
 };
 
 const GROUPS: { label: string; ids: string[] }[] = [
-  { label: 'کار روزانه', ids: ['dashboard', 'invoice', 'cloth', 'share', 'images', 'check', 'returned'] },
+  { label: 'کار روزانه', ids: ['dashboard', 'invoice', 'dispatch', 'cloth', 'share', 'images', 'check', 'returned'] },
+  { label: 'حجره', ids: ['workspace'] },
   { label: 'اطلاعات', ids: ['person', 'fabric', 'account'] },
 ];
 
