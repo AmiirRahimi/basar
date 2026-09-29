@@ -10,7 +10,7 @@ export default async function ReturnedPage() {
   return (
     <AccountingShell
       title="برگشتی"
-      description="لباس خریده‌شده را انتخاب کنید و با قیمت خرید یا قیمت دیگر دریافت کنید؛ مبلغ به حساب مشتری بستانکار می‌شود"
+      description="مشتری و فاکتور را انتخاب کنید، لباس‌های برگشتی را علامت بزنید و یک‌بار ذخیره کنید"
       error={errorMessage(peopleRes)}
     >
       <ReturnedClient people={people} />

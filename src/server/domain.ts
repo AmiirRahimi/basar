@@ -2533,59 +2533,81 @@ export async function receiveReturnedCloth(payload: unknown): Promise<ActionResu
   const body = payload as Record<string, unknown>;
   const personId = String(body.personId || body._person || '');
   const invoiceId = String(body.invoiceId || body._invoice || '');
-  const clothId = String(body.clothId || body._cloth || '');
-  const count = Math.trunc(Number(body.count || 0));
   if (!personId) return fail('شخص را انتخاب کنید');
   if (!invoiceId) return fail('فاکتور لباس برگشتی را انتخاب کنید');
-  if (!clothId) return fail('لباس برگشتی را انتخاب کنید');
-  if (count < 1) return fail('تعداد برگشتی را وارد کنید');
+  const rawItems = Array.isArray(body.items) && body.items.length
+    ? body.items
+    : [{ clothId: body.clothId || body._cloth, count: body.count, price: body.price, useBoughtPrice: body.useBoughtPrice }];
   const person = await M().Person.findOne(storeFilter(auth.session, { _id: personId })).lean();
   if (!person) return fail('شخص پیدا نشد', 404);
   const invoice = await M().Invoice.findOne(storeFilter(auth.session, { _id: invoiceId, _client: oid(personId) })).lean();
   if (!invoice) return fail('این فاکتور برای این شخص نیست', 404);
-  const cloth = await M().Cloth.findOne({ _id: oid(clothId), isDeleted: false }).lean();
-  if (!cloth) return fail('لباس پیدا نشد', 404);
-  const lines = await M()
-    .CustomerCart.find({
-      _storeId: oid(auth.session._storeId),
-      isDeleted: false,
+
+  const prepared: { clothId: string; count: number; price: number; boughtPrice: number }[] = [];
+  for (const raw of rawItems as Record<string, unknown>[]) {
+    const clothId = String(raw.clothId || raw._cloth || '');
+    const count = Math.trunc(Number(raw.count || 0));
+    if (!clothId) return fail('لباس برگشتی را انتخاب کنید');
+    if (count < 1) return fail('تعداد برگشتی را وارد کنید');
+    const cloth = await M().Cloth.findOne({ _id: oid(clothId), isDeleted: false }).lean();
+    if (!cloth) return fail('لباس پیدا نشد', 404);
+    const lines = await M()
+      .CustomerCart.find({
+        _storeId: oid(auth.session._storeId),
+        isDeleted: false,
+        _invoice: oid(invoiceId),
+        _cloth: oid(clothId),
+      })
+      .lean();
+    const boughtCount = (lines as any[]).reduce((sum, row) => sum + Number(row.count || 0), 0);
+    const boughtAmount = (lines as any[]).reduce((sum, row) => sum + Number(row.count || 0) * Number(row.price || 0), 0);
+    if (!boughtCount) return fail('این لباس در فاکتور این شخص نیست');
+    const boughtPrice = boughtAmount / boughtCount;
+    const previous = await M().ReturnedItems.find({
       _invoice: oid(invoiceId),
       _cloth: oid(clothId),
-    })
-    .lean();
-  const boughtCount = (lines as any[]).reduce((sum, row) => sum + Number(row.count || 0), 0);
-  const boughtAmount = (lines as any[]).reduce((sum, row) => sum + Number(row.count || 0) * Number(row.price || 0), 0);
-  if (!boughtCount) return fail('این لباس در فاکتور این شخص نیست');
-  const boughtPrice = boughtAmount / boughtCount;
-  const previous = await M().ReturnedItems.find({
-    _invoice: oid(invoiceId),
-    _cloth: oid(clothId),
-    isDeleted: false,
-  }).lean();
-  const already = (previous as any[]).reduce((sum, row) => sum + Number(row.count || 0), 0);
-  if (count > Math.max(0, boughtCount - already)) return fail('تعداد برگشتی بیشتر از خرید این فاکتور است');
-  const useBought = Boolean(body.useBoughtPrice);
-  const price = useBought ? boughtPrice : Number(body.price);
-  if (!Number.isFinite(price) || price < 0) return fail('قیمت دریافت را وارد کنید');
-  const stock = await changeStock(clothId, count);
-  if (!stock.ok) return stock;
+      isDeleted: false,
+    }).lean();
+    const already = (previous as any[]).reduce((sum, row) => sum + Number(row.count || 0), 0);
+    const pendingSame = prepared.filter((row) => row.clothId === clothId).reduce((sum, row) => sum + row.count, 0);
+    if (count + pendingSame > Math.max(0, boughtCount - already)) return fail('تعداد برگشتی بیشتر از خرید این فاکتور است');
+    const price = raw.useBoughtPrice ? boughtPrice : Number(raw.price);
+    if (!Number.isFinite(price) || price < 0) return fail('قیمت دریافت را وارد کنید');
+    prepared.push({ clothId, count, price, boughtPrice });
+  }
+  if (!prepared.length) return fail('لباس برگشتی را انتخاب کنید');
+
+  const stocked: { clothId: string; count: number }[] = [];
+  for (const item of prepared) {
+    const stock = await changeStock(item.clothId, item.count);
+    if (!stock.ok) {
+      for (const done of stocked) await changeStock(done.clothId, -done.count);
+      return stock;
+    }
+    stocked.push(item);
+  }
+
   const header = await M().Returned.create({
     _storeId: oid(auth.session._storeId),
     _returnedPerson: oid(personId),
-    description: String(body.description || '').trim() || `برگشت ${count} عدد از فاکتور ${invoice.invoiceNumber || ''}`,
+    description:
+      String(body.description || '').trim() ||
+      `برگشت ${prepared.reduce((sum, row) => sum + row.count, 0)} عدد از فاکتور ${invoice.invoiceNumber || ''}`,
     isDeleted: false,
   });
-  const created = await M().ReturnedItems.create({
-    _storeId: oid(auth.session._storeId),
-    _returned: header._id,
-    _invoice: oid(invoiceId),
-    _cloth: oid(clothId),
-    count,
-    price,
-    boughtPrice,
-    isDeleted: false,
-  });
-  return ok(serialize(created.toObject ? created.toObject() : created), 'لباس دریافت شد و به حساب مشتری بستانکار شد');
+  await M().ReturnedItems.insertMany(
+    prepared.map((item) => ({
+      _storeId: oid(auth.session._storeId),
+      _returned: header._id,
+      _invoice: oid(invoiceId),
+      _cloth: oid(item.clothId),
+      count: item.count,
+      price: item.price,
+      boughtPrice: item.boughtPrice,
+      isDeleted: false,
+    })),
+  );
+  return ok(serialize(header.toObject ? header.toObject() : header), 'لباس دریافت شد و به حساب مشتری بستانکار شد');
 }
 
 export async function listAttachments(id: string): Promise<ActionResult> {

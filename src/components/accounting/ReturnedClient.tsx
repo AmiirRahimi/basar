@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { getPersonReturns, receiveReturnedCloth } from '@/actions/crud';
-import { Button, FormCard, IconButton, Input, Select, toast } from '@/ui';
-import { displayName, faDate, faNumber, toman } from '@/lib/format';
+import { Button, Checkbox, FormCard, IconButton, Input, Select, fieldLabelClassName, toast } from '@/ui';
+import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { Price, PriceSection } from './Price';
+import { PriceField, PriceSection } from './Price';
 import { useWritable } from './useWritable';
 import type { FieldOption } from '@/lib/types';
 
@@ -46,20 +46,32 @@ type ReturnReceipt = {
   items: ReturnReceiptItem[];
 };
 
+type PickState = { count: number; price: number };
+
 export function ReturnedClient({ people }: { people: FieldOption[] }) {
   const writable = useWritable();
   const [person, setPerson] = useState('');
-  const [selectedKey, setSelectedKey] = useState('');
-  const [count, setCount] = useState(1);
-  const [price, setPrice] = useState(0);
+  const [invoiceId, setInvoiceId] = useState('');
+  const [picks, setPicks] = useState<Record<string, PickState>>({});
   const [description, setDescription] = useState('');
   const [returnable, setReturnable] = useState<ReturnableLine[]>([]);
   const [receipts, setReceipts] = useState<ReturnReceipt[]>([]);
   const [returnTotal, setReturnTotal] = useState(0);
-  const [personName, setPersonName] = useState('');
   const [pending, start] = useTransition();
 
-  const selected = returnable.find((row) => row.key === selectedKey);
+  const invoices = useMemo(() => {
+    const map = new Map<string, { id: string; number?: string | number; count: number }>();
+    for (const row of returnable) {
+      const current = map.get(row.invoiceId) || { id: row.invoiceId, number: row.invoiceNumber, count: 0 };
+      current.count += 1;
+      map.set(row.invoiceId, current);
+    }
+    return [...map.values()];
+  }, [returnable]);
+
+  const lines = returnable.filter((row) => row.invoiceId === invoiceId);
+  const chosen = lines.filter((row) => picks[row.key]);
+  const credit = chosen.reduce((sum, row) => sum + rowCount(picks[row.key]) * Number(picks[row.key]?.price || 0), 0);
 
   function load(id: string) {
     start(async () => {
@@ -69,59 +81,76 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
         setReturnable([]);
         setReceipts([]);
         setReturnTotal(0);
-        setPersonName('');
         toast.error(res.message || 'برگشتی بارگذاری نشد');
         return;
       }
       const data = res.data as {
-        person?: { fullName?: string };
         returnable?: ReturnableLine[];
         receipts?: ReturnReceipt[];
         returnTotal?: number;
       };
-      const lines = Array.isArray(data.returnable) ? data.returnable : [];
-      setReturnable(lines);
+      setReturnable(Array.isArray(data.returnable) ? data.returnable : []);
       setReceipts(Array.isArray(data.receipts) ? data.receipts : []);
       setReturnTotal(Number(data.returnTotal || 0));
-      setPersonName(displayName(data.person));
-      const first = lines[0];
-      setSelectedKey(first?.key || '');
-      setCount(first ? Math.min(1, first.remainingCount) || 1 : 1);
-      setPrice(first ? Number(first.boughtPrice || 0) : 0);
+      setInvoiceId('');
+      setPicks({});
       setDescription('');
     });
   }
 
-  function pick(row: ReturnableLine) {
-    setSelectedKey(row.key);
-    setCount(1);
-    setPrice(Number(row.boughtPrice || 0));
+  function toggle(row: ReturnableLine) {
+    setPicks((current) => {
+      if (current[row.key]) {
+        const next = { ...current };
+        delete next[row.key];
+        return next;
+      }
+      return {
+        ...current,
+        [row.key]: { count: 1, price: Math.round(Number(row.boughtPrice || 0)) },
+      };
+    });
   }
 
-  function receive(useBoughtPrice: boolean) {
-    if (!person || !selected) {
-      toast.error('شخص و لباس برگشتی را انتخاب کنید');
+  function setPick(key: string, patch: Partial<PickState>) {
+    setPicks((current) => {
+      const row = current[key];
+      if (!row) return current;
+      return { ...current, [key]: { ...row, ...patch } };
+    });
+  }
+
+  function save() {
+    if (!person || !invoiceId) {
+      toast.error('مشتری و فاکتور را انتخاب کنید');
       return;
     }
-    const qty = Math.trunc(Number(count || 0));
-    if (qty < 1 || qty > selected.remainingCount) {
-      toast.error('تعداد برگشتی بیشتر از مانده خرید است');
+    if (!chosen.length) {
+      toast.error('حداقل یک لباس را برای برگشت انتخاب کنید');
       return;
     }
-    const unit = useBoughtPrice ? selected.boughtPrice : Number(price);
-    if (!useBoughtPrice && (!Number.isFinite(unit) || unit < 0)) {
-      toast.error('قیمت دریافت را وارد کنید');
-      return;
+    for (const row of chosen) {
+      const qty = rowCount(picks[row.key]);
+      if (qty < 1 || qty > row.remainingCount) {
+        toast.error(`تعداد برگشتی «${row.label}» بیشتر از مانده خرید است`);
+        return;
+      }
+      const unit = Number(picks[row.key]?.price);
+      if (!Number.isFinite(unit) || unit < 0) {
+        toast.error(`قیمت برگشت «${row.label}» را وارد کنید`);
+        return;
+      }
     }
     start(async () => {
       const res = await receiveReturnedCloth({
         personId: person,
-        invoiceId: selected.invoiceId,
-        clothId: selected.clothId,
-        count: qty,
-        price: unit,
-        useBoughtPrice,
+        invoiceId,
         description,
+        items: chosen.map((row) => ({
+          clothId: row.clothId,
+          count: rowCount(picks[row.key]),
+          price: Number(picks[row.key]?.price || 0),
+        })),
       });
       if (redirectIfUnauthorized(res)) return;
       if (!res.ok) {
@@ -136,22 +165,43 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <FormCard>
-        <Select
-          label="مشتری"
-          options={people}
-          value={person}
-          searchable
-          placeholder="انتخاب کنید"
-          labels={selectLabels}
-          onChange={(value) => {
-            const id = String(value || '');
-            setPerson(id);
-            setSelectedKey('');
-            setReturnable([]);
-            setReceipts([]);
-            if (id) load(id);
-          }}
-        />
+        <div className="grid gap-3">
+          <Select
+            label="مشتری"
+            options={people}
+            value={person}
+            searchable
+            placeholder="انتخاب کنید"
+            labels={selectLabels}
+            onChange={(value) => {
+              const id = String(value || '');
+              setPerson(id);
+              setInvoiceId('');
+              setPicks({});
+              setReturnable([]);
+              setReceipts([]);
+              if (id) load(id);
+            }}
+          />
+          {person ? (
+            <Select
+              label="فاکتور"
+              options={invoices.map((row) => ({
+                value: row.id,
+                label: `فاکتور ${row.number || '—'} · ${faNumber(row.count)} لباس`,
+              }))}
+              value={invoiceId}
+              searchable
+              placeholder={invoices.length ? 'فاکتور را انتخاب کنید' : 'فاکتور قابل برگشتی نیست'}
+              disabled={!invoices.length}
+              labels={selectLabels}
+              onChange={(value) => {
+                setInvoiceId(String(value || ''));
+                setPicks({});
+              }}
+            />
+          ) : null}
+        </div>
         {person ? (
           <PriceSection
             className="mt-4"
@@ -160,106 +210,102 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
             description="این مبلغ از مانده بدهی مشتری کم می‌شود؛ اگر بیشتر باشد شما به مشتری بدهکارید."
           />
         ) : null}
-        <h3 className="mt-5 mb-2 font-medium">لباس خریده‌شده</h3>
+
+        <h3 className="mt-5 mb-2 font-medium">لباس‌های این فاکتور</h3>
         {pending ? <p className="text-sm text-gray-500">در حال بارگذاری...</p> : null}
-        {person && !pending && !returnable.length ? (
+        {!person ? <p className="text-sm text-gray-500">ابتدا مشتری را انتخاب کنید.</p> : null}
+        {person && !pending && !invoices.length ? (
           <p className="rounded-2xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
             لباس قابل برگشتی برای این مشتری نمانده است.
           </p>
         ) : null}
-        {!person ? <p className="text-sm text-gray-500">ابتدا مشتری را انتخاب کنید.</p> : null}
-        <ul className="space-y-2">
-          {returnable.map((row) => {
-            const active = row.key === selectedKey;
-            return (
-              <li key={row.key}>
-                <button
-                  type="button"
-                  className={`w-full rounded-2xl border px-3 py-3 text-right ${
-                    active ? 'border-teal-300 bg-teal-50/80' : 'border-gray-100 bg-gray-50/80'
-                  }`}
-                  onClick={() => pick(row)}
-                >
+        {person && invoices.length && !invoiceId ? (
+          <p className="text-sm text-gray-500">فاکتور را انتخاب کنید تا لباس‌های خریده‌شده بیاید.</p>
+        ) : null}
+
+        {invoiceId ? (
+          <div className="space-y-3 rounded-xl border border-gray-200 p-3">
+            {lines.map((row) => {
+              const pick = picks[row.key];
+              const qty = rowCount(pick);
+              return (
+                <div key={row.key} className="space-y-3 rounded-lg bg-gray-50 p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{row.label}</p>
-                      <p className="mt-0.5 text-xs text-gray-500">فاکتور {row.invoiceNumber || '—'}</p>
-                    </div>
-                    <span className="text-xs text-gray-600">{faNumber(row.remainingCount)} عدد مانده</span>
+                    <Checkbox
+                      checked={Boolean(pick)}
+                      onChange={() => toggle(row)}
+                      label={row.label}
+                      disabled={!writable}
+                    />
+                    <span className="shrink-0 text-xs text-gray-600">خریده شده {faNumber(row.boughtCount)} عدد</span>
                   </div>
-                  <p className="mt-2 text-xs text-gray-600">
-                    خرید {faNumber(row.boughtCount)} عدد · قیمت خرید {toman(row.boughtPrice)}
-                    {row.returnedCount ? ` · قبلاً ${faNumber(row.returnedCount)} برگشت` : ''}
-                  </p>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        {selected && writable ? (
+                  {row.returnedCount ? (
+                    <p className="text-xs text-gray-500">
+                      قبلاً {faNumber(row.returnedCount)} عدد برگشته · مانده {faNumber(row.remainingCount)} عدد
+                    </p>
+                  ) : null}
+                  {pick ? (
+                    <div className="grid gap-3 border-t border-gray-200/80 pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,11rem)]">
+                      <div>
+                        <p className={fieldLabelClassName()}>تعداد برگشت</p>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <IconButton
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label="کم کردن تعداد"
+                            disabled={qty <= 1}
+                            onClick={() => setPick(row.key, { count: Math.max(1, qty - 1) })}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </IconButton>
+                          <span className="min-w-10 text-center text-sm font-medium">{faNumber(qty)}</span>
+                          <IconButton
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label="زیاد کردن تعداد"
+                            disabled={qty >= row.remainingCount}
+                            onClick={() => setPick(row.key, { count: Math.min(row.remainingCount, qty + 1) })}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </IconButton>
+                          <span className="text-xs text-gray-500">از {faNumber(row.remainingCount)}</span>
+                        </div>
+                      </div>
+                      <PriceField
+                        label="قیمت برگشت"
+                        value={pick.price}
+                        onChange={(price) => setPick(row.key, { price })}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {writable && invoiceId ? (
           <div className="mt-5 grid gap-3 border-t border-gray-100 pt-4">
-            <p className="text-sm text-gray-600">
-              دریافت {selected.label} از فاکتور {selected.invoiceNumber || '—'}
-            </p>
-            <div>
-              <p className="mb-1 text-sm text-gray-700">تعداد</p>
-              <div className="flex items-center gap-2">
-                <IconButton
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label="کم کردن تعداد"
-                  disabled={count <= 1}
-                  onClick={() => setCount((value) => Math.max(1, value - 1))}
-                >
-                  <Minus className="h-4 w-4" />
-                </IconButton>
-                <span className="min-w-10 text-center text-sm font-medium">{faNumber(count)}</span>
-                <IconButton
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label="زیاد کردن تعداد"
-                  disabled={count >= selected.remainingCount}
-                  onClick={() => setCount((value) => Math.min(selected.remainingCount, value + 1))}
-                >
-                  <Plus className="h-4 w-4" />
-                </IconButton>
-                <span className="text-xs text-gray-500">از {faNumber(selected.remainingCount)}</span>
-              </div>
-            </div>
-            <Input
-              label="قیمت واحد برای دریافت"
-              type="number"
-              min={0}
-              value={price}
-              onChange={(event) => setPrice(Number(event.target.value))}
-            />
-            <p className="text-xs text-gray-500">
-              قیمت خرید این لباس <Price value={selected.boughtPrice} /> است. می‌توانید همان را بزنید یا قیمت دیگری بدهید.
-            </p>
             <Input
               label="توضیحات"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button type="button" loading={pending} onClick={() => receive(true)}>
-                دریافت با قیمت خرید
-              </Button>
-              <Button type="button" variant="outline" loading={pending} onClick={() => receive(false)}>
-                دریافت با قیمت دیگر
-              </Button>
-            </div>
-            <p className="text-sm font-medium text-gray-800">
-              مبلغ بستانکار این دریافت: {toman(count * Number(price))}
-            </p>
+            <p className="text-sm font-medium text-gray-800">مبلغ بستانکار این برگشت: {toman(credit)}</p>
+            <Button type="button" loading={pending} disabled={!chosen.length} onClick={save}>
+              ثبت برگشتی
+            </Button>
           </div>
         ) : null}
       </FormCard>
+
       <FormCard>
         <h3 className="mb-1 font-medium">برگشتی‌های ثبت‌شده</h3>
-        <p className="mb-4 text-xs text-gray-500">هر دریافت به حساب مشتری اضافه می‌شود؛ این مبلغ را شما به مشتری بدهکارید مگر از بدهی فاکتورها کم شود.</p>
+        <p className="mb-4 text-xs text-gray-500">
+          هر دریافت به حساب مشتری اضافه می‌شود؛ این مبلغ را شما به مشتری بدهکارید مگر از بدهی فاکتورها کم شود.
+        </p>
         {person && receipts.length ? (
           <ul className="space-y-3">
             {receipts.map((row) => (
@@ -300,4 +346,8 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
       </FormCard>
     </div>
   );
+}
+
+function rowCount(pick?: PickState) {
+  return Math.trunc(Number(pick?.count || 0));
 }
