@@ -76,6 +76,7 @@ export default function RubberSegment({
   const reduce = useReducedMotion();
 
   const trackRef = useRef(null);
+  const thumbRef = useRef(null);
   const itemRefs = useRef([]);
   const slots = useRef([]);
   const box = useRef(null);
@@ -95,6 +96,21 @@ export default function RubberSegment({
 
   const t = seconds => seconds / speed;
 
+  const paintThumb = slot => {
+    const thumb = thumbRef.current;
+    const track = trackRef.current;
+    if (!thumb || !track || !slot) return;
+    const width = innerW.get();
+    const span = slot.r - slot.l;
+    thumb.style.clipPath = `inset(0 ${Math.max(0, width - slot.r)}px 0 ${Math.max(0, slot.l)}px round ${thumbRadius}px)`;
+    const coversEveryTab = list.length > 1 && span > width * 0.8;
+    if (coversEveryTab || span <= 8) {
+      delete track.dataset.ready;
+      return;
+    }
+    track.dataset.ready = '';
+  };
+
   const jumpTo = i => {
     const s = slots.current[i];
     if (!s || s.r <= s.l) return;
@@ -103,6 +119,7 @@ export default function RubberSegment({
     animating.current = false;
     edgeL.jump(s.l);
     edgeR.jump(s.r);
+    paintThumb(s);
   };
 
   const slotsReady = placed =>
@@ -124,8 +141,10 @@ export default function RubberSegment({
     });
     slots.current = placed;
     innerW.set(rect.width - inset * 2);
-    if (!slotsReady(placed)) return;
-    track.dataset.ready = '';
+    if (!slotsReady(placed)) {
+      delete track.dataset.ready;
+      return;
+    }
     if (!drag.current && !animating.current) jumpTo(committed.current);
   };
 
@@ -390,7 +409,7 @@ export default function RubberSegment({
           {item.label}
         </button>
       ))}
-      <motion.div className="rubber-segment__thumb" aria-hidden="true" style={{ clipPath }}>
+      <motion.div ref={thumbRef} className="rubber-segment__thumb" aria-hidden="true" style={{ clipPath }}>
         {list.map(item => (
           <span key={item.value} className="rubber-segment__item rubber-segment__copy">
             {item.icon}

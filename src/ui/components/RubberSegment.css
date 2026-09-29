@@ -102,6 +102,11 @@
   background: var(--rs-thumb);
   color: var(--rs-ink-active);
   pointer-events: none;
+  opacity: 0;
+}
+
+.rubber-segment[data-ready] .rubber-segment__thumb {
+  opacity: 1;
 }
 
 .rubber-segment[data-equal] .rubber-segment__thumb {
@@ -112,10 +117,6 @@
   color: inherit;
   opacity: 1;
   cursor: default;
-}
-
-.rubber-segment:not([data-ready]) .rubber-segment__thumb {
-  opacity: 0;
 }
 
 .rubber-segment:not([data-ready]) .rubber-segment__item[aria-checked='true'] {
