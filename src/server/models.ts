@@ -387,6 +387,8 @@ const InvoiceSchema = defineSchema(
     /** Website order progress. Empty on accounting invoices. */
     orderStatus: { type: String, default: '' },
     timeStamp: { type: Date, default: Date.now },
+    /** When true, timeStamp is the date the user chose. Otherwise it is the day the invoice was saved. */
+    customDate: { type: Boolean, default: false },
     isDeleted: { type: Boolean, default: false },
   },
   { collection: 'invoices' },

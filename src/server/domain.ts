@@ -117,7 +117,7 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     'newCollection',
     'modelGroup',
   ],
-  invoice: ['_client', 'receiverAddress', 'isSent'],
+  invoice: ['_client', 'receiverAddress', 'isSent', 'timeStamp', 'customDate'],
   'customer-cart': ['_invoice', '_cloth', 'count', 'packs', 'price'],
   check: [
     '_owner',
@@ -918,6 +918,23 @@ async function applyClothModelGroup(
   return ok(next);
 }
 
+function applyInvoiceDate(body: Record<string, unknown>, previous?: { timeStamp?: Date; customDate?: boolean } | null) {
+  const custom = body.customDate === true || body.customDate === 'true';
+  body.customDate = custom;
+  if (custom) {
+    const date = new Date(String(body.timeStamp || ''));
+    if (Number.isNaN(date.getTime())) return 'تاریخ فاکتور را انتخاب کنید';
+    body.timeStamp = date;
+    return '';
+  }
+  if (!previous || previous.customDate) {
+    body.timeStamp = new Date();
+    return '';
+  }
+  body.timeStamp = previous.timeStamp ? new Date(previous.timeStamp) : new Date();
+  return '';
+}
+
 function applyColorHex(body: Record<string, unknown>) {
   const hex = normalizeHex(body.hex);
   if (!hex) return 'رنگ را از تخته رنگ انتخاب کنید';
@@ -937,6 +954,8 @@ export async function createResource(resource: string, payload: unknown): Promis
     const sold = await sellItems(auth.session, items);
     if (!sold.ok) return sold;
     const soldItems = sold.data || [];
+    const dateError = applyInvoiceDate(body);
+    if (dateError) return fail(dateError);
     let invoiceNumber = randomInt(10000, 100000);
     while (await M().Invoice.exists({ invoiceNumber })) {
       invoiceNumber = randomInt(10000, 100000);
@@ -1023,6 +1042,11 @@ export async function updateResource(resource: string, id: string, payload: unkn
 
   if (resource === 'invoice') {
     const items = Array.isArray(raw.items) ? raw.items : null;
+    const previousInvoice = await M().Invoice.findOne({ _id: id, _storeId: oid(auth.session._storeId) })
+      .select('timeStamp customDate')
+      .lean();
+    const dateError = applyInvoiceDate(raw, previousInvoice as { timeStamp?: Date; customDate?: boolean } | null);
+    if (dateError) return fail(dateError);
     const body = preparePayload(auth.session, resource, { ...raw, items: undefined });
     delete body._storeId;
     delete body.items;

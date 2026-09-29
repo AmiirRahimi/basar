@@ -292,6 +292,7 @@ export type Invoice = {
   platformFee?: number;
   sellerPayout?: number;
   timeStamp?: string;
+  customDate?: boolean;
   _client?: Person | string;
   _storeId?: string | StoreRecord;
   _brandId?: string | Brand;

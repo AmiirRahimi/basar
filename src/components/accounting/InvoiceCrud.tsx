@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Banknote, Minus, Plus, Printer, ScrollText } from 'lucide-react';
 import {
   Button,
+  Checkbox,
+  DatePicker,
   FormCard,
   IconButton,
   Input,
@@ -168,6 +170,8 @@ export function InvoiceCrud({
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [client, setClient] = useState('');
   const [address, setAddress] = useState('');
+  const [customDate, setCustomDate] = useState(false);
+  const [invoiceDate, setInvoiceDate] = useState('');
   const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
   const [originalLines, setOriginalLines] = useState<DraftItem[]>([]);
   const [showErrors, setShowErrors] = useState(false);
@@ -299,6 +303,8 @@ export function InvoiceCrud({
     setEditing(null);
     setClient('');
     setAddress('');
+    setCustomDate(false);
+    setInvoiceDate('');
     setItems([emptyItem()]);
     setOriginalLines([]);
     setShowErrors(false);
@@ -342,6 +348,8 @@ export function InvoiceCrud({
     setEditing(invoice);
     setClient(relationId(invoice._client));
     setAddress(invoice.receiverAddress || '');
+    setCustomDate(Boolean(invoice.customDate));
+    setInvoiceDate(invoice.customDate && invoice.timeStamp ? String(invoice.timeStamp) : '');
     setItems([emptyItem()]);
     setOriginalLines([]);
     setShowErrors(false);
@@ -435,11 +443,12 @@ export function InvoiceCrud({
 
   function submit() {
     const badItems = invalidItems();
-    if (missingOwner() || badItems.length) {
+    if (missingOwner() || badItems.length || (customDate && !invoiceDate)) {
       setShowErrors(true);
       const parts = [
         missingOwner() ? 'صاحب فاکتور' : '',
         badItems.length ? 'اقلام (محصول و تعداد)' : '',
+        customDate && !invoiceDate ? 'تاریخ فاکتور' : '',
       ].filter(Boolean);
       toast.error(`تکمیل این موارد الزامی است: ${parts.join('، ')}`);
       return;
@@ -449,6 +458,8 @@ export function InvoiceCrud({
       const payload = {
         _client: client,
         receiverAddress: address,
+        customDate,
+        timeStamp: customDate ? invoiceDate : new Date().toISOString(),
         items: items.map(({ _cloth, count, price, packs }) => ({
           _cloth,
           count: Number(count),
@@ -544,6 +555,27 @@ export function InvoiceCrud({
               value={address}
               onChange={(e) => setAddress(e.target.value)}
             />
+            <Checkbox
+              checked={customDate}
+              onChange={(event) => {
+                const next = event.target.checked;
+                setCustomDate(next);
+                if (!next) setInvoiceDate('');
+              }}
+              label="تاریخ فاکتور را خودم انتخاب می‌کنم"
+            />
+            {customDate ? (
+              <DatePicker
+                label="تاریخ فاکتور"
+                value={invoiceDate || null}
+                valueCalendar="persian"
+                placeholderText="انتخاب تاریخ"
+                error={showErrors && !invoiceDate ? 'تاریخ را انتخاب کنید' : undefined}
+                onChange={(value) => setInvoiceDate(value || '')}
+              />
+            ) : (
+              <p className="text-xs text-gray-500">اگر این گزینه خاموش باشد، تاریخ فاکتور امروز ثبت می‌شود.</p>
+            )}
 
             <div className="mt-2 space-y-3 rounded-xl border border-gray-200 p-3">
               <div className="flex items-center justify-between gap-3">
