@@ -4,11 +4,13 @@ import Link from 'next/link';
 import type { ComponentType, ReactNode } from 'react';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { AdminChatUnreadBadge } from '@/components/chat/AdminChatUnreadBadge';
-import { Pin, PinOff } from 'lucide-react';
+import { Calculator, Pin, PinOff, Shield } from 'lucide-react';
 import { cn } from '@/ui';
+import { firstAdminHref } from '@/lib/admin-permissions';
 import { SidebarReveal } from './SidebarCollapsible';
 import { SidebarMenuSearch } from './SidebarMenuSearch';
 import { SidebarUser, SidebarWorkspace } from './SidebarWorkspace';
+import { useWorkspace } from './WorkspaceProvider';
 
 export type AccountingMenuItem = {
   name: string;
@@ -197,6 +199,7 @@ export function AccountingSidebar({
               </>
             ) : null}
           </div>
+          <PanelSwitch expanded={expanded} pathname={pathname} />
           {hideWorkspace ? null : <SidebarWorkspace expanded={expanded} />}
           <SidebarMenuSearch sections={menuSections} expanded={expanded} onNavigate={onClose} />
         </div>
@@ -305,5 +308,60 @@ export function AccountingSidebar({
         </div>
       </aside>
     </>
+  );
+}
+
+function PanelSwitch({ expanded, pathname }: { expanded: boolean; pathname: string }) {
+  const workspace = useWorkspace();
+  const canAdmin = Boolean(
+    workspace?.isPlatformAdmin || workspace?.isSuperuser || (workspace?.adminPermissions?.length || 0) > 0,
+  );
+  if (!canAdmin) return null;
+  const admin = pathname === '/admin' || pathname.startsWith('/admin/');
+  const adminHref = firstAdminHref(workspace?.adminPermissions) || '/admin';
+
+  return (
+    <div
+      className={cn(
+        'mb-2 grid rounded-2xl bg-black/25 p-1 ring-1 ring-white/10',
+        expanded ? 'grid-cols-2 gap-1' : 'mx-auto w-fit grid-cols-1 gap-1',
+      )}
+      role="tablist"
+      aria-label="انتخاب پنل"
+    >
+      <PanelLink href="/accounting/dashboard" active={!admin} expanded={expanded} label="حسابداری" icon={Calculator} />
+      <PanelLink href={adminHref} active={admin} expanded={expanded} label="ادمین" icon={Shield} />
+    </div>
+  );
+}
+
+function PanelLink({
+  href,
+  active,
+  expanded,
+  label,
+  icon: Icon,
+}: {
+  href: string;
+  active: boolean;
+  expanded: boolean;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}) {
+  return (
+    <Link
+      href={href}
+      role="tab"
+      aria-selected={active}
+      title={label}
+      className={cn(
+        'flex items-center justify-center rounded-xl text-[13px] font-medium transition',
+        expanded ? 'gap-1.5 px-2 py-2' : 'h-10 w-10',
+        active ? 'bg-white text-zinc-900 shadow-sm' : 'text-white/65 hover:bg-white/10 hover:text-white',
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      {expanded ? <span className="truncate">{label}</span> : null}
+    </Link>
   );
 }
