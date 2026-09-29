@@ -425,7 +425,7 @@ export function RecordDetail({
               label="فروش خالص"
               value={`${faNumber(extras.profit.netQty || 0)} عدد${
                 Number(extras.profit.returnedQty || 0) > 0
-                  ? ` (برگشتی ${faNumber(extras.profit.returnedQty)})`
+                  ? ` (مرجوعی ${faNumber(extras.profit.returnedQty)})`
                   : ''
               }`}
             />
@@ -550,7 +550,7 @@ export function RecordDetail({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard icon={<Shirt className="size-4" />} label="جمع فاکتور" value={<Price value={extras.balance.total} />} />
           <StatCard icon={<Banknote className="size-4" />} label="پرداخت‌شده" value={<Price value={extras.balance.paid} />} />
-          <StatCard icon={<Landmark className="size-4" />} label="برگشتی" value={<Price value={extras.balance.returnTotal} />} />
+          <StatCard icon={<Landmark className="size-4" />} label="مرجوعی" value={<Price value={extras.balance.returnTotal} />} />
           <StatCard
             icon={<Wallet className="size-4" />}
             label="مانده"
@@ -565,7 +565,7 @@ export function RecordDetail({
           <StatCard label="خرید / بدهی" value={<Price value={extras.account.purchaseTotal} />} />
           <StatCard label="پرداخت‌شده" value={<Price value={extras.account.paidTotal} />} />
           {extras.account.kind === 'receivable' ? (
-            <StatCard label="برگشتی" value={<Price value={extras.account.returnTotal} />} />
+            <StatCard label="مرجوعی" value={<Price value={extras.account.returnTotal} />} />
           ) : null}
           <StatCard
             label={Number(extras.account.creditToCustomer || 0) > 0 ? 'بستانکار مشتری' : 'مانده'}

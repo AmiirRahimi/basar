@@ -9,8 +9,8 @@ export default async function ReturnedPage() {
   guardSession(peopleRes);
   return (
     <AccountingShell
-      title="برگشتی"
-      description="مشتری و فاکتور را انتخاب کنید، لباس‌های برگشتی را علامت بزنید و یک‌بار ذخیره کنید"
+      title="مرجوعی"
+      description="مشتری و فاکتور را انتخاب کنید، لباس‌های مرجوعی را علامت بزنید و یک‌بار ذخیره کنید"
       error={errorMessage(peopleRes)}
     >
       <ReturnedClient people={people} />

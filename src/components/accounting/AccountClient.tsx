@@ -142,12 +142,12 @@ export function AccountClient({
                 <p>جمع فاکتورها: {toman(account.purchaseTotal)}</p>
                 <p>جمع پرداخت‌ها (نقد، چک، تخفیف): {toman(account.paidTotal)}</p>
                 {Number(account.returnTotal || 0) > 0 ? (
-                  <p>برگشتی (بستانکار مشتری): {toman(account.returnTotal)}</p>
+                  <p>مرجوعی (بستانکار مشتری): {toman(account.returnTotal)}</p>
                 ) : null}
                 {Number(account.creditToCustomer || 0) > 0 ? (
                   <>
                     <p className="text-base font-semibold">شما به این مشتری بدهکارید: {toman(account.creditToCustomer)}</p>
-                    <p className="text-xs text-gray-500">مبلغ برگشتی از بدهی فاکتورها بیشتر است.</p>
+                    <p className="text-xs text-gray-500">مبلغ مرجوعی از بدهی فاکتورها بیشتر است.</p>
                   </>
                 ) : (
                   <>
@@ -157,7 +157,7 @@ export function AccountClient({
                         مانده فاکتور {selectedInvoice.invoiceNumber || '—'}: {toman(selectedInvoice.remaining)}
                       </p>
                     ) : (
-                      <p className="text-xs text-gray-500">این مبلغ برابر جمع فاکتورها منهای پرداخت‌ها و برگشتی‌هاست.</p>
+                      <p className="text-xs text-gray-500">این مبلغ برابر جمع فاکتورها منهای پرداخت‌ها و مرجوعی‌هاست.</p>
                     )}
                   </>
                 )}

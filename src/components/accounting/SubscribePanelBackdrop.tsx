@@ -22,7 +22,7 @@ const MENU = [
   { name: 'چک', icon: Landmark },
   { name: 'خرید پارچه', icon: Scissors },
   { name: 'حساب', icon: Wallet },
-  { name: 'برگشتی', icon: Undo2 },
+  { name: 'مرجوعی', icon: Undo2 },
 ];
 
 const ROWS = [

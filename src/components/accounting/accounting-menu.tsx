@@ -24,5 +24,5 @@ export const accountingMenuSections: AccountingMenuSection[] = [
   { id: 'check', name: 'چک', icon: Landmark, href: '/accounting/checks', menuItems: [] },
   { id: 'fabric', name: 'خرید پارچه', icon: Scissors, href: '/accounting/fabric', menuItems: [] },
   { id: 'account', name: 'حساب', icon: Wallet, href: '/accounting/account', menuItems: [] },
-  { id: 'returned', name: 'برگشتی', icon: Undo2, href: '/accounting/returned', menuItems: [] },
+  { id: 'returned', name: 'مرجوعی', icon: Undo2, href: '/accounting/returned', menuItems: [] },
 ];

@@ -87,7 +87,7 @@ export function InvoiceSettleCard({
         </div>
         {Number(row.returnTotal || 0) > 0 ? (
           <div className="col-span-2 rounded-xl bg-white/80 px-3 py-2">
-            <dt className="text-[11px] text-gray-500">برگشتی</dt>
+            <dt className="text-[11px] text-gray-500">مرجوعی</dt>
             <dd className="font-medium">
               <Price value={row.returnTotal} />
             </dd>

@@ -70,10 +70,10 @@ export const PERMISSION_GROUPS = [
   },
   {
     id: 'returned',
-    label: 'برگشتی',
+    label: 'مرجوعی',
     items: [
-      { id: 'returned.view', label: 'مشاهده برگشتی' },
-      { id: 'returned.write', label: 'ثبت و ویرایش برگشتی' },
+      { id: 'returned.view', label: 'مشاهده مرجوعی' },
+      { id: 'returned.write', label: 'ثبت و ویرایش مرجوعی' },
     ],
   },
   {

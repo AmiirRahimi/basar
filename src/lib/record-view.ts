@@ -29,7 +29,7 @@ export const RECORD_TYPE_LABEL: Record<string, string> = {
   invoice: 'فاکتور',
   check: 'چک',
   fabric: 'خرید پارچه',
-  returned: 'برگشتی',
+  returned: 'مرجوعی',
   color: 'رنگ',
   size: 'سایز',
   'cloth-kind': 'نوع لباس',
@@ -45,7 +45,7 @@ export const RECORD_LIST_TITLE: Record<string, string> = {
   invoice: 'فاکتورها',
   check: 'چک‌ها',
   fabric: 'خرید پارچه',
-  returned: 'برگشتی',
+  returned: 'مرجوعی',
   color: 'لیست‌های کمکی',
   size: 'لیست‌های کمکی',
   'cloth-kind': 'لیست‌های کمکی',
@@ -204,7 +204,7 @@ export const RECORD_SECTIONS: Record<string, DetailSection[]> = {
   ],
   returned: [
     {
-      title: 'برگشتی',
+      title: 'مرجوعی',
       fields: [
         { key: '_returnedPerson', label: 'مشتری', kind: 'name', linkResource: 'person' },
         { key: 'description', label: 'توضیح' },

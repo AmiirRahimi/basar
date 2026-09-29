@@ -20,6 +20,7 @@ type ReturnableLine = {
   key: string;
   invoiceId: string;
   invoiceNumber?: string | number;
+  invoiceDate?: string;
   clothId: string;
   label: string;
   boughtCount: number;
@@ -56,13 +57,17 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
   const [description, setDescription] = useState('');
   const [returnable, setReturnable] = useState<ReturnableLine[]>([]);
   const [receipts, setReceipts] = useState<ReturnReceipt[]>([]);
-  const [returnTotal, setReturnTotal] = useState(0);
   const [pending, start] = useTransition();
 
   const invoices = useMemo(() => {
-    const map = new Map<string, { id: string; number?: string | number; count: number }>();
+    const map = new Map<string, { id: string; number?: string | number; date?: string; count: number }>();
     for (const row of returnable) {
-      const current = map.get(row.invoiceId) || { id: row.invoiceId, number: row.invoiceNumber, count: 0 };
+      const current = map.get(row.invoiceId) || {
+        id: row.invoiceId,
+        number: row.invoiceNumber,
+        date: row.invoiceDate,
+        count: 0,
+      };
       current.count += 1;
       map.set(row.invoiceId, current);
     }
@@ -80,18 +85,15 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
       if (!res.ok || !res.data) {
         setReturnable([]);
         setReceipts([]);
-        setReturnTotal(0);
-        toast.error(res.message || 'برگشتی بارگذاری نشد');
+        toast.error(res.message || 'مرجوعی بارگذاری نشد');
         return;
       }
       const data = res.data as {
         returnable?: ReturnableLine[];
         receipts?: ReturnReceipt[];
-        returnTotal?: number;
       };
       setReturnable(Array.isArray(data.returnable) ? data.returnable : []);
       setReceipts(Array.isArray(data.receipts) ? data.receipts : []);
-      setReturnTotal(Number(data.returnTotal || 0));
       setInvoiceId('');
       setPicks({});
       setDescription('');
@@ -126,13 +128,13 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
       return;
     }
     if (!chosen.length) {
-      toast.error('حداقل یک لباس را برای برگشت انتخاب کنید');
+      toast.error('حداقل یک لباس را برای مرجوعی انتخاب کنید');
       return;
     }
     for (const row of chosen) {
       const qty = rowCount(picks[row.key]);
       if (qty < 1 || qty > row.remainingCount) {
-        toast.error(`تعداد برگشتی «${row.label}» بیشتر از مانده خرید است`);
+        toast.error(`تعداد مرجوعی «${row.label}» بیشتر از مانده خرید است`);
         return;
       }
       const unit = Number(picks[row.key]?.price);
@@ -154,7 +156,7 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
       });
       if (redirectIfUnauthorized(res)) return;
       if (!res.ok) {
-        toast.error(res.message || 'برگشتی ثبت نشد');
+        toast.error(res.message || 'مرجوعی ثبت نشد');
         return;
       }
       toast.success(res.message || 'لباس دریافت شد و به حساب مشتری بستانکار شد');
@@ -188,11 +190,11 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
               label="فاکتور"
               options={invoices.map((row) => ({
                 value: row.id,
-                label: `فاکتور ${row.number || '—'} · ${faNumber(row.count)} لباس`,
+                label: [`فاکتور ${row.number || '—'}`, faDate(row.date), `${faNumber(row.count)} لباس`].join(' - '),
               }))}
               value={invoiceId}
               searchable
-              placeholder={invoices.length ? 'فاکتور را انتخاب کنید' : 'فاکتور قابل برگشتی نیست'}
+              placeholder={invoices.length ? 'فاکتور را انتخاب کنید' : 'فاکتور قابل مرجوعی نیست'}
               disabled={!invoices.length}
               labels={selectLabels}
               onChange={(value) => {
@@ -202,21 +204,13 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
             />
           ) : null}
         </div>
-        {person ? (
-          <PriceSection
-            className="mt-4"
-            label="بستانکار از برگشت"
-            value={returnTotal}
-            description="این مبلغ از مانده بدهی مشتری کم می‌شود؛ اگر بیشتر باشد شما به مشتری بدهکارید."
-          />
-        ) : null}
 
         <h3 className="mt-5 mb-2 font-medium">لباس‌های این فاکتور</h3>
         {pending ? <p className="text-sm text-gray-500">در حال بارگذاری...</p> : null}
         {!person ? <p className="text-sm text-gray-500">ابتدا مشتری را انتخاب کنید.</p> : null}
         {person && !pending && !invoices.length ? (
           <p className="rounded-2xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
-            لباس قابل برگشتی برای این مشتری نمانده است.
+            لباس قابل مرجوعی برای این مشتری نمانده است.
           </p>
         ) : null}
         {person && invoices.length && !invoiceId ? (
@@ -241,13 +235,13 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
                   </div>
                   {row.returnedCount ? (
                     <p className="text-xs text-gray-500">
-                      قبلاً {faNumber(row.returnedCount)} عدد برگشته · مانده {faNumber(row.remainingCount)} عدد
+                      قبلاً {faNumber(row.returnedCount)} عدد مرجوع شده · مانده {faNumber(row.remainingCount)} عدد
                     </p>
                   ) : null}
                   {pick ? (
                     <div className="grid gap-3 border-t border-gray-200/80 pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,11rem)]">
                       <div>
-                        <p className={fieldLabelClassName()}>تعداد برگشت</p>
+                        <p className={fieldLabelClassName()}>تعداد مرجوعی</p>
                         <div className="mt-1.5 flex items-center gap-2">
                           <IconButton
                             type="button"
@@ -274,7 +268,7 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
                         </div>
                       </div>
                       <PriceField
-                        label="قیمت برگشت"
+                        label="قیمت مرجوعی"
                         value={pick.price}
                         onChange={(price) => setPick(row.key, { price })}
                       />
@@ -293,16 +287,20 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
-            <p className="text-sm font-medium text-gray-800">مبلغ بستانکار این برگشت: {toman(credit)}</p>
+            <PriceSection
+              label="بستانکار این مرجوعی"
+              value={credit}
+              description="جمع قیمت لباس‌های انتخاب‌شده. این مبلغ از مانده بدهی مشتری کم می‌شود."
+            />
             <Button type="button" loading={pending} disabled={!chosen.length} onClick={save}>
-              ثبت برگشتی
+              ثبت مرجوعی
             </Button>
           </div>
         ) : null}
       </FormCard>
 
       <FormCard>
-        <h3 className="mb-1 font-medium">برگشتی‌های ثبت‌شده</h3>
+        <h3 className="mb-1 font-medium">مرجوعی‌های ثبت‌شده</h3>
         <p className="mb-4 text-xs text-gray-500">
           هر دریافت به حساب مشتری اضافه می‌شود؛ این مبلغ را شما به مشتری بدهکارید مگر از بدهی فاکتورها کم شود.
         </p>
@@ -340,7 +338,7 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
           </ul>
         ) : (
           <p className="rounded-2xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
-            {person ? 'هنوز برگشتی برای این مشتری ثبت نشده است.' : 'ابتدا یک مشتری را انتخاب کنید.'}
+            {person ? 'هنوز مرجوعی برای این مشتری ثبت نشده است.' : 'ابتدا یک مشتری را انتخاب کنید.'}
           </p>
         )}
       </FormCard>

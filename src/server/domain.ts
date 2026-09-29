@@ -2400,11 +2400,11 @@ export async function addReturnedItem(payload: unknown): Promise<ActionResult> {
   const denied = denyWrite(auth.session, 'returned');
   if (denied) return denied;
   const returned = await M().Returned.findOne(storeFilter(auth.session, { _id: body._returned })).lean();
-  if (!returned) return fail('برگشتی پیدا نشد', 404);
+  if (!returned) return fail('مرجوعی پیدا نشد', 404);
   const cloth = await M().Cloth.findOne({ _id: oid(body._cloth), ...clothVisibleFilter(auth.session) }).lean();
   if (!cloth) return fail('لباس پیدا نشد', 404);
   const count = Math.trunc(Number(body.count || 1));
-  if (count < 1) return fail('تعداد برگشتی را وارد کنید');
+  if (count < 1) return fail('تعداد مرجوعی را وارد کنید');
   const created = await M().ReturnedItems.create({
     _storeId: oid(auth.session._storeId),
     _returned: oid(body._returned),
@@ -2446,7 +2446,7 @@ export async function personReturns(personId: string): Promise<ActionResult> {
   }
   const grouped = new Map<
     string,
-    { invoiceId: string; invoiceNumber?: string | number; clothId: string; label: string; boughtCount: number; boughtAmount: number }
+    { invoiceId: string; invoiceNumber?: string | number; invoiceDate?: string; clothId: string; label: string; boughtCount: number; boughtAmount: number }
   >();
   for (const line of lines as any[]) {
     const invoiceId = relationKey(line._invoice);
@@ -2457,6 +2457,7 @@ export async function personReturns(personId: string): Promise<ActionResult> {
     const current = grouped.get(key) || {
       invoiceId,
       invoiceNumber: invoice?.invoiceNumber,
+      invoiceDate: invoice?.timeStamp,
       clothId,
       label: clothDisplayName(line._cloth),
       boughtCount: 0,
@@ -2476,6 +2477,7 @@ export async function personReturns(personId: string): Promise<ActionResult> {
         key,
         invoiceId: row.invoiceId,
         invoiceNumber: row.invoiceNumber,
+        invoiceDate: row.invoiceDate,
         clothId: row.clothId,
         label: row.label,
         boughtCount: row.boughtCount,
@@ -2534,7 +2536,7 @@ export async function receiveReturnedCloth(payload: unknown): Promise<ActionResu
   const personId = String(body.personId || body._person || '');
   const invoiceId = String(body.invoiceId || body._invoice || '');
   if (!personId) return fail('شخص را انتخاب کنید');
-  if (!invoiceId) return fail('فاکتور لباس برگشتی را انتخاب کنید');
+  if (!invoiceId) return fail('فاکتور لباس مرجوعی را انتخاب کنید');
   const rawItems = Array.isArray(body.items) && body.items.length
     ? body.items
     : [{ clothId: body.clothId || body._cloth, count: body.count, price: body.price, useBoughtPrice: body.useBoughtPrice }];
@@ -2547,8 +2549,8 @@ export async function receiveReturnedCloth(payload: unknown): Promise<ActionResu
   for (const raw of rawItems as Record<string, unknown>[]) {
     const clothId = String(raw.clothId || raw._cloth || '');
     const count = Math.trunc(Number(raw.count || 0));
-    if (!clothId) return fail('لباس برگشتی را انتخاب کنید');
-    if (count < 1) return fail('تعداد برگشتی را وارد کنید');
+    if (!clothId) return fail('لباس مرجوعی را انتخاب کنید');
+    if (count < 1) return fail('تعداد مرجوعی را وارد کنید');
     const cloth = await M().Cloth.findOne({ _id: oid(clothId), isDeleted: false }).lean();
     if (!cloth) return fail('لباس پیدا نشد', 404);
     const lines = await M()
@@ -2570,12 +2572,12 @@ export async function receiveReturnedCloth(payload: unknown): Promise<ActionResu
     }).lean();
     const already = (previous as any[]).reduce((sum, row) => sum + Number(row.count || 0), 0);
     const pendingSame = prepared.filter((row) => row.clothId === clothId).reduce((sum, row) => sum + row.count, 0);
-    if (count + pendingSame > Math.max(0, boughtCount - already)) return fail('تعداد برگشتی بیشتر از خرید این فاکتور است');
+    if (count + pendingSame > Math.max(0, boughtCount - already)) return fail('تعداد مرجوعی بیشتر از خرید این فاکتور است');
     const price = raw.useBoughtPrice ? boughtPrice : Number(raw.price);
     if (!Number.isFinite(price) || price < 0) return fail('قیمت دریافت را وارد کنید');
     prepared.push({ clothId, count, price, boughtPrice });
   }
-  if (!prepared.length) return fail('لباس برگشتی را انتخاب کنید');
+  if (!prepared.length) return fail('لباس مرجوعی را انتخاب کنید');
 
   const stocked: { clothId: string; count: number }[] = [];
   for (const item of prepared) {
@@ -2592,7 +2594,7 @@ export async function receiveReturnedCloth(payload: unknown): Promise<ActionResu
     _returnedPerson: oid(personId),
     description:
       String(body.description || '').trim() ||
-      `برگشت ${prepared.reduce((sum, row) => sum + row.count, 0)} عدد از فاکتور ${invoice.invoiceNumber || ''}`,
+      `مرجوعی ${prepared.reduce((sum, row) => sum + row.count, 0)} عدد از فاکتور ${invoice.invoiceNumber || ''}`,
     isDeleted: false,
   });
   await M().ReturnedItems.insertMany(

@@ -102,7 +102,7 @@ function InvoiceBlock({
           </dd>
         </div>
         <div className="rounded-lg bg-gray-50 px-3 py-2">
-          <dt className="text-[11px] text-gray-500">برگشتی</dt>
+          <dt className="text-[11px] text-gray-500">مرجوعی</dt>
           <dd className="font-medium">
             <Price value={invoice.returnTotal || 0} />
           </dd>
@@ -204,7 +204,7 @@ export function PersonPaymentsPrintView({
           </div>
           {Number(account.returnTotal || 0) > 0 ? (
             <div className="rounded-lg bg-gray-50 px-3 py-2">
-              <dt className="text-[11px] text-gray-500">برگشتی</dt>
+              <dt className="text-[11px] text-gray-500">مرجوعی</dt>
               <dd className="font-semibold">{toman(account.returnTotal)}</dd>
             </div>
           ) : null}
