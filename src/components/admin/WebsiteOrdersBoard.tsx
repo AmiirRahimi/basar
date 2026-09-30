@@ -4,9 +4,11 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { setWebsiteOrderStatus } from '@/actions/admin';
 import { faDate, faNumber, toman } from '@/lib/format';
+import { wholesaleInvoiceStatus, type WholesaleInvoiceStatus } from '@/lib/invoice-status';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { WEBSITE_ORDER_STATUSES, type WebsiteOrderBoard } from '@/lib/website-orders';
-import { Select, toast } from '@/ui';
+import type { WebsiteOrderBoard } from '@/lib/website-orders';
+import { toast } from '@/ui';
+import { InvoiceStatusButton } from '@/components/accounting/InvoiceStatusButton';
 import { InfoStat, InfoStatGrid } from '@/components/stats/InfoStat';
 
 export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
@@ -14,7 +16,7 @@ export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
   const [pendingId, setPendingId] = useState('');
   const [pending, start] = useTransition();
 
-  function changeStatus(id: string, status: string) {
+  function changeStatus(id: string, status: WholesaleInvoiceStatus) {
     setPendingId(id);
     start(async () => {
       const res = await setWebsiteOrderStatus(id, status);
@@ -101,7 +103,7 @@ export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-gray-900">آخرین سفارش‌ها</h2>
-        <p className="mt-1 text-sm text-gray-500">وضعیت را عوض کنید تا خریدار همان را در حساب خودش ببیند.</p>
+        <p className="mt-1 text-sm text-gray-500">وضعیت را مثل فاکتور حسابداری عوض کنید؛ خریدار همان را در حساب خودش می‌بیند.</p>
         {board.orders.length ? (
           <ul className="mt-4 space-y-3">
             {board.orders.map((order) => (
@@ -139,17 +141,18 @@ export function WebsiteOrdersBoard({ board }: { board: WebsiteOrderBoard }) {
                     ))}
                   </ul>
                 ) : null}
-                <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-                  <div className="w-full max-w-xs">
-                    <Select
-                      label="وضعیت سفارش"
-                      value={order.status}
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  {order.status === 'cancelled' ? (
+                    <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
+                      لغو شده
+                    </span>
+                  ) : (
+                    <InvoiceStatusButton
+                      status={wholesaleInvoiceStatus(order.status)}
                       disabled={pending && pendingId === order.id}
-                      options={WEBSITE_ORDER_STATUSES.map((item) => ({ value: item.id, label: item.label }))}
-                      labels={{ search: 'جستجو', remove: 'حذف', noOptionsFound: 'موردی نیست' }}
-                      onChange={(value) => changeStatus(order.id, String(value || ''))}
+                      onChange={(next) => changeStatus(order.id, next)}
                     />
-                  </div>
+                  )}
                   <div className="flex flex-wrap gap-3 text-sm">
                     <a href={`/admin/orders/${order.id}/print`} target="_blank" rel="noreferrer" className="text-teal-700 hover:underline">
                       چاپ فاکتور

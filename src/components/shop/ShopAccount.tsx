@@ -15,8 +15,10 @@ function toEnDigits(value: string) {
 
 function statusTone(status: string) {
   if (status === 'delivered') return 'bg-emerald-100 text-emerald-800';
-  if (status === 'shipped') return 'bg-teal-100 text-teal-800';
-  if (status === 'preparing' || status === 'confirmed') return 'bg-sky-100 text-sky-800';
+  if (status === 'sent' || status === 'shipped') return 'bg-teal-100 text-teal-800';
+  if (status === 'packing' || status === 'ready' || status === 'left' || status === 'preparing' || status === 'confirmed') {
+    return 'bg-sky-100 text-sky-800';
+  }
   if (status === 'cancelled') return 'bg-shop-ink/10 text-shop-ink/50';
   return 'bg-shop-saffron/20 text-shop-ink';
 }

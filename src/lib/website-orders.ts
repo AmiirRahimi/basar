@@ -1,22 +1,22 @@
-export const WEBSITE_ORDER_STATUSES = [
-  { id: 'new', label: 'ثبت شده' },
-  { id: 'confirmed', label: 'تایید شده' },
-  { id: 'preparing', label: 'آماده‌سازی' },
-  { id: 'shipped', label: 'ارسال شده' },
-  { id: 'delivered', label: 'تحویل شده' },
-  { id: 'cancelled', label: 'لغو شده' },
-] as const;
+import {
+  WHOLESALE_INVOICE_STATUSES,
+  wholesaleInvoiceStatus,
+  wholesaleInvoiceStatusLabel,
+  type WholesaleInvoiceStatus,
+} from '@/lib/invoice-status';
 
-export type WebsiteOrderStatus = (typeof WEBSITE_ORDER_STATUSES)[number]['id'];
+export const WEBSITE_ORDER_STATUSES = WHOLESALE_INVOICE_STATUSES;
 
-export function websiteOrderStatusLabel(status: string) {
-  return WEBSITE_ORDER_STATUSES.find((item) => item.id === status)?.label || 'ثبت شده';
+export type WebsiteOrderStatus = WholesaleInvoiceStatus | 'cancelled';
+
+export function websiteOrderStatusLabel(status: string, isSent = false) {
+  if (String(status || '').trim() === 'cancelled') return 'لغو شده';
+  return wholesaleInvoiceStatusLabel(status, isSent);
 }
 
 export function normalizeWebsiteOrderStatus(value: unknown, isSent = false): WebsiteOrderStatus {
-  const text = String(value || '').trim();
-  if (WEBSITE_ORDER_STATUSES.some((item) => item.id === text)) return text as WebsiteOrderStatus;
-  return isSent ? 'shipped' : 'new';
+  if (String(value || '').trim() === 'cancelled') return 'cancelled';
+  return wholesaleInvoiceStatus(value, isSent);
 }
 
 export type WebsiteOrderLine = {

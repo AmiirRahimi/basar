@@ -6,8 +6,8 @@ import {
   websiteOrderStatusLabel,
   WEBSITE_ORDER_STATUSES,
   type WebsiteOrderBoard,
-  type WebsiteOrderStatus,
 } from '@/lib/website-orders';
+import { wholesaleInvoiceStatus } from '@/lib/invoice-status';
 import { STOREFRONT_CHANNEL } from '@/lib/storefront';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
@@ -167,11 +167,18 @@ export async function getWebsiteOrderBoard(): Promise<ActionResult> {
       buyers: buyers.size,
       cancelled: orders.length - active.length,
     },
-    statusCounts: WEBSITE_ORDER_STATUSES.map((item) => ({
-      id: item.id,
-      label: item.label,
-      count: orders.filter((order) => order.status === item.id).length,
-    })),
+    statusCounts: [
+      ...WEBSITE_ORDER_STATUSES.map((item) => ({
+        id: item.id,
+        label: item.label,
+        count: orders.filter((order) => order.status === item.id).length,
+      })),
+      {
+        id: 'cancelled' as const,
+        label: 'لغو شده',
+        count: orders.filter((order) => order.status === 'cancelled').length,
+      },
+    ].filter((item) => item.id !== 'cancelled' || item.count > 0),
     buyers: [...buyers.values()].sort((a, b) => b.total - a.total),
     orders,
     payments: loaded.payments.map((payment) => {
@@ -269,13 +276,12 @@ export async function setWebsiteOrderStatus(id: string, status: string): Promise
   const access = await requirePlatformAdmin('orders');
   if ('error' in access) return access.error;
   await db();
-  const next = WEBSITE_ORDER_STATUSES.find((item) => item.id === status)?.id as WebsiteOrderStatus | undefined;
-  if (!next) return fail('وضعیت سفارش معتبر نیست');
+  const next = wholesaleInvoiceStatus(status);
   const invoice = await M().Invoice.findOne({ _id: oid(id), isDeleted: false }).select('_id publicToken').lean();
   if (!invoice || !text((invoice as { publicToken?: unknown }).publicToken)) return fail('سفارش وب‌سایت پیدا نشد', 404);
   await M().Invoice.findByIdAndUpdate(id, {
     orderStatus: next,
-    isSent: next === 'shipped' || next === 'delivered',
+    isSent: next === 'sent' || next === 'delivered',
   });
   return ok({ id, status: next }, 'وضعیت سفارش عوض شد');
 }

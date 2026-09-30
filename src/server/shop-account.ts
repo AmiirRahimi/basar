@@ -212,7 +212,7 @@ async function ordersForPhone(phone: string): Promise<ShopOrder[]> {
       invoiceNumber: Number(invoice.invoiceNumber || 0),
       date: invoice.timeStamp ? new Date(String(invoice.timeStamp)).toISOString() : '',
       total: mapped.reduce((sum, line) => sum + line.total, 0),
-      sent: status === 'shipped' || status === 'delivered',
+      sent: status === 'sent' || status === 'delivered' || status === 'shipped',
       paid: Boolean(text(invoice.channel)),
       status,
       statusLabel: websiteOrderStatusLabel(status),
