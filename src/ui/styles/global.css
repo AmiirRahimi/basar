@@ -1446,15 +1446,18 @@ div[style='z-index: 1000001;'],
   }
 }
 
-[dir='rtl'] :is(.rizzui-checkbox-icon, .rizzui-switch-on-icon) {
+[dir='rtl'] .rizzui-switch-on-icon {
   @apply -scale-x-100;
 }
 
-[dir='rtl'] :is(.rizzui-checkbox-icon, .rizzui-switch-on-icon) {
-  --tw-scale-x: 0;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate))
-    skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x))
-    scaleY(var(--tw-scale-y));
+.rizzui-checkbox-input {
+  appearance: none;
+}
+
+.rizzui-checkbox-input:checked {
+  background-color: #18181b;
+  border-color: #18181b;
+  background-image: none;
 }
 
 .hide-scrollbar {
