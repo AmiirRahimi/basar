@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createColumnHelper } from '@tanstack/react-table';
-import { BadgePercent, Ban, CircleCheck, LogIn, Receipt, Sparkles, Ticket, UserPlus, UserX, Users } from 'lucide-react';
+import { Ban, CircleCheck, Receipt, Sparkles, Ticket, UserX, Users } from 'lucide-react';
 import { createDiscountCode, deleteDiscountCode, updateDiscountCode } from '@/actions/admin';
 import { cycleLabel } from '@/lib/plans';
 import { faDate, faNumber, toman } from '@/lib/format';
@@ -98,20 +98,19 @@ export type AdminOverview = {
 };
 
 const TABS = [
-  { id: 'all', label: 'همه کاربران', icon: Users },
-  { id: 'new', label: 'ثبت‌نام جدید', icon: UserPlus },
-  { id: 'logged', label: 'واردشده', icon: LogIn },
-  { id: 'active', label: 'اشتراک فعال', icon: BadgePercent },
+  { id: 'users', label: 'کاربران', icon: Users },
   { id: 'purchases', label: 'خریدها', icon: Receipt },
   { id: 'lapsed', label: 'بدون تمدید', icon: UserX },
   { id: 'codes', label: 'کد تخفیف', icon: Ticket },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
+type UserFilterId = 'all' | 'new' | 'logged' | 'active';
 
 export function AdminPanel({ overview }: { overview: AdminOverview }) {
   const router = useRouter();
-  const [tab, setTab] = useState<TabId>('all');
+  const [tab, setTab] = useState<TabId>('users');
+  const [userFilter, setUserFilter] = useState<UserFilterId>('all');
   const [minMonths, setMinMonths] = useState('3');
   const [pending, start] = useTransition();
   const [form, setForm] = useState({ code: '', percent: '10', maxUses: '0', note: '', _userIds: [] as string[] });
@@ -120,12 +119,13 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
   const months = Math.max(0, Number(minMonths || 0));
   const thisMonthKey = persianYearMonth(new Date());
   const users = useMemo(() => {
-    if (tab === 'logged') return overview.users.filter((row) => row.loggedIn);
-    if (tab === 'active') return overview.users.filter((row) => row.active);
-    if (tab === 'new') return overview.users.filter((row) => persianYearMonth(row.registeredAt) === thisMonthKey);
     if (tab === 'lapsed') return overview.users.filter((row) => !row.active && row.totalMonths >= months);
+    if (tab !== 'users') return overview.users;
+    if (userFilter === 'logged') return overview.users.filter((row) => row.loggedIn);
+    if (userFilter === 'active') return overview.users.filter((row) => row.active);
+    if (userFilter === 'new') return overview.users.filter((row) => persianYearMonth(row.registeredAt) === thisMonthKey);
     return overview.users;
-  }, [overview.users, tab, months, thisMonthKey]);
+  }, [overview.users, tab, userFilter, months, thisMonthKey]);
 
   const userOptions = overview.users.map((user) => ({
     value: user._id,
@@ -160,15 +160,47 @@ export function AdminPanel({ overview }: { overview: AdminOverview }) {
   return (
     <div className="space-y-4">
       <InfoStatGrid>
-        <InfoStat tone="mist" label="همه کاربران" value={overview.stats.users} />
+        <InfoStat
+          tone="mist"
+          label="همه کاربران"
+          value={overview.stats.users}
+          selected={tab === 'users' && userFilter === 'all'}
+          onClick={() => {
+            setTab('users');
+            setUserFilter('all');
+          }}
+        />
         <InfoStat
           tone="sage"
           label="ثبت‌نام این ماه"
           value={overview.stats.newUsersThisMonth || 0}
           hint={`ماه قبل ${faNumber(overview.stats.newUsersLastMonth || 0)}`}
+          selected={tab === 'users' && userFilter === 'new'}
+          onClick={() => {
+            setTab('users');
+            setUserFilter('new');
+          }}
         />
-        <InfoStat tone="sand" label="اشتراک فعال" value={overview.stats.active} />
-        <InfoStat tone="lilac" label="الان وارد شده‌اند" value={overview.stats.loggedIn} />
+        <InfoStat
+          tone="sand"
+          label="اشتراک فعال"
+          value={overview.stats.active}
+          selected={tab === 'users' && userFilter === 'active'}
+          onClick={() => {
+            setTab('users');
+            setUserFilter('active');
+          }}
+        />
+        <InfoStat
+          tone="lilac"
+          label="الان وارد شده‌اند"
+          value={overview.stats.loggedIn}
+          selected={tab === 'users' && userFilter === 'logged'}
+          onClick={() => {
+            setTab('users');
+            setUserFilter('logged');
+          }}
+        />
         <InfoStat
           tone="sage"
           label="خرید اشتراک این ماه"

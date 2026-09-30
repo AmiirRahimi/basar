@@ -21,6 +21,8 @@ export function InfoStat({
   tone = 'sand',
   icon: Icon,
   href,
+  selected = false,
+  onClick,
 }: {
   label: string;
   value: ReactNode;
@@ -28,12 +30,19 @@ export function InfoStat({
   tone?: InfoTone;
   icon?: ComponentType<{ className?: string }>;
   href?: string;
+  selected?: boolean;
+  onClick?: () => void;
 }) {
   const colors = TONES[tone];
   const shown = typeof value === 'number' ? faNumber(value) : value;
   const card = (
-    <article className="relative h-full overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]">
-      <span className={cn('absolute inset-y-4 start-0 w-[3px] rounded-full', colors.bar)} aria-hidden />
+    <div
+      className={cn(
+        'relative h-full overflow-hidden rounded-2xl border bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04)]',
+        selected ? 'border-zinc-900 shadow-[0_8px_20px_-16px_rgba(24,24,27,0.7)]' : 'border-zinc-200/80',
+      )}
+    >
+      <span className={cn('absolute inset-y-4 start-0 w-[3px] rounded-full', selected ? 'bg-zinc-900' : colors.bar)} aria-hidden />
       <div className={cn('flex h-full flex-col bg-gradient-to-l to-white px-4 py-4 ps-5', colors.wash)}>
         <div className="flex items-start justify-between gap-3">
           <p className="text-[13px] font-medium leading-5 text-zinc-500">{label}</p>
@@ -48,8 +57,20 @@ export function InfoStat({
         <p className="mt-3 text-[1.65rem] font-semibold leading-none tracking-tight text-zinc-900 tabular-nums">{shown}</p>
         {hint ? <p className="mt-2 min-h-5 text-xs leading-5 text-zinc-500">{hint}</p> : <span className="mt-2 block min-h-5" />}
       </div>
-    </article>
+    </div>
   );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={selected}
+        className="block h-full w-full rounded-2xl text-start outline-none transition hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-zinc-400"
+      >
+        {card}
+      </button>
+    );
+  }
   if (!href) return card;
   return (
     <Link href={href} className="block h-full rounded-2xl outline-none transition hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-zinc-400">
