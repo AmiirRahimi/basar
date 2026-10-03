@@ -18,6 +18,7 @@ export type SelectLabels = {
   remove?: string;
   removeAll?: string;
   noOptionsFound?: string;
+  filterAll?: string;
 };
 
 const DEFAULT_SELECT_LABELS: Required<SelectLabels> = {
@@ -25,12 +26,23 @@ const DEFAULT_SELECT_LABELS: Required<SelectLabels> = {
   remove: 'Remove',
   removeAll: 'Remove all',
   noOptionsFound: 'No options found',
+  filterAll: 'All',
 };
 
-interface SelectOption {
+export type SelectOption = {
   label: string;
   value: SelectValue;
-}
+  /** When set, options are rendered under this group header. */
+  group?: string;
+  /** Tag ids used by `optionFilters` (e.g. person role ids). */
+  tags?: string[];
+};
+
+export type SelectOptionFilter = {
+  value: string;
+  label: string;
+  count?: number;
+};
 
 function toSelectOptionKey(value: SelectValue): string {
   return String(value);
@@ -47,11 +59,32 @@ type DropdownPosition = {
 const DROPDOWN_GAP = 4;
 const DROPDOWN_VIEWPORT_PAD = 8;
 const DROPDOWN_DEFAULT_MAX_HEIGHT = 240; // max-h-60
+const DROPDOWN_FILTERED_MAX_HEIGHT = 320;
 const DROPDOWN_MIN_HEIGHT = 120;
+
+function groupSelectOptions(options: SelectOption[]): { key: string; label: string; options: SelectOption[] }[] {
+  const hasGroups = options.some((opt) => opt.group);
+  if (!hasGroups) {
+    return [{ key: '__all__', label: '', options }];
+  }
+
+  const order: string[] = [];
+  const map = new Map<string, SelectOption[]>();
+  for (const opt of options) {
+    const label = opt.group?.trim() || '—';
+    if (!map.has(label)) {
+      map.set(label, []);
+      order.push(label);
+    }
+    map.get(label)!.push(opt);
+  }
+  return order.map((label) => ({ key: label, label, options: map.get(label)! }));
+}
 
 function useDropdownPosition(
   isOpen: boolean,
-  triggerRef: React.RefObject<HTMLElement | null>
+  triggerRef: React.RefObject<HTMLElement | null>,
+  preferredMaxHeight = DROPDOWN_DEFAULT_MAX_HEIGHT,
 ): DropdownPosition | null {
   const [position, setPosition] = useState<DropdownPosition | null>(null);
 
@@ -68,7 +101,7 @@ function useDropdownPosition(
 
     const available = openBelow ? spaceBelow : spaceAbove;
     const maxHeight = Math.min(
-      DROPDOWN_DEFAULT_MAX_HEIGHT,
+      preferredMaxHeight,
       Math.max(48, available)
     );
 
@@ -91,7 +124,7 @@ function useDropdownPosition(
         maxHeight,
       });
     }
-  }, [triggerRef]);
+  }, [preferredMaxHeight, triggerRef]);
 
   useLayoutEffect(() => {
     if (!isOpen) {
@@ -139,6 +172,8 @@ interface SelectProps {
   disabled?: boolean;
   clearable?: boolean;
   searchable?: boolean;
+  /** Compact chips above the options list (e.g. role filters). Empty value = all. */
+  optionFilters?: SelectOptionFilter[];
   fullWidth?: boolean;
   className?: string;
   /** UI copy — pass translations from the host app (no i18n inside this package). */
@@ -168,29 +203,50 @@ export function Select({
   disabled = false,
   clearable = false,
   searchable = false,
+  optionFilters,
   fullWidth = false,
   className,
   labels,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const ignoreNextTriggerClickRef = useRef(false);
   const mounted = useMounted();
-  const menuPosition = useDropdownPosition(isOpen, containerRef);
+  const hasOptionFilters = Boolean(optionFilters?.length);
+  const menuPosition = useDropdownPosition(
+    isOpen,
+    containerRef,
+    hasOptionFilters ? DROPDOWN_FILTERED_MAX_HEIGHT : DROPDOWN_DEFAULT_MAX_HEIGHT,
+  );
   const copy = { ...DEFAULT_SELECT_LABELS, ...labels };
 
   const selectedOption = options.find((opt) => String(opt.value) === String(value ?? ''));
 
-  const filteredOptions = options.filter((opt) =>
-    String(opt.label).toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredOptions = options.filter((opt) => {
+    if (activeFilter) {
+      const tags = opt.tags?.map(String) || [];
+      if (!tags.includes(activeFilter)) return false;
+    }
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      String(opt.label).toLowerCase().includes(q) ||
+      String(opt.group || '').toLowerCase().includes(q)
+    );
+  });
+  // When a role/tag filter is on, skip group headers — the chip already defines the set.
+  const groupedOptions = activeFilter
+    ? [{ key: '__filtered__', label: '', options: filteredOptions }]
+    : groupSelectOptions(filteredOptions);
 
   const closeMenu = () => {
     setIsOpen(false);
     setSearchQuery('');
+    setActiveFilter('');
   };
 
   useEffect(() => {
@@ -310,19 +366,77 @@ export function Select({
               style={dropdownMenuStyle(menuPosition)}
               className="fixed z-dropdown flex flex-col rounded-xl border border-gray-200/80 bg-white shadow-lg dark:border-gray-700/50 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden ui-enter"
             >
-              {searchable && (
-                <div className="shrink-0 p-2 border-b border-gray-100/80 dark:border-gray-800/80">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                    <Input
-                      ref={searchInputRef}
-                      type="text"
-                      value={searchQuery}
-                      icon={<Search className="h-3.5 w-3.5 text-gray-400" />}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={copy.search}
-                    />
-                  </div>
+              {(hasOptionFilters || searchable) && (
+                <div className="shrink-0 space-y-2 border-b border-gray-100/80 p-2 dark:border-gray-800/80">
+                  {hasOptionFilters ? (
+                    <div
+                      className="flex gap-1.5 overflow-x-auto pb-0.5 custom-scrollbar"
+                      role="tablist"
+                      aria-label={copy.filterAll}
+                    >
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={!activeFilter}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onClick={() => setActiveFilter('')}
+                        className={cn(
+                          'shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition',
+                          !activeFilter
+                            ? 'border-primary bg-primary/10 font-medium text-primary'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
+                        )}
+                      >
+                        {copy.filterAll}
+                        {optionFilters?.some((item) => item.count != null) ? (
+                          <span className="mr-1 opacity-70">({options.length})</span>
+                        ) : null}
+                      </button>
+                      {optionFilters!.map((item) => {
+                        const selected = activeFilter === item.value;
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            role="tab"
+                            aria-selected={selected}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                            }}
+                            onClick={() => setActiveFilter(item.value)}
+                            className={cn(
+                              'shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition',
+                              selected
+                                ? 'border-primary bg-primary/10 font-medium text-primary'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
+                            )}
+                          >
+                            {item.label}
+                            {item.count != null ? (
+                              <span className="mr-1 opacity-70">({item.count})</span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {searchable ? (
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                      <Input
+                        ref={searchInputRef}
+                        type="text"
+                        value={searchQuery}
+                        icon={<Search className="h-3.5 w-3.5 text-gray-400" />}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={copy.search}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               )}
               <div className="min-h-0 flex-1 overflow-y-auto p-1 custom-scrollbar">
@@ -333,8 +447,7 @@ export function Select({
                       event.preventDefault();
                       event.stopPropagation();
                       onChange?.('');
-                      setIsOpen(false);
-                      setSearchQuery('');
+                      closeMenu();
                     }}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                   >
@@ -347,23 +460,32 @@ export function Select({
                     {copy.noOptionsFound}
                   </div>
                 ) : (
-                  filteredOptions.map((option) => (
-                    <button
-                      key={toSelectOptionKey(option.value)}
-                      type="button"
-                      onMouseDown={(event) => handleOptionSelect(event, option.value)}
-                      className={cn(
-                        'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
-                        String(option.value) === String(value ?? '')
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-gray-700 hover:bg-gray-100/80 dark:text-gray-300 dark:hover:bg-white/[0.04]'
-                      )}
-                    >
-                      <span className="truncate">{option.label}</span>
-                      {String(option.value) === String(value ?? '') && (
-                        <Check className="h-4 w-4 shrink-0 text-primary" />
-                      )}
-                    </button>
+                  groupedOptions.map((group) => (
+                    <div key={group.key} className="mb-0.5 last:mb-0">
+                      {group.label ? (
+                        <div className="sticky top-0 z-[1] bg-white/95 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 backdrop-blur-sm dark:bg-gray-900/95 dark:text-gray-400">
+                          {group.label}
+                        </div>
+                      ) : null}
+                      {group.options.map((option) => (
+                        <button
+                          key={toSelectOptionKey(option.value)}
+                          type="button"
+                          onMouseDown={(event) => handleOptionSelect(event, option.value)}
+                          className={cn(
+                            'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
+                            String(option.value) === String(value ?? '')
+                              ? 'bg-primary/10 text-primary'
+                              : 'text-gray-700 hover:bg-gray-100/80 dark:text-gray-300 dark:hover:bg-white/[0.04]',
+                          )}
+                        >
+                          <span className="truncate">{option.label}</span>
+                          {String(option.value) === String(value ?? '') && (
+                            <Check className="h-4 w-4 shrink-0 text-primary" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   ))
                 )}
               </div>

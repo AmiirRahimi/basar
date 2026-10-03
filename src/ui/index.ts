@@ -34,6 +34,8 @@ export {
   SelectFieldLayout,
   type SelectValue,
   type SelectLabels,
+  type SelectOption,
+  type SelectOptionFilter,
 } from './components/Select';
 export {
   TransferList,

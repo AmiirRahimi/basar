@@ -5,9 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { getPersonAccount } from '@/actions/crud';
-import { ApiWait, FormCard, Select } from '@/ui';
+import { ApiWait, FormCard, Select, type SelectOption, type SelectOptionFilter } from '@/ui';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
-import { personRoleLabel, personRolesLabel } from '@/lib/constants';
+import {
+  PERSON_ROLES,
+  normalizePersonRoles,
+  personRoleLabel,
+  personRolesLabel,
+} from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { paymentMethodCounts, personPaymentsHref } from '@/lib/payment-display';
 import { PaymentForm } from './PaymentForm';
@@ -18,12 +23,21 @@ import type { FieldOption } from '@/lib/types';
 import type { AccountInvoice, AccountPayment } from '@/lib/payment-display';
 
 const ALL_INVOICES = 'all';
+const ROLE_ORDER = Object.keys(PERSON_ROLES);
 
 const selectLabels = {
-  search: 'جستجو',
+  search: 'جستجو نام',
   remove: 'حذف انتخاب',
   noOptionsFound: 'موردی یافت نشد',
+  filterAll: 'همه',
 };
+
+function primaryRole(roles: string[]) {
+  for (const role of ROLE_ORDER) {
+    if (roles.includes(role)) return role;
+  }
+  return roles[0] || '';
+}
 
 type AccountItem = {
   _id: string;
@@ -46,6 +60,40 @@ export function AccountClient({
   const [invoiceId, setInvoiceId] = useState(ALL_INVOICES);
   const [account, setAccount] = useState<any>(null);
   const [pending, start] = useTransition();
+
+  const personOptions = useMemo<SelectOption[]>(() => {
+    return [...people]
+      .map((p) => {
+        const roles = normalizePersonRoles(p.role);
+        const role = primaryRole(roles);
+        const group = PERSON_ROLES[role] || personRolesLabel(roles) || personRoleLabel(p.role) || 'سایر';
+        const sort = ROLE_ORDER.indexOf(role);
+        return {
+          value: String(p._id),
+          label: String(p.fullName || 'بدون نام'),
+          group,
+          tags: roles.length ? roles : role ? [role] : [],
+          sort: sort < 0 ? 99 : sort,
+        };
+      })
+      .sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label, 'fa'))
+      .map(({ sort: _sort, ...option }) => option);
+  }, [people]);
+
+  const personRoleFilters = useMemo<SelectOptionFilter[]>(() => {
+    const counts: Record<string, number> = {};
+    for (const role of ROLE_ORDER) counts[role] = 0;
+    for (const person of people) {
+      for (const role of normalizePersonRoles(person.role)) {
+        if (role in counts) counts[role] += 1;
+      }
+    }
+    return ROLE_ORDER.filter((role) => counts[role] > 0).map((role) => ({
+      value: role,
+      label: PERSON_ROLES[role],
+      count: counts[role],
+    }));
+  }, [people]);
 
   const payable = account?.kind === 'payable';
   const invoices: AccountInvoice[] = useMemo(() => {
@@ -111,10 +159,8 @@ export function AccountClient({
       <FormCard>
         <Select
           label="شخص"
-          options={people.map((p) => ({
-            label: [p.fullName, personRolesLabel(p.role) || personRoleLabel(p.role)].filter(Boolean).join(' — '),
-            value: p._id,
-          }))}
+          options={personOptions}
+          optionFilters={personRoleFilters}
           value={person}
           searchable
           placeholder="انتخاب کنید"
@@ -124,7 +170,8 @@ export function AccountClient({
             setPerson(id);
             setInvoiceId(ALL_INVOICES);
             setAccount(null);
-            load(id);
+            if (id) load(id);
+            else setAccount(null);
           }}
         />
         {pending ? (
