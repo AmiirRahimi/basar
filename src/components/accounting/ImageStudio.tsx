@@ -1,15 +1,24 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
+import { Check, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { updateResource } from '@/actions/crud';
 import { buyImageTokens, editProductImage, generateClothOnModel, previewImageTokenDiscount } from '@/actions/image-ai';
 import {
   modelPresetSample,
   modelSceneSample,
   studioStyleSample,
 } from '@/lib/ai-image-samples';
+import {
+  aiStyleLabel,
+  countShownInLibrary,
+  normalizeClothImageLibrary,
+  shownUrlsFromLibrary,
+  toggleShownInLibrary,
+  type ClothImageGroup,
+} from '@/lib/cloth-images';
 import {
   IMAGE_EDIT_STYLES,
   IMAGE_EDIT_TOKEN_COST,
@@ -19,13 +28,19 @@ import {
   type ImageEditStyleId,
 } from '@/lib/image-tokens';
 import { faDate, faNumber, toman } from '@/lib/format';
-import { parseImageList } from '@/lib/shop-cart';
+import { MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { MAX_VIRTUAL_MODEL_IMAGES, PHOTOROOM_MODELS, PHOTOROOM_POSES, PHOTOROOM_SCENES } from '@/lib/photoroom';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { ApiWait, Button, FormCard, Input, Modal, Select, Tabs, cn, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 import { PlanLocked } from './PlanLocked';
 import { Price, PriceSection } from './Price';
+
+export type ImageEditSuccess = {
+  images: string[];
+  imageLibrary?: unknown;
+  resultUrl?: string;
+};
 
 type DiscountPreview = {
   price: number;
@@ -282,7 +297,7 @@ export function ImageEditModal({
   images: string[];
   initialImageUrl?: string;
   onClose: () => void;
-  onSuccess?: (images: string[]) => void;
+  onSuccess?: (payload: ImageEditSuccess) => void;
   onLibraryChange?: (library: unknown) => void;
 }) {
   const router = useRouter();
@@ -317,6 +332,19 @@ export function ImageEditModal({
     });
   }
 
+  function finishSuccess(data: { images?: string[]; imageLibrary?: unknown; resultUrl?: string }, fallbackMessage: string) {
+    const nextImages = Array.isArray(data.images) ? data.images : [];
+    toast.success(fallbackMessage);
+    if (data.imageLibrary != null) onLibraryChange?.(data.imageLibrary);
+    onSuccess?.({
+      images: nextImages,
+      imageLibrary: data.imageLibrary,
+      resultUrl: data.resultUrl,
+    });
+    onClose();
+    router.refresh();
+  }
+
   function runStudio() {
     if (!clothId) {
       toast.error('برای جلوه استودیو ابتدا لباس را ذخیره کنید');
@@ -326,13 +354,8 @@ export function ImageEditModal({
       const res = await editProductImage({ clothId, imageUrl, styleId });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
-        const data = (res.data || {}) as { images?: string[]; imageLibrary?: unknown };
-        const nextImages = Array.isArray(data.images) ? data.images : [];
-        toast.success(res.message || 'تصویر آماده شد');
-        if (data.imageLibrary != null) onLibraryChange?.(data.imageLibrary);
-        onSuccess?.(nextImages);
-        onClose();
-        router.refresh();
+        const data = (res.data || {}) as { images?: string[]; imageLibrary?: unknown; resultUrl?: string };
+        finishSuccess(data, res.message || 'تصویر آماده شد');
       } else {
         toast.error(res.message || 'ویرایش انجام نشد');
       }
@@ -354,13 +377,8 @@ export function ImageEditModal({
       });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
-        const data = (res.data || {}) as { images?: string[]; imageLibrary?: unknown };
-        const nextImages = Array.isArray(data.images) ? data.images : [];
-        toast.success(res.message || 'عکس مدل آماده شد');
-        if (data.imageLibrary != null) onLibraryChange?.(data.imageLibrary);
-        onSuccess?.(nextImages);
-        onClose();
-        router.refresh();
+        const data = (res.data || {}) as { images?: string[]; imageLibrary?: unknown; resultUrl?: string };
+        finishSuccess(data, res.message || 'عکس مدل آماده شد');
       } else {
         toast.error(res.message || 'ساخت مدل انجام نشد');
       }
@@ -636,7 +654,7 @@ export function ClothImageStudio({
   label?: string;
   className?: string;
   compact?: boolean;
-  onSuccess?: (images: string[]) => void;
+  onSuccess?: (payload: ImageEditSuccess) => void;
   onLibraryChange?: (library: unknown) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -669,24 +687,290 @@ export function ClothImageStudio({
   );
 }
 
+function ProductImageDesk({
+  clothId,
+  code,
+  images,
+  imageLibrary,
+  onClose,
+  onUpdated,
+}: {
+  clothId: string;
+  code?: string;
+  images: string[];
+  imageLibrary?: unknown;
+  onClose: () => void;
+  onUpdated: (next: { images: string[]; imageLibrary: ClothImageGroup[] }) => void;
+}) {
+  const [library, setLibrary] = useState(() => normalizeClothImageLibrary(imageLibrary, images));
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [saving, startSave] = useTransition();
+  const originals = useMemo(() => library.map((group) => group.originalUrl), [library]);
+  const shownCount = countShownInLibrary(library);
+  const aiCount = library.reduce((sum, group) => sum + group.generated.length, 0);
+  const preview =
+    previewUrl ||
+    library.flatMap((group) => group.generated.map((gen) => gen.url)).find(Boolean) ||
+    originals[0] ||
+    '';
+
+  useEffect(() => {
+    setLibrary(normalizeClothImageLibrary(imageLibrary, images));
+    setPreviewUrl('');
+    setGenerateOpen(false);
+  }, [clothId]); // eslint-disable-line react-hooks/exhaustive-deps -- reopen desk for another product only
+
+  function applyLocal(next: ClothImageGroup[], highlightUrl?: string) {
+    setLibrary(next);
+    if (highlightUrl) setPreviewUrl(highlightUrl);
+    onUpdated({ images: shownUrlsFromLibrary(next), imageLibrary: next });
+  }
+
+  function persistLibrary(next: ClothImageGroup[], highlightUrl?: string) {
+    applyLocal(next, highlightUrl);
+    startSave(async () => {
+      const res = await updateResource('cloth', clothId, {
+        images: shownUrlsFromLibrary(next),
+        imageLibrary: next,
+      });
+      if (redirectIfUnauthorized(res)) return;
+      if (!res.ok) toast.error(res.message || 'ذخیره نمایش تصویر انجام نشد');
+    });
+  }
+
+  function toggleShown(groupId: string, kind: 'original' | 'generated', generatedId?: string) {
+    const result = toggleShownInLibrary(library, { groupId, kind, generatedId });
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    persistLibrary(result.library);
+  }
+
+  return (
+    <>
+      <Modal
+        isOpen
+        onClose={onClose}
+        size="xl"
+        rounded="lg"
+        title={code ? `تصاویر محصول ${code}` : 'تصاویر محصول'}
+      >
+        <FormCard className="space-y-4 border-0 shadow-none rounded-[inherit]">
+          {saving ? (
+            <ApiWait compact title="در حال ذخیره نمایش تصاویر…" hint="انتخاب نمایش در محصول دارد ذخیره می‌شود." />
+          ) : null}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-gray-600">
+                نسخه‌های اصلی و هوش مصنوعی این لباس. بعد از ساخت، تصویر جدید همین‌جا دیده می‌شود.
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                {faNumber(aiCount)} نسخه AI · {faNumber(shownCount)} / {faNumber(MAX_CLOTH_IMAGES)} نمایش در محصول
+              </p>
+            </div>
+            <Button type="button" onClick={() => setGenerateOpen(true)} disabled={!originals.length}>
+              <Sparkles className="size-4" />
+              ساخت تصویر AI
+            </Button>
+          </div>
+
+          {preview ? (
+            <div className="overflow-hidden rounded-2xl border border-violet-200 bg-violet-50/40">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={preview}
+                alt=""
+                className="mx-auto max-h-80 w-full object-contain bg-white"
+                onError={(event) => {
+                  const img = event.currentTarget;
+                  img.style.display = 'none';
+                }}
+              />
+              <p className="px-3 py-2 text-center text-xs text-violet-950">
+                {previewUrl ? 'آخرین تصویر ساخته‌شده / انتخاب‌شده' : 'پیش‌نمایش — روی یک نسخه بزنید'}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="space-y-3">
+            {library.map((group, index) => (
+              <article key={group.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                <div className="grid gap-3 p-3 sm:grid-cols-[6.5rem_1fr] sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewUrl(group.originalUrl)}
+                    className={cn(
+                      'relative overflow-hidden rounded-xl border',
+                      preview === group.originalUrl ? 'border-teal-400 ring-1 ring-teal-100' : 'border-gray-100',
+                    )}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={group.originalUrl} alt="" className="h-24 w-full object-cover" />
+                    <span className="absolute left-1.5 top-1.5 rounded-full bg-gray-900/75 px-1.5 py-0.5 text-[10px] text-white">
+                      اصلی {faNumber(index + 1)}
+                    </span>
+                  </button>
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-gray-900">
+                      تصویر اصلی {faNumber(index + 1)}
+                      {group.generated.length ? (
+                        <span className="mr-2 text-xs font-normal text-violet-700">
+                          · {faNumber(group.generated.length)} نسخه AI
+                        </span>
+                      ) : null}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => toggleShown(group.id, 'original')}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition',
+                        group.originalShown
+                          ? 'border-teal-300 bg-teal-50 text-teal-900'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
+                      )}
+                    >
+                      {group.originalShown ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                      {group.originalShown ? 'نمایش در محصول' : 'مخفی از محصول'}
+                    </button>
+                  </div>
+                </div>
+
+                {group.generated.length ? (
+                  <div className="border-t border-gray-100 bg-gray-50/80 px-3 py-3">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {group.generated.map((gen) => (
+                        <div
+                          key={gen.id}
+                          className={cn(
+                            'overflow-hidden rounded-xl border bg-white transition',
+                            gen.url === preview
+                              ? 'border-violet-400 ring-1 ring-violet-100'
+                              : gen.shown
+                                ? 'border-violet-300'
+                                : 'border-gray-200',
+                          )}
+                        >
+                          <button type="button" className="relative block w-full" onClick={() => setPreviewUrl(gen.url)}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={gen.url} alt="" className="h-36 w-full object-cover" />
+                            <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">
+                              <Sparkles className="h-3 w-3" />
+                              AI
+                            </span>
+                            {gen.shown ? (
+                              <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-teal-600 px-1.5 py-0.5 text-[10px] text-white">
+                                <Check className="h-3 w-3" />
+                                در محصول
+                              </span>
+                            ) : null}
+                          </button>
+                          <div className="space-y-2 p-2.5">
+                            <p className="text-xs font-medium text-gray-800">{aiStyleLabel(gen.styleId)}</p>
+                            <button
+                              type="button"
+                              onClick={() => toggleShown(group.id, 'generated', gen.id)}
+                              className={cn(
+                                'flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs transition',
+                                gen.shown
+                                  ? 'border-teal-300 bg-teal-50 text-teal-900'
+                                  : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                              )}
+                            >
+                              {gen.shown ? (
+                                <>
+                                  <Eye className="h-3.5 w-3.5" />
+                                  نمایش در محصول
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOff className="h-3.5 w-3.5" />
+                                  افزودن به محصول
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-t border-dashed border-violet-100 bg-violet-50/30 px-3 py-4 text-center text-xs text-violet-900/80">
+                    هنوز نسخه AI برای این اصل ساخته نشده — «ساخت تصویر AI» را بزنید.
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" onClick={onClose}>
+              بستن
+            </Button>
+          </div>
+        </FormCard>
+      </Modal>
+
+      {generateOpen ? (
+        <ImageEditModal
+          clothId={clothId}
+          images={originals}
+          initialImageUrl={originals[0]}
+          onClose={() => setGenerateOpen(false)}
+          onSuccess={(payload) => {
+            const next = normalizeClothImageLibrary(payload.imageLibrary, payload.images);
+            applyLocal(next, payload.resultUrl || next.flatMap((g) => g.generated.map((gen) => gen.url))[0]);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
 export function ImageStudioBoard({
   clothes,
   purchases = [],
   edits = [],
 }: {
-  clothes: { _id: string; code?: string; images?: unknown }[];
+  clothes: { _id: string; code?: string; images?: unknown; imageLibrary?: unknown }[];
   purchases?: { _id: string; packId?: string; tokens?: number; price?: number; timeStamp?: string }[];
-  edits?: { _id: string; resultUrl?: string; sourceUrl?: string; styleId?: string; timeStamp?: string }[];
+  edits?: {
+    _id: string;
+    clothId?: string;
+    resultUrl?: string;
+    sourceUrl?: string;
+    styleId?: string;
+    timeStamp?: string;
+  }[];
 }) {
   const workspace = useWorkspace();
-  const [editing, setEditing] = useState<{ clothId: string; images: string[] } | null>(null);
+  const [rows, setRows] = useState(() =>
+    clothes.map((row) => ({
+      ...row,
+      images: parseImageList(row.images),
+      imageLibrary: row.imageLibrary,
+    })),
+  );
+  const [deskId, setDeskId] = useState<string | null>(null);
   const tokens = Number(workspace?.imageTokens || 0);
   const unlimited = Boolean(workspace?.imageTokensUnlimited);
   const canBuy = workspace?.storeRole === 'owner' || Boolean(workspace?.isPlatformAdmin);
   const allowImages = Boolean(workspace?.isPlatformAdmin || workspace?.subscription?.allowClothImages);
-  const products = clothes
-    .map((row) => ({ ...row, images: parseImageList(row.images) }))
-    .filter((row) => row.images.length);
+  const products = rows.filter(
+    (row) => row.images.length || normalizeClothImageLibrary(row.imageLibrary, row.images).length,
+  );
+  const desk = deskId ? rows.find((row) => row._id === deskId) || null : null;
+
+  useEffect(() => {
+    setRows(
+      clothes.map((row) => ({
+        ...row,
+        images: parseImageList(row.images),
+        imageLibrary: row.imageLibrary,
+      })),
+    );
+  }, [clothes]);
 
   return (
     <div className="space-y-6">
@@ -697,21 +981,22 @@ export function ImageStudioBoard({
           planHint="ویترین"
         />
       )}
+
       {allowImages ? (
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs text-gray-500">مانده توکن تصویر</p>
-            <p className="mt-1 text-3xl font-semibold text-gray-900">
-              {unlimited ? 'نامحدود' : faNumber(tokens)}
-            </p>
-            <p className="mt-1 text-sm text-gray-600">
-              هر ویرایش تصویر یک توکن مصرف می‌کند. چند زاویه لباس را بدهید تا عکس مدل ساخته شود، یا پس‌زمینه سفید و کاتالوگ.
-            </p>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs text-gray-500">مانده توکن تصویر</p>
+              <p className="mt-1 text-3xl font-semibold text-gray-900">
+                {unlimited ? 'نامحدود' : faNumber(tokens)}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">
+                هر ویرایش تصویر یک توکن مصرف می‌کند. چند زاویه لباس را بدهید تا عکس مدل ساخته شود، یا پس‌زمینه سفید و کاتالوگ.
+              </p>
+            </div>
+            <Sparkles className="h-10 w-10 text-teal-700" />
           </div>
-          <Sparkles className="h-10 w-10 text-teal-700" />
-        </div>
-      </section>
+        </section>
       ) : null}
 
       {allowImages ? (
@@ -729,25 +1014,39 @@ export function ImageStudioBoard({
           <section className="space-y-3">
             <div>
               <h2 className="text-base font-semibold text-gray-900">محصولات این فروشگاه</h2>
-              <p className="text-sm text-gray-500">روی یک عکس بزنید. می‌توانید چند زاویه را انتخاب کنید و با مدل بسازید؛ تصویر جدید جایگزین همان انتخاب‌ها می‌شود.</p>
+              <p className="text-sm text-gray-500">
+                روی محصول بزنید تا اصل‌ها و نسخه‌های AI را ببینید، تصویر جدید بسازید، و انتخاب کنید کدام‌ها در فروشگاه دیده شوند.
+              </p>
             </div>
             {products.length ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {products.map((row) => (
-                  <button
-                    key={row._id}
-                    type="button"
-                    onClick={() => setEditing({ clothId: row._id, images: row.images })}
-                    className="overflow-hidden rounded-2xl border border-gray-200 bg-white text-right shadow-sm hover:border-gray-300"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={row.images[0]} alt="" className="h-44 w-full object-cover" />
-                    <div className="px-3 py-2">
-                      <p className="text-sm font-medium text-gray-900">کد {row.code || '—'}</p>
-                      <p className="text-xs text-gray-500">{faNumber(row.images.length)} تصویر</p>
-                    </div>
-                  </button>
-                ))}
+                {products.map((row) => {
+                  const library = normalizeClothImageLibrary(row.imageLibrary, row.images);
+                  const aiCount = library.reduce((sum, group) => sum + group.generated.length, 0);
+                  const cover =
+                    row.images[0] ||
+                    library.flatMap((group) => group.generated.map((gen) => gen.url))[0] ||
+                    library[0]?.originalUrl ||
+                    '';
+                  return (
+                    <button
+                      key={row._id}
+                      type="button"
+                      onClick={() => setDeskId(row._id)}
+                      className="overflow-hidden rounded-2xl border border-gray-200 bg-white text-right shadow-sm hover:border-gray-300"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={cover} alt="" className="h-44 w-full object-cover" />
+                      <div className="px-3 py-2">
+                        <p className="text-sm font-medium text-gray-900">کد {row.code || '—'}</p>
+                        <p className="text-xs text-gray-500">
+                          {faNumber(row.images.length)} نمایش در محصول
+                          {aiCount ? ` · ${faNumber(aiCount)} نسخه AI` : ''}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <p className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">
@@ -763,10 +1062,17 @@ export function ImageStudioBoard({
               </div>
               <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4 lg:grid-cols-6">
                 {edits.map((row) => (
-                  <div key={row._id} className="overflow-hidden rounded-xl border border-gray-100">
+                  <button
+                    key={row._id}
+                    type="button"
+                    onClick={() => row.clothId && setDeskId(row.clothId)}
+                    className="overflow-hidden rounded-xl border border-gray-100 text-right hover:border-violet-300"
+                    title="باز کردن محصول"
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={row.resultUrl} alt="" className="h-24 w-full object-cover" />
-                  </div>
+                    <p className="truncate px-2 py-1 text-[11px] text-gray-500">{aiStyleLabel(row.styleId)}</p>
+                  </button>
                 ))}
               </div>
             </section>
@@ -789,8 +1095,23 @@ export function ImageStudioBoard({
             </section>
           ) : null}
 
-          {editing ? (
-            <ImageEditModal clothId={editing.clothId} images={editing.images} onClose={() => setEditing(null)} />
+          {desk ? (
+            <ProductImageDesk
+              clothId={desk._id}
+              code={desk.code}
+              images={desk.images}
+              imageLibrary={desk.imageLibrary}
+              onClose={() => setDeskId(null)}
+              onUpdated={(next) => {
+                setRows((current) =>
+                  current.map((row) =>
+                    row._id === desk._id
+                      ? { ...row, images: next.images, imageLibrary: next.imageLibrary }
+                      : row,
+                  ),
+                );
+              }}
+            />
           ) : null}
         </>
       ) : null}

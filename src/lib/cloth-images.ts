@@ -190,6 +190,29 @@ export function toggleShownInLibrary(
   };
 }
 
+/** Prefer keeping `preferUrl` visible when the shown cap is exceeded. */
+export function enforceShownLimit(library: ClothImageGroup[], preferUrl?: string) {
+  const prefer = String(preferUrl || '').trim();
+  const shown = shownUrlsFromLibrary(library);
+  if (shown.length <= MAX_CLOTH_IMAGES) return library;
+
+  const keep = new Set<string>();
+  if (prefer && shown.includes(prefer)) keep.add(prefer);
+  for (const url of shown) {
+    if (keep.size >= MAX_CLOTH_IMAGES) break;
+    keep.add(url);
+  }
+
+  return library.map((group) => ({
+    ...group,
+    originalShown: Boolean(group.originalShown && keep.has(group.originalUrl)),
+    generated: group.generated.map((gen) => ({
+      ...gen,
+      shown: Boolean(gen.shown && keep.has(gen.url)),
+    })),
+  }));
+}
+
 export function addGeneratedToLibrary(
   library: ClothImageGroup[],
   sourceUrl: string,
@@ -209,24 +232,37 @@ export function addGeneratedToLibrary(
   }
   if (!group) return library;
 
-  if (group.generated.some((gen) => gen.url === result)) return next;
+  if (group.generated.some((gen) => gen.url === result)) {
+    // Re-show an existing result if the user generated again.
+    next = next.map((row) =>
+      row.id !== group!.id
+        ? row
+        : {
+            ...row,
+            generated: row.generated.map((gen) =>
+              gen.url === result ? { ...gen, shown: true } : gen,
+            ),
+          },
+    );
+    return enforceShownLimit(next, result);
+  }
 
-  const shownCount = countShownInLibrary(next);
   const generated: ClothImageGenerated = {
     id: newId(),
     url: result,
     styleId: String(styleId || 'ai'),
-    shown: shownCount < MAX_CLOTH_IMAGES,
+    shown: true,
     createdAt: new Date().toISOString(),
   };
 
-  return next.map((row) => {
+  next = next.map((row) => {
     if (row.id !== group!.id) return row;
     return {
       ...row,
       generated: [generated, ...row.generated].slice(0, MAX_AI_VARIANTS_PER_ORIGINAL),
     };
   });
+  return enforceShownLimit(next, result);
 }
 
 export function aiStyleLabel(styleId?: string) {

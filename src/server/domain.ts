@@ -116,6 +116,7 @@ const RESOURCE_FIELDS: Record<string, string[]> = {
     'description',
     'published',
     'images',
+    'imageLibrary',
     'onSale',
     'discountPercent',
     'saleEndsAt',
