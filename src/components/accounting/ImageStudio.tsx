@@ -861,36 +861,45 @@ function ProductImageDesk({
                 </div>
 
                 {group.generated.length ? (
-                  <div className="border-t border-gray-100 bg-gray-50/80 px-3 py-3">
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="border-t border-violet-100 bg-violet-50/40 px-3 py-3">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-violet-700" />
+                      <p className="text-xs font-semibold text-violet-950">
+                        این تصاویر با هوش مصنوعی ساخته شده‌اند
+                      </p>
+                      <span className="text-[11px] text-violet-800/70">
+                        ({faNumber(group.generated.length)})
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
                       {group.generated.map((gen) => (
                         <div
                           key={gen.id}
                           className={cn(
-                            'overflow-hidden rounded-xl border bg-white transition',
+                            'w-[6.5rem] space-y-2 rounded-xl border bg-white p-1.5 transition',
                             gen.shown ? 'border-violet-300' : 'border-gray-200',
                           )}
                         >
                           <div className="relative">
                             <button
                               type="button"
-                              className="block w-full"
+                              className="relative block w-full overflow-hidden rounded-lg border border-gray-100"
                               onClick={() => setPreviewUrl(gen.url)}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={gen.url} alt="" className="h-36 w-full object-cover" />
-                              <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">
-                                <Sparkles className="h-3 w-3" />
+                              <img src={gen.url} alt="" className="h-24 w-full object-cover" />
+                              <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">
+                                <Sparkles className="h-2.5 w-2.5" />
                                 AI
                               </span>
                               {gen.shown ? (
-                                <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-teal-600 px-1.5 py-0.5 text-[10px] text-white">
-                                  <Check className="h-3 w-3" />
+                                <span className="absolute bottom-1 right-1 inline-flex items-center gap-0.5 rounded-full bg-teal-600 px-1 py-0.5 text-[9px] text-white">
+                                  <Check className="h-2.5 w-2.5" />
                                   در محصول
                                 </span>
                               ) : null}
                             </button>
-                            <div className="absolute right-1.5 top-1.5 rounded-lg bg-white/90 shadow-sm">
+                            <div className="absolute right-0.5 top-0.5 rounded-md bg-white/90 shadow-sm">
                               <DeletePopover
                                 dir="rtl"
                                 title="حذف این تصویر؟"
@@ -901,40 +910,31 @@ function ProductImageDesk({
                               />
                             </div>
                           </div>
-                          <div className="space-y-2 p-2.5">
-                            <p className="text-xs font-medium text-gray-800">{aiStyleLabel(gen.styleId)}</p>
-                            <div className="flex flex-col gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => toggleShown(group.id, 'generated', gen.id)}
-                                className={cn(
-                                  'flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs transition',
-                                  gen.shown
-                                    ? 'border-teal-300 bg-teal-50 text-teal-900'
-                                    : 'border-gray-200 text-gray-600 hover:border-gray-300',
-                                )}
-                              >
-                                {gen.shown ? (
-                                  <>
-                                    <Eye className="h-3.5 w-3.5" />
-                                    نمایش در محصول
-                                  </>
-                                ) : (
-                                  <>
-                                    <EyeOff className="h-3.5 w-3.5" />
-                                    افزودن به محصول
-                                  </>
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setGenerateForUrl(gen.url)}
-                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-xs text-violet-900 hover:border-violet-300"
-                              >
-                                <Sparkles className="h-3.5 w-3.5" />
-                                ساخت با AI
-                              </button>
-                            </div>
+                          <p className="truncate px-0.5 text-[10px] font-medium text-gray-700">
+                            {aiStyleLabel(gen.styleId)}
+                          </p>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => toggleShown(group.id, 'generated', gen.id)}
+                              className={cn(
+                                'inline-flex w-full items-center justify-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] transition',
+                                gen.shown
+                                  ? 'border-teal-300 bg-teal-50 text-teal-900'
+                                  : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                              )}
+                            >
+                              {gen.shown ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                              {gen.shown ? 'نمایش' : 'افزودن'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGenerateForUrl(gen.url)}
+                              className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-1.5 py-1 text-[10px] text-violet-900 hover:border-violet-300"
+                            >
+                              <Sparkles className="h-3 w-3" />
+                              ساخت AI
+                            </button>
                           </div>
                         </div>
                       ))}
