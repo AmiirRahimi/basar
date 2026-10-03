@@ -1,5 +1,6 @@
 import Jimp from 'jimp';
-import { photoroomStudioEdit } from './photoroom';
+import { imageEditStyleById, type ImageEditStyleId } from '@/lib/image-tokens';
+import { photoroomApiKey, photoroomStudioEdit } from './photoroom';
 
 const OUT_SIZE = 1024;
 const THRESHOLD = 92;
@@ -146,8 +147,9 @@ export async function renderProductEdit(source: Buffer, styleId: ImageEditStyleI
       out.cover(OUT_SIZE, OUT_SIZE);
       return out.quality(90).getBufferAsync(Jimp.MIME_JPEG);
     }
-  } catch {
-    /* local studio fallback */
+  } catch (error) {
+    // If Photoroom is configured, surface the real API error instead of hiding it.
+    if (photoroomApiKey()) throw error;
   }
   const image = await Jimp.read(source);
   image.background(0x00000000);

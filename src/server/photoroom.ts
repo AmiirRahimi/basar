@@ -9,10 +9,25 @@ import type { ImageEditStyleId } from '@/lib/image-tokens';
 
 const EDIT_URL = 'https://image-api.photoroom.com/v2/edit';
 
+/**
+ * Sandbox mode (watermarked, free monthly quota) — see
+ * https://docs.photoroom.com/image-editing-api-plus-plan/sandbox-mode
+ *
+ * Default: on in development. Set PHOTOROOM_SANDBOX=false for live keys.
+ * Prepends `sandbox_` to PHOTOROOM_API_KEY when enabled.
+ */
+export function photoroomSandboxEnabled() {
+  const explicit = String(process.env.PHOTOROOM_SANDBOX ?? '').trim().toLowerCase();
+  if (explicit) {
+    return explicit === '1' || explicit === 'true' || explicit === 'yes' || explicit === 'on';
+  }
+  return process.env.NODE_ENV !== 'production';
+}
+
 export function photoroomApiKey() {
   const raw = (process.env.PHOTOROOM_API_KEY || '').trim();
   if (!raw) return '';
-  const sandbox = String(process.env.PHOTOROOM_SANDBOX || 'true').toLowerCase() !== 'false';
+  const sandbox = photoroomSandboxEnabled();
   if (sandbox && !raw.startsWith('sandbox_')) return `sandbox_${raw}`;
   if (!sandbox && raw.startsWith('sandbox_')) return raw.slice('sandbox_'.length);
   return raw;
@@ -53,12 +68,22 @@ async function postEdit(form: FormData) {
     if (!res.ok) {
       let detail = '';
       if (type.includes('json')) {
-        const body = (await res.json().catch(() => null)) as { message?: string; error?: string } | null;
-        detail = String(body?.message || body?.error || '');
+        const body = (await res.json().catch(() => null)) as {
+          message?: string;
+          error?: string;
+          detail?: string;
+        } | null;
+        detail = String(body?.message || body?.error || body?.detail || '');
       } else {
-        detail = (await res.text().catch(() => '')).slice(0, 180);
+        detail = (await res.text().catch(() => '')).slice(0, 220);
       }
-      throw new Error(detail || 'ساخت تصویر Photoroom ناموفق بود');
+      const sandboxHint =
+        photoroomSandboxEnabled() && res.status === 401
+          ? ' کلید sandbox را با پیشوند sandbox_ بررسی کنید یا PHOTOROOM_SANDBOX را درست تنظیم کنید.'
+          : '';
+      throw new Error(
+        (detail || `ساخت تصویر Photoroom ناموفق بود (${res.status})`) + sandboxHint,
+      );
     }
     if (type.includes('json')) {
       const body = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -68,7 +93,9 @@ async function postEdit(form: FormData) {
     if (!buf.length) throw new Error('تصویر خالی برگشت');
     return { buffer: buf, ext: type.includes('png') ? 'png' : 'jpg' };
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') throw new Error('زمان ساخت تصویر تمام شد. دوباره تلاش کنید');
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('زمان ساخت تصویر تمام شد. دوباره تلاش کنید');
+    }
     throw error;
   } finally {
     clearTimeout(timer);

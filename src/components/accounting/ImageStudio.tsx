@@ -6,17 +6,23 @@ import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
 import { buyImageTokens, editProductImage, generateClothOnModel, previewImageTokenDiscount } from '@/actions/image-ai';
 import {
+  modelPresetSample,
+  modelSceneSample,
+  studioStyleSample,
+} from '@/lib/ai-image-samples';
+import {
   IMAGE_EDIT_STYLES,
   IMAGE_EDIT_TOKEN_COST,
   IMAGE_TOKEN_AMOUNTS,
   IMAGE_TOKEN_UNIT_PRICE,
   imageTokenPrice,
+  type ImageEditStyleId,
 } from '@/lib/image-tokens';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { parseImageList } from '@/lib/shop-cart';
 import { MAX_VIRTUAL_MODEL_IMAGES, PHOTOROOM_MODELS, PHOTOROOM_POSES, PHOTOROOM_SCENES } from '@/lib/photoroom';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { ApiWait, Button, FormCard, Input, Modal, Select, cn, toast } from '@/ui';
+import { ApiWait, Button, FormCard, Input, Modal, Select, Tabs, cn, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 import { PlanLocked } from './PlanLocked';
 import { Price, PriceSection } from './Price';
@@ -291,6 +297,14 @@ export function ImageEditModal({
   const [pose, setPose] = useState('standing');
   const tokens = Number(workspace?.imageTokens || 0);
   const unlimited = Boolean(workspace?.imageTokensUnlimited);
+  const sandbox = Boolean(workspace?.photoroomSandbox);
+  const sceneSample = modelSceneSample(scene);
+  const modelSample = modelPresetSample(model);
+  const styleSample = studioStyleSample(styleId);
+  const poseLabel = PHOTOROOM_POSES.find((row) => row.value === pose)?.label || pose;
+  const sceneLabel = PHOTOROOM_SCENES.find((row) => row.value === scene)?.label || scene;
+  const modelLabel = PHOTOROOM_MODELS.find((row) => row.value === model)?.label || model;
+  const productPreview = (mode === 'model' ? selected[0] : imageUrl) || images[0] || '';
 
   function toggleSelected(src: string) {
     setSelected((current) => {
@@ -354,108 +368,252 @@ export function ImageEditModal({
   }
 
   return (
-    <Modal isOpen onClose={onClose} size="lg" rounded="lg" title="ساخت تصویر محصول">
+    <Modal isOpen onClose={onClose} size="xl" rounded="lg" title="ساخت تصویر محصول">
       <FormCard className="border-0 shadow-none rounded-[inherit]">
-        <div className="mb-4 flex gap-2">
-          <Button type="button" size="sm" variant={mode === 'model' ? 'primary' : 'outline'} onClick={() => setMode('model')}>
-            عکس با مدل
-          </Button>
-          <Button type="button" size="sm" variant={mode === 'studio' ? 'primary' : 'outline'} onClick={() => setMode('studio')}>
-            استودیو / پس‌زمینه
-          </Button>
-        </div>
+        {sandbox ? (
+          <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            حالت آزمایشی Photoroom (sandbox) روشن است — خروجی ممکن است واترمارک داشته باشد. برای کلید واقعی،
+            PHOTOROOM_SANDBOX=false بگذارید.
+          </p>
+        ) : null}
+
         {pending ? (
-          <ApiWait
-            title="در حال ساخت تصویر…"
-            hint="این کار کمی طول می‌کشد؛ صفحه را نبندید."
-          />
+          <ApiWait title="در حال ساخت تصویر…" hint="این کار کمی طول می‌کشد؛ صفحه را نبندید." />
         ) : (
-          <>
-            <p className="mb-4 text-sm text-gray-500">
-              هر ساخت دقیقاً {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن است.
-              {unlimited ? ' حساب ادمین محدودیتی ندارد.' : ` مانده: ${faNumber(tokens)} توکن.`}
-              {mode === 'model'
-                ? ' چند عکس از جلو، پشت و بغل را انتخاب کنید تا مدل لباس را بپوشد. تصویر ساخته‌شده جایگزین همان انتخاب‌ها می‌شود.'
-                : ' یک تصویر را انتخاب کنید و جلوه استودیو بسازید.'}
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {images.map((src) => {
-                const active = mode === 'model' ? selected.includes(src) : imageUrl === src;
-                return (
-                  <button
-                    key={src}
-                    type="button"
-                    onClick={() => (mode === 'model' ? toggleSelected(src) : setImageUrl(src))}
-                    className={`overflow-hidden rounded-2xl border ${
-                      active ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-gray-200'
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="h-28 w-full object-cover" />
-                  </button>
-                );
-              })}
-            </div>
-            {mode === 'model' ? (
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <Select
-                  label="مدل"
-                  value={model}
-                  options={[...PHOTOROOM_MODELS]}
-                  onChange={(value) => setModel(String(value))}
-                  fullWidth
-                />
-                <Select
-                  label="صحنه"
-                  value={scene}
-                  options={[...PHOTOROOM_SCENES]}
-                  onChange={(value) => setScene(String(value))}
-                  fullWidth
-                />
-                <Select
-                  label="ژست"
-                  value={pose}
-                  options={[...PHOTOROOM_POSES]}
-                  onChange={(value) => setPose(String(value))}
-                  fullWidth
-                />
-              </div>
-            ) : (
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {IMAGE_EDIT_STYLES.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setStyleId(item.id)}
-                    className={`rounded-2xl border p-3 text-right ${
-                      styleId === item.id ? 'border-teal-600 bg-teal-50/60' : 'border-gray-200 bg-white'
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-gray-900">{item.name}</p>
-                    <p className="mt-1 text-xs leading-5 text-gray-500">{item.blurb}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
-              <Link href="/accounting/images" className="text-sm text-teal-800 hover:underline">
-                خرید توکن
-              </Link>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose}>
-                  انصراف
-                </Button>
-                <Button
-                  disabled={mode === 'model' ? !selected.length : !imageUrl}
-                  onClick={mode === 'model' ? runModel : runStudio}
-                >
-                  {mode === 'model'
-                    ? `ساخت با مدل · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`
-                    : `ساخت تصویر · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`}
-                </Button>
-              </div>
-            </div>
-          </>
+          <Tabs
+            value={mode}
+            onChange={(next) => setMode(next as 'model' | 'studio')}
+            tabs={[
+              {
+                value: 'model',
+                label: 'عکس با مدل',
+                content: (
+                  <div className="space-y-4 pt-4">
+                    <p className="text-sm text-gray-500">
+                      هر ساخت {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن است.
+                      {unlimited ? ' حساب ادمین محدودیتی ندارد.' : ` مانده: ${faNumber(tokens)} توکن.`}
+                      {' '}چند زاویه لباس را انتخاب کنید؛ تنظیمات را عوض کنید تا نمونهٔ نتیجه را ببینید.
+                    </p>
+
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="mb-2 text-xs font-medium text-gray-600">انتخاب تصاویر لباس</p>
+                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                            {images.map((src) => {
+                              const active = selected.includes(src);
+                              return (
+                                <button
+                                  key={src}
+                                  type="button"
+                                  onClick={() => toggleSelected(src)}
+                                  className={cn(
+                                    'overflow-hidden rounded-xl border transition',
+                                    active ? 'border-teal-600 ring-2 ring-teal-600/25' : 'border-gray-200',
+                                  )}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={src} alt="" className="h-24 w-full object-cover" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <Select
+                            label="مدل"
+                            value={model}
+                            options={[...PHOTOROOM_MODELS]}
+                            onChange={(value) => setModel(String(value))}
+                            fullWidth
+                          />
+                          <Select
+                            label="صحنه"
+                            value={scene}
+                            options={[...PHOTOROOM_SCENES]}
+                            onChange={(value) => setScene(String(value))}
+                            fullWidth
+                          />
+                          <Select
+                            label="ژست"
+                            value={pose}
+                            options={[...PHOTOROOM_POSES]}
+                            onChange={(value) => setPose(String(value))}
+                            fullWidth
+                          />
+                        </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-2xl border border-violet-200 bg-violet-50/40">
+                        <div className="border-b border-violet-100 px-3 py-2">
+                          <p className="text-xs font-semibold text-violet-950">نمونهٔ پیش‌نمایش</p>
+                          <p className="text-[11px] text-violet-900/70">
+                            با تغییر مدل / صحنه / ژست، نمونه عوض می‌شود
+                          </p>
+                        </div>
+                        <div className="relative aspect-[3/4] bg-gray-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            key={`${scene}-${model}-${pose}`}
+                            src={sceneSample}
+                            alt=""
+                            className="h-full w-full object-cover transition-opacity duration-300"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10 text-white">
+                            <div className="flex items-end justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold">{modelLabel}</p>
+                                <p className="truncate text-[11px] text-white/80">
+                                  {sceneLabel} · {poseLabel}
+                                </p>
+                              </div>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={modelSample}
+                                alt=""
+                                className="h-12 w-12 rounded-full border-2 border-white object-cover shadow"
+                              />
+                            </div>
+                          </div>
+                          {productPreview ? (
+                            <div className="absolute left-2 top-2 overflow-hidden rounded-lg border border-white/80 shadow">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={productPreview} alt="" className="h-14 w-14 object-cover" />
+                              <p className="bg-black/60 px-1 py-0.5 text-center text-[9px] text-white">لباس شما</p>
+                            </div>
+                          ) : null}
+                        </div>
+                        <p className="px-3 py-2 text-[11px] leading-5 text-violet-900/75">
+                          این فقط نمونه‌ای از حس صحنه و مدل است؛ خروجی نهایی روی لباس انتخاب‌شده ساخته می‌شود.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Link href="/accounting/images" className="text-sm text-teal-800 hover:underline">
+                        خرید توکن
+                      </Link>
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={onClose}>
+                          انصراف
+                        </Button>
+                        <Button disabled={!selected.length || !clothId} onClick={runModel}>
+                          ساخت با مدل · {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                value: 'studio',
+                label: 'استودیو / پس‌زمینه',
+                content: (
+                  <div className="space-y-4 pt-4">
+                    <p className="text-sm text-gray-500">
+                      هر ساخت {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن است.
+                      {unlimited ? ' حساب ادمین محدودیتی ندارد.' : ` مانده: ${faNumber(tokens)} توکن.`}
+                      {' '}یک تصویر را انتخاب کنید و نوع استودیو را ببینید.
+                    </p>
+
+                    <div>
+                      <p className="mb-2 text-xs font-medium text-gray-600">تصویر منبع</p>
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                        {images.map((src) => {
+                          const active = imageUrl === src;
+                          return (
+                            <button
+                              key={src}
+                              type="button"
+                              onClick={() => setImageUrl(src)}
+                              className={cn(
+                                'overflow-hidden rounded-xl border transition',
+                                active ? 'border-teal-600 ring-2 ring-teal-600/25' : 'border-gray-200',
+                              )}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={src} alt="" className="h-24 w-full object-cover" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {IMAGE_EDIT_STYLES.map((item) => {
+                        const sample = studioStyleSample(item.id);
+                        const active = styleId === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setStyleId(item.id as ImageEditStyleId)}
+                            className={cn(
+                              'overflow-hidden rounded-2xl border text-right transition',
+                              active
+                                ? 'border-teal-600 bg-teal-50/50 ring-2 ring-teal-600/20'
+                                : 'border-gray-200 bg-white hover:border-gray-300',
+                            )}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={sample.url} alt="" className="h-28 w-full object-cover" />
+                            <div className="space-y-1 p-3">
+                              <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                              <p className="text-xs leading-5 text-gray-500">{item.blurb}</p>
+                              <p className="text-[11px] text-teal-800">{sample.caption}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="overflow-hidden rounded-2xl border border-teal-100 bg-teal-50/40">
+                      <div className="grid gap-0 sm:grid-cols-2">
+                        <div className="relative border-b border-teal-100 sm:border-b-0 sm:border-l">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={imageUrl || productPreview}
+                            alt=""
+                            className="h-44 w-full object-cover sm:h-52"
+                          />
+                          <span className="absolute bottom-2 right-2 rounded-full bg-black/65 px-2 py-0.5 text-[10px] text-white">
+                            تصویر شما
+                          </span>
+                        </div>
+                        <div className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            key={styleId}
+                            src={styleSample.url}
+                            alt=""
+                            className="h-44 w-full object-cover transition-opacity duration-300 sm:h-52"
+                          />
+                          <span className="absolute bottom-2 right-2 rounded-full bg-teal-700 px-2 py-0.5 text-[10px] text-white">
+                            نمونه {IMAGE_EDIT_STYLES.find((row) => row.id === styleId)?.name}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Link href="/accounting/images" className="text-sm text-teal-800 hover:underline">
+                        خرید توکن
+                      </Link>
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={onClose}>
+                          انصراف
+                        </Button>
+                        <Button disabled={!imageUrl || !clothId} onClick={runStudio}>
+                          ساخت تصویر · {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ),
+              },
+            ]}
+          />
         )}
       </FormCard>
     </Modal>

@@ -212,6 +212,8 @@ export type Workspace = {
   };
   imageTokens?: number;
   imageTokensUnlimited?: boolean;
+  /** Photoroom sandbox_ key mode for local / test calls. */
+  photoroomSandbox?: boolean;
   planCatalog?: {
     annualDiscount: number;
     plans: SubscriptionPlan[];

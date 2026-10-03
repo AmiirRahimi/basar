@@ -28,6 +28,7 @@ import {
 } from './teams';
 import { resolveAdminPermissions } from '@/lib/admin-permissions';
 import { OWNER_PERMISSIONS } from '@/lib/permissions';
+import { photoroomSandboxEnabled } from './photoroom';
 
 function M() {
   return dbEngine() === 'file' ? fileModels : mongo;
@@ -488,6 +489,7 @@ export async function getWorkspace(): Promise<ActionResult<Workspace>> {
       planCatalog,
       imageTokens,
       imageTokensUnlimited: isAdmin,
+      photoroomSandbox: photoroomSandboxEnabled(),
       purchases,
       contextChanged:
         context._storeId !== auth.session._storeId || context._brandId !== auth.session._brandId,

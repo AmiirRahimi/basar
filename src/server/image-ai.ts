@@ -19,7 +19,7 @@ import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
 import { renderProductEdit } from './image-process';
-import { photoroomApiKey, photoroomVirtualModel } from './photoroom';
+import { photoroomApiKey, photoroomSandboxEnabled, photoroomVirtualModel } from './photoroom';
 import { readSourceImage, saveProductImage } from './image-store';
 import { clientIp, rateLimit } from './rate-limit';
 import { fail, ok, type ActionResult } from './result';
@@ -64,6 +64,7 @@ export async function listImageStudio(): Promise<ActionResult> {
       imageTokens: Number(owner?.imageTokens || 0),
       unlimited: Boolean(access.session.isPlatformAdmin),
       photoroomReady: Boolean(photoroomApiKey()),
+      photoroomSandbox: photoroomSandboxEnabled(),
       canBuy: access.session.storeRole === 'owner' || Boolean(access.session.isPlatformAdmin),
       canEdit: canWriteResource(
         access.session.storeRole,
