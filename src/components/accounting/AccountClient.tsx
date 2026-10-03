@@ -3,9 +3,9 @@
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2 } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { getPersonAccount } from '@/actions/crud';
-import { FormCard, Select } from '@/ui';
+import { ApiWait, FormCard, Select } from '@/ui';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import { personRoleLabel, personRolesLabel } from '@/lib/constants';
 import { redirectIfUnauthorized } from '@/lib/session-client';
@@ -128,16 +128,11 @@ export function AccountClient({
           }}
         />
         {pending ? (
-          <div
-            role="status"
-            aria-live="polite"
-            aria-busy="true"
-            className="mt-4 flex min-h-[7.5rem] flex-col items-center justify-center gap-3 rounded-xl bg-gray-50 px-4 py-6 text-sm text-gray-600"
-          >
-            <Loader2 className="h-6 w-6 animate-spin text-teal-700" />
-            <p className="font-medium text-gray-800">در حال محاسبه مانده…</p>
-            <p className="text-xs text-gray-500">جمع فاکتورها و پرداخت‌ها دارد می‌آید.</p>
-          </div>
+          <ApiWait
+            className="mt-4"
+            title="در حال محاسبه مانده…"
+            hint="جمع فاکتورها و پرداخت‌ها دارد می‌آید."
+          />
         ) : account ? (
           <div className="mt-4 grid gap-2 rounded-xl bg-gray-50 p-3 text-sm">
             {payable ? (
@@ -209,16 +204,11 @@ export function AccountClient({
       </FormCard>
       <FormCard>
         {pending ? (
-          <div
-            role="status"
-            aria-live="polite"
-            aria-busy="true"
-            className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-10 text-sm text-gray-600"
-          >
-            <Loader2 className="h-7 w-7 animate-spin text-teal-700" />
-            <p className="font-medium text-gray-800">در حال بارگذاری حساب…</p>
-            <p className="text-xs text-gray-500">مبالغ و فاکتورها کمی بعد نشان داده می‌شوند.</p>
-          </div>
+          <ApiWait
+            className="min-h-[16rem] border border-dashed border-gray-200 bg-gray-50/80"
+            title="در حال بارگذاری حساب…"
+            hint="مبالغ و فاکتورها کمی بعد نشان داده می‌شوند."
+          />
         ) : person ? (
           <>
             <Link

@@ -5,6 +5,7 @@ import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
 import { Banknote, Minus, Plus, Printer, ScrollText } from 'lucide-react';
 import {
+  ApiWait,
   Button,
   Checkbox,
   DatePicker,
@@ -179,6 +180,8 @@ export function InvoiceCrud({
   const [originalLines, setOriginalLines] = useState<DraftItem[]>([]);
   const [showErrors, setShowErrors] = useState(false);
   const [pending, start] = useTransition();
+  const [cartPending, startCart] = useTransition();
+  const [payPending, startPay] = useTransition();
   const writable = useWritable();
 
   const totals = useMemo(() => {
@@ -377,7 +380,7 @@ export function InvoiceCrud({
     setOriginalLines([]);
     setShowErrors(false);
     setOpen(true);
-    start(async () => {
+    startCart(async () => {
       const cart = await getInvoiceCart(invoice._id);
       if (redirectIfUnauthorized(cart)) return;
       const lines = Array.isArray(cart.data) ? cart.data : [];
@@ -421,7 +424,8 @@ export function InvoiceCrud({
   }
 
   function openPay(invoice: Invoice) {
-    start(async () => {
+    setPayFor(null);
+    startPay(async () => {
       const res = await getInvoiceBalance(invoice._id);
       if (redirectIfUnauthorized(res)) return;
       if (!res.ok || !res.data) {
@@ -608,11 +612,21 @@ export function InvoiceCrud({
                     نگه داشتن + برای بسته دیگر یا دیدن مانده
                   </p>
                 </div>
-                <IconButton type="button" variant="outline" size="sm" onClick={addItem} aria-label="افزودن قلم">
+                <IconButton
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addItem}
+                  aria-label="افزودن قلم"
+                  disabled={cartPending}
+                >
                   <Plus className="h-4 w-4" />
                 </IconButton>
               </div>
-              {items.map((item) => {
+              {cartPending ? (
+                <ApiWait title="در حال بارگذاری اقلام فاکتور…" hint="محصول‌ها و بسته‌ها دارند می‌آیند." />
+              ) : null}
+              {!cartPending && items.map((item) => {
                 const itemError = showErrors && (!item._cloth || Number(item.count) < 1);
                 const option = clothes.find((row) => row.value === item._cloth);
                 const stock = packsFromCloth(option || {});
@@ -687,7 +701,7 @@ export function InvoiceCrud({
 
             <PriceSection label="جمع مبلغ فاکتور" value={totals.amount} description={`جمع تعداد: ${totals.count}`} />
 
-            <Button onClick={submit} disabled={pending}>
+            <Button onClick={submit} disabled={pending || cartPending}>
               ذخیره
             </Button>
           </div>
@@ -774,9 +788,16 @@ export function InvoiceCrud({
         </FormCard>
       </Modal>
 
-      <Modal isOpen={Boolean(payFor)} onClose={() => setPayFor(null)} size="lg" title="پرداخت فاکتور">
+      <Modal
+        isOpen={payPending || Boolean(payFor)}
+        onClose={() => setPayFor(null)}
+        size="lg"
+        title="پرداخت فاکتور"
+      >
         <FormCard className="border-0 shadow-none rounded-[inherit]">
-          {payFor ? (
+          {payPending ? (
+            <ApiWait title="در حال محاسبه مانده فاکتور…" hint="مبلغ قابل پرداخت دارد می‌آید." />
+          ) : payFor ? (
             <PaymentForm
               personId={payFor.personId}
               invoiceId={payFor.invoiceId}

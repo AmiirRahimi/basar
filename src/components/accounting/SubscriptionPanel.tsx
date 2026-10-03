@@ -19,7 +19,7 @@ import { faDate, faNumber, toman } from '@/lib/format';
 import { GATEWAY_FEE_PERCENT } from '@/lib/storefront';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import type { Workspace } from '@/lib/types';
-import { Button, FormCard, Input, Modal, toast } from '@/ui';
+import { ApiWait, Button, FormCard, Input, Modal, toast } from '@/ui';
 import { Price, PriceSection } from './Price';
 import { useWorkspace } from './WorkspaceProvider';
 
@@ -52,6 +52,7 @@ export function SubscriptionPanel({
   const [discountCode, setDiscountCode] = useState('');
   const [applied, setApplied] = useState<DiscountPreview | null>(null);
   const [pending, start] = useTransition();
+  const [previewing, startPreview] = useTransition();
   const workspace = useWorkspace();
   const plans = workspace?.planCatalog?.plans?.length ? workspace.planCatalog.plans : SUBSCRIPTION_PLANS;
   const annualDiscount = workspace?.planCatalog?.annualDiscount ?? ANNUAL_DISCOUNT;
@@ -77,7 +78,7 @@ export function SubscriptionPanel({
       setApplied(null);
       return;
     }
-    start(async () => {
+    startPreview(async () => {
       const res = await previewSubscriptionDiscount({
         planId: selectedPlanId,
         billingCycle: cycle,
@@ -104,7 +105,8 @@ export function SubscriptionPanel({
       toast.error('اول یکی از طرح‌ها را انتخاب کنید');
       return;
     }
-    start(async () => {
+    setCheckoutOpen(true);
+    startPreview(async () => {
       const res = await previewSubscriptionDiscount({
         planId: selectedPlan.id,
         billingCycle: cycle,
@@ -112,7 +114,7 @@ export function SubscriptionPanel({
       });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok && res.data) setApplied(res.data as DiscountPreview);
-      setCheckoutOpen(true);
+      else setApplied(null);
     });
   }
 
@@ -123,7 +125,7 @@ export function SubscriptionPanel({
   function applyDiscount() {
     if (!selectedPlan) return;
     const code = discountCode.trim();
-    start(async () => {
+    startPreview(async () => {
       const res = await previewSubscriptionDiscount({
         planId: selectedPlan.id,
         billingCycle: cycle,
@@ -338,7 +340,7 @@ export function SubscriptionPanel({
           })}
         </div>
         <div className="flex justify-end">
-          <Button disabled={pending} onClick={openCheckout}>
+          <Button disabled={previewing || pending} onClick={openCheckout}>
             {active ? 'ادامه تمدید' : 'ادامه خرید'}
           </Button>
         </div>
@@ -346,68 +348,77 @@ export function SubscriptionPanel({
 
       <Modal isOpen={checkoutOpen} onClose={closeCheckout} size="md" rounded="lg" title="پرداخت اشتراک">
         <FormCard className="border-0 shadow-none rounded-[inherit]">
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-500">
-                {selectedPlan
-                  ? `${selectedPlan.name} · ${cycleLabel(cycle)} · ${toman(catalogPrice)}`
-                  : 'طرحی انتخاب نشده'}
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <Input
-                  label="کد تخفیف"
-                  value={discountCode}
-                  onChange={(e) => {
-                    setDiscountCode(e.target.value);
-                  }}
-                />
+          {previewing && !applied ? (
+            <ApiWait title="در حال محاسبه مبلغ…" hint="تخفیف و مانده اشتراک دارد می‌آید." />
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">
+                  {selectedPlan
+                    ? `${selectedPlan.name} · ${cycleLabel(cycle)} · ${toman(catalogPrice)}`
+                    : 'طرحی انتخاب نشده'}
+                </p>
               </div>
-              <Button variant="outline" disabled={pending} onClick={applyDiscount}>
-                اعمال تخفیف
-              </Button>
-            </div>
-            {applied?.remainingCredit ? (
-              <p className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-950">
-                {faNumber(applied.remainingPeriods || 0)} اشتراک از طرح فعلی
-                {applied.currentPlanName ? ` «${applied.currentPlanName}»` : ''} مانده است؛ ارزش آن{' '}
-                {toman(applied.remainingCredit)} از مبلغ طرح جدید کم می‌شود.
-              </p>
-            ) : null}
-            <PriceSection
-              label="مبلغ قابل پرداخت"
-              value={payable}
-              description={
-                applied ? (
-                  <>
-                    قیمت طرح: <Price value={applied.catalogPrice ?? applied.originalPrice} />
-                    {applied.percent ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <Input
+                    label="کد تخفیف"
+                    value={discountCode}
+                    onChange={(e) => {
+                      setDiscountCode(e.target.value);
+                    }}
+                  />
+                </div>
+                <Button variant="outline" disabled={previewing || pending} onClick={applyDiscount}>
+                  اعمال تخفیف
+                </Button>
+              </div>
+              {previewing ? (
+                <ApiWait compact title="در حال به‌روزرسانی مبلغ…" />
+              ) : null}
+              {applied?.remainingCredit ? (
+                <p className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-950">
+                  {faNumber(applied.remainingPeriods || 0)} اشتراک از طرح فعلی
+                  {applied.currentPlanName ? ` «${applied.currentPlanName}»` : ''} مانده است؛ ارزش آن{' '}
+                  {toman(applied.remainingCredit)} از مبلغ طرح جدید کم می‌شود.
+                </p>
+              ) : null}
+              {!previewing ? (
+                <PriceSection
+                  label="مبلغ قابل پرداخت"
+                  value={payable}
+                  description={
+                    applied ? (
                       <>
-                        {' '}
-                        · بعد از {faNumber(applied.percent)}٪ تخفیف:{' '}
-                        <Price value={applied.afterDiscount ?? applied.originalPrice} />
+                        قیمت طرح: <Price value={applied.catalogPrice ?? applied.originalPrice} />
+                        {applied.percent ? (
+                          <>
+                            {' '}
+                            · بعد از {faNumber(applied.percent)}٪ تخفیف:{' '}
+                            <Price value={applied.afterDiscount ?? applied.originalPrice} />
+                          </>
+                        ) : null}
+                        {applied.remainingCredit ? (
+                          <>
+                            {' '}
+                            · کسر مانده: <Price value={applied.remainingCredit} />
+                          </>
+                        ) : null}
                       </>
-                    ) : null}
-                    {applied.remainingCredit ? (
-                      <>
-                        {' '}
-                        · کسر مانده: <Price value={applied.remainingCredit} />
-                      </>
-                    ) : null}
-                  </>
-                ) : undefined
-              }
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" disabled={pending} onClick={closeCheckout}>
-                انصراف
-              </Button>
-              <Button disabled={pending || !selectedPlan} onClick={buy}>
-                {active ? 'پرداخت و تغییر طرح' : 'پرداخت و فعال‌سازی'}
-              </Button>
+                    ) : undefined
+                  }
+                />
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" disabled={pending} onClick={closeCheckout}>
+                  انصراف
+                </Button>
+                <Button disabled={pending || previewing || !selectedPlan} onClick={buy}>
+                  {active ? 'پرداخت و تغییر طرح' : 'پرداخت و فعال‌سازی'}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </FormCard>
       </Modal>
     </div>

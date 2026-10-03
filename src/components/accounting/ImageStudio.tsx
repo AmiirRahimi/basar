@@ -18,7 +18,7 @@ import { faDate, faNumber, toman } from '@/lib/format';
 import { parseImageList } from '@/lib/shop-cart';
 import { MAX_VIRTUAL_MODEL_IMAGES, PHOTOROOM_MODELS, PHOTOROOM_POSES, PHOTOROOM_SCENES } from '@/lib/photoroom';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { Button, FormCard, Input, Modal, Select, toast } from '@/ui';
+import { ApiWait, Button, FormCard, Input, Modal, Select, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 import { PlanLocked } from './PlanLocked';
 import { Price, PriceSection } from './Price';
@@ -33,6 +33,7 @@ type DiscountPreview = {
 export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [previewing, startPreview] = useTransition();
   const [selectedPackId, setSelectedPackId] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [discountCode, setDiscountCode] = useState('');
@@ -67,7 +68,7 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
       toast.success('کد تخفیف برداشته شد');
       return;
     }
-    start(async () => {
+    startPreview(async () => {
       const res = await previewImageTokenDiscount({ packId: selectedPack.id, discountCode: code });
       if (redirectIfUnauthorized(res)) return;
       if (!res.ok || !res.data) {
@@ -196,11 +197,13 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
                   }}
                 />
               </div>
-              <Button variant="outline" disabled={pending} onClick={applyDiscount}>
+              <Button variant="outline" disabled={previewing || pending} onClick={applyDiscount}>
                 اعمال تخفیف
               </Button>
             </div>
-            {applied?.percent ? (
+            {previewing ? (
+              <ApiWait compact title="در حال بررسی کد تخفیف…" />
+            ) : applied?.percent ? (
               <PriceSection
                 label="مبلغ قابل پرداخت"
                 value={applied.price}
@@ -218,7 +221,7 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
               <Button variant="outline" disabled={pending} onClick={() => setCheckoutOpen(false)}>
                 انصراف
               </Button>
-              <Button disabled={pending || !selectedPack} onClick={buy}>
+              <Button disabled={pending || previewing || !selectedPack} onClick={buy}>
                 پرداخت و افزودن توکن
               </Button>
             </div>
@@ -327,92 +330,99 @@ export function ImageEditModal({
             استودیو / پس‌زمینه
           </Button>
         </div>
-        <p className="mb-4 text-sm text-gray-500">
-          هر ساخت دقیقاً {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن است.
-          {unlimited ? ' حساب ادمین محدودیتی ندارد.' : ` مانده: ${faNumber(tokens)} توکن.`}
-          {mode === 'model'
-            ? ' چند عکس از جلو، پشت و بغل را انتخاب کنید تا مدل لباس را بپوشد. تصویر ساخته‌شده جایگزین همان انتخاب‌ها می‌شود.'
-            : ' یک تصویر را انتخاب کنید و جلوه استودیو بسازید.'}
-        </p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {images.map((src) => {
-            const active = mode === 'model' ? selected.includes(src) : imageUrl === src;
-            return (
-              <button
-                key={src}
-                type="button"
-                onClick={() => (mode === 'model' ? toggleSelected(src) : setImageUrl(src))}
-                className={`overflow-hidden rounded-2xl border ${
-                  active ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-gray-200'
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="h-28 w-full object-cover" />
-              </button>
-            );
-          })}
-        </div>
-        {mode === 'model' ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <Select
-              label="مدل"
-              value={model}
-              options={[...PHOTOROOM_MODELS]}
-              onChange={(value) => setModel(String(value))}
-              fullWidth
-            />
-            <Select
-              label="صحنه"
-              value={scene}
-              options={[...PHOTOROOM_SCENES]}
-              onChange={(value) => setScene(String(value))}
-              fullWidth
-            />
-            <Select
-              label="ژست"
-              value={pose}
-              options={[...PHOTOROOM_POSES]}
-              onChange={(value) => setPose(String(value))}
-              fullWidth
-            />
-          </div>
+        {pending ? (
+          <ApiWait
+            title="در حال ساخت تصویر…"
+            hint="این کار کمی طول می‌کشد؛ صفحه را نبندید."
+          />
         ) : (
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {IMAGE_EDIT_STYLES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setStyleId(item.id)}
-                className={`rounded-2xl border p-3 text-right ${
-                  styleId === item.id ? 'border-teal-600 bg-teal-50/60' : 'border-gray-200 bg-white'
-                }`}
-              >
-                <p className="text-sm font-semibold text-gray-900">{item.name}</p>
-                <p className="mt-1 text-xs leading-5 text-gray-500">{item.blurb}</p>
-              </button>
-            ))}
-          </div>
+          <>
+            <p className="mb-4 text-sm text-gray-500">
+              هر ساخت دقیقاً {faNumber(IMAGE_EDIT_TOKEN_COST)} توکن است.
+              {unlimited ? ' حساب ادمین محدودیتی ندارد.' : ` مانده: ${faNumber(tokens)} توکن.`}
+              {mode === 'model'
+                ? ' چند عکس از جلو، پشت و بغل را انتخاب کنید تا مدل لباس را بپوشد. تصویر ساخته‌شده جایگزین همان انتخاب‌ها می‌شود.'
+                : ' یک تصویر را انتخاب کنید و جلوه استودیو بسازید.'}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {images.map((src) => {
+                const active = mode === 'model' ? selected.includes(src) : imageUrl === src;
+                return (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => (mode === 'model' ? toggleSelected(src) : setImageUrl(src))}
+                    className={`overflow-hidden rounded-2xl border ${
+                      active ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-gray-200'
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" className="h-28 w-full object-cover" />
+                  </button>
+                );
+              })}
+            </div>
+            {mode === 'model' ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <Select
+                  label="مدل"
+                  value={model}
+                  options={[...PHOTOROOM_MODELS]}
+                  onChange={(value) => setModel(String(value))}
+                  fullWidth
+                />
+                <Select
+                  label="صحنه"
+                  value={scene}
+                  options={[...PHOTOROOM_SCENES]}
+                  onChange={(value) => setScene(String(value))}
+                  fullWidth
+                />
+                <Select
+                  label="ژست"
+                  value={pose}
+                  options={[...PHOTOROOM_POSES]}
+                  onChange={(value) => setPose(String(value))}
+                  fullWidth
+                />
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {IMAGE_EDIT_STYLES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setStyleId(item.id)}
+                    className={`rounded-2xl border p-3 text-right ${
+                      styleId === item.id ? 'border-teal-600 bg-teal-50/60' : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">{item.blurb}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+              <Link href="/accounting/images" className="text-sm text-teal-800 hover:underline">
+                خرید توکن
+              </Link>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={onClose}>
+                  انصراف
+                </Button>
+                <Button
+                  disabled={mode === 'model' ? !selected.length : !imageUrl}
+                  onClick={mode === 'model' ? runModel : runStudio}
+                >
+                  {mode === 'model'
+                    ? `ساخت با مدل · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`
+                    : `ساخت تصویر · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`}
+                </Button>
+              </div>
+            </div>
+          </>
         )}
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
-          <Link href="/accounting/images" className="text-sm text-teal-800 hover:underline">
-            خرید توکن
-          </Link>
-          <div className="flex gap-2">
-            <Button variant="outline" disabled={pending} onClick={onClose}>
-              انصراف
-            </Button>
-            <Button
-              disabled={pending || (mode === 'model' ? !selected.length : !imageUrl)}
-              onClick={mode === 'model' ? runModel : runStudio}
-            >
-              {pending
-                ? 'در حال ساخت…'
-                : mode === 'model'
-                  ? `ساخت با مدل · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`
-                  : `ساخت تصویر · ${faNumber(IMAGE_EDIT_TOKEN_COST)} توکن`}
-            </Button>
-          </div>
-        </div>
       </FormCard>
     </Modal>
   );

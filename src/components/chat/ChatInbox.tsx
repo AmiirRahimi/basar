@@ -11,7 +11,7 @@ import {
 } from '@/actions/chat';
 import type { ChatChannel, ChatConversationDto, ChatThreadDto } from '@/lib/chat-types';
 import { faRelativeTime } from '@/lib/format';
-import { cn } from '@/ui';
+import { ApiWait, cn } from '@/ui';
 import { MessageSquare, RotateCcw, X } from 'lucide-react';
 import { ChatPanel } from './ChatPanel';
 import { NewMessageBadge } from './NewMessageBadge';
@@ -43,6 +43,8 @@ export function ChatInbox({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thread, setThread] = useState<ChatThreadDto | null>(null);
   const [pending, start] = useTransition();
+  const [listPending, startList] = useTransition();
+  const [threadPending, startThread] = useTransition();
   const seenIds = useRef<Set<string>>(new Set());
   const bootstrapped = useRef(false);
   const activeIdRef = useRef<string | null>(null);
@@ -68,17 +70,20 @@ export function ChatInbox({
     setUnread(res.data.unread);
   }, [channel, status]);
 
-  const openThread = useCallback(async (id: string) => {
+  const openThread = useCallback((id: string) => {
     setActiveId(id);
-    const res = await getAdminThread(id);
-    if (!res.ok || !res.data) {
-      toast.error(res.message || 'گفتگو باز نشد');
-      return;
-    }
-    setThread(res.data);
-    setConversations((prev) =>
-      prev.map((c) => (c._id === id ? { ...c, unreadForAdmin: 0 } : c)),
-    );
+    setThread(null);
+    startThread(async () => {
+      const res = await getAdminThread(id);
+      if (!res.ok || !res.data) {
+        toast.error(res.message || 'گفتگو باز نشد');
+        return;
+      }
+      setThread(res.data);
+      setConversations((prev) =>
+        prev.map((c) => (c._id === id ? { ...c, unreadForAdmin: 0 } : c)),
+      );
+    });
   }, []);
 
   useChatPolling(
@@ -94,7 +99,9 @@ export function ChatInbox({
   );
 
   useEffect(() => {
-    void refreshList();
+    startList(async () => {
+      await refreshList();
+    });
   }, [refreshList]);
 
   async function handleSend(body: string) {
@@ -163,7 +170,14 @@ export function ChatInbox({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {conversations.length === 0 ? (
+          {listPending ? (
+            <ApiWait
+              compact
+              className="m-3 bg-transparent"
+              title="در حال بارگذاری گفتگوها…"
+              hint="فیلتر دارد اعمال می‌شود."
+            />
+          ) : conversations.length === 0 ? (
             <p className="px-3 py-8 text-center text-[12px] text-zinc-400">گفتگویی نیست.</p>
           ) : (
             conversations.map((row) => (
@@ -171,7 +185,7 @@ export function ChatInbox({
                 key={row._id}
                 row={row}
                 active={row._id === activeId}
-                onClick={() => void openThread(row._id)}
+                onClick={() => openThread(row._id)}
               />
             ))
           )}
@@ -179,7 +193,13 @@ export function ChatInbox({
       </aside>
 
       <section className="min-h-0">
-        {thread ? (
+        {threadPending ? (
+          <ApiWait
+            className="h-full rounded-none border-0 bg-zinc-50/50"
+            title="در حال باز کردن گفتگو…"
+            hint="پیام‌ها دارد می‌آید."
+          />
+        ) : thread ? (
           <ChatPanel
             key={thread.conversation._id}
             className="h-full"

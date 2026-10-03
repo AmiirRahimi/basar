@@ -6,7 +6,7 @@ import { uploadClothImages } from '@/actions/image-upload';
 import { faNumber } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { encodeImageList, MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
-import { Button, FieldGroup, IconButton, toast } from '@/ui';
+import { ApiWait, Button, FieldGroup, IconButton, toast } from '@/ui';
 import { ClothImageStudio } from './ImageStudio';
 
 export function ClothImagesEditor({
@@ -114,7 +114,11 @@ export function ClothImagesEditor({
         onChange={(e) => uploadFiles(e.target.files)}
       />
 
-      {images.length ? (
+      {pending ? (
+        <ApiWait title="در حال بارگذاری تصویر…" hint="فایل دارد روی سرور ذخیره می‌شود." />
+      ) : null}
+
+      {!pending && images.length ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {images.map((src, index) => (
             <div key={src + index} className="overflow-hidden rounded-xl border border-gray-200 bg-white/80 dark:border-gray-700 dark:bg-gray-900/40">
@@ -127,7 +131,7 @@ export function ClothImagesEditor({
                     type="button"
                     size="xs"
                     variant="outline"
-                    disabled={pending || locked}
+                    disabled={locked}
                     icon={<Replace className="h-3 w-3" />}
                     onClick={() => openPicker(index)}
                   >
@@ -137,7 +141,6 @@ export function ClothImagesEditor({
                     type="button"
                     size="xs"
                     variant="ghost"
-                    disabled={pending}
                     aria-label="حذف تصویر"
                     onClick={() => remove(src)}
                   >
@@ -150,49 +153,49 @@ export function ClothImagesEditor({
         </div>
       ) : null}
 
-      <button
-        type="button"
-        disabled={pending || atLimit || locked}
-        onClick={() => openPicker(null)}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragOver={(e) => e.preventDefault()}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          setDragging(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          if (atLimit || pending) return;
-          replaceIndexRef.current = null;
-          uploadFiles(e.dataTransfer.files);
-        }}
-        className={[
-          'flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-sm transition-colors',
-          atLimit || pending || locked
-            ? 'cursor-not-allowed border-gray-200 text-gray-400 dark:border-gray-700'
-            : dragging
-              ? 'border-primary/50 bg-primary/5 text-primary'
-              : 'border-gray-200 text-gray-500 hover:border-primary/40 hover:text-primary dark:border-gray-700',
-        ].join(' ')}
-      >
-        <ImagePlus className="h-5 w-5" />
-        <span>
-          {locked
-            ? 'برای افزودن تصویر، طرح ویترین را فعال کنید'
-            : pending
-              ? 'در حال بارگذاری…'
+      {!pending ? (
+        <button
+          type="button"
+          disabled={atLimit || locked}
+          onClick={() => openPicker(null)}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setDragging(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            if (atLimit) return;
+            replaceIndexRef.current = null;
+            uploadFiles(e.dataTransfer.files);
+          }}
+          className={[
+            'flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-sm transition-colors',
+            atLimit || locked
+              ? 'cursor-not-allowed border-gray-200 text-gray-400 dark:border-gray-700'
+              : dragging
+                ? 'border-primary/50 bg-primary/5 text-primary'
+                : 'border-gray-200 text-gray-500 hover:border-primary/40 hover:text-primary dark:border-gray-700',
+          ].join(' ')}
+        >
+          <ImagePlus className="h-5 w-5" />
+          <span>
+            {locked
+              ? 'برای افزودن تصویر، طرح ویترین را فعال کنید'
               : atLimit
                 ? 'ظرفیت تصاویر پر است'
                 : 'انتخاب یا رها کردن فایل تصویر'}
-        </span>
-        {!locked && !atLimit && !pending ? (
-          <span className="text-xs text-gray-400">{faNumber(remaining)} جای خالی باقی مانده</span>
-        ) : null}
-      </button>
+          </span>
+          {!locked && !atLimit ? (
+            <span className="text-xs text-gray-400">{faNumber(remaining)} جای خالی باقی مانده</span>
+          ) : null}
+        </button>
+      ) : null}
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
 

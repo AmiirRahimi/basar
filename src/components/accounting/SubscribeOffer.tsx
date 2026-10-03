@@ -20,7 +20,7 @@ import {
 } from '@/lib/plans';
 import { faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { Button, FormCard, Input, Modal, cn, toast } from '@/ui';
+import { ApiWait, Button, FormCard, Input, Modal, cn, toast } from '@/ui';
 import { Price, PriceSection } from './Price';
 import { SubscribePanelBackdrop } from './SubscribePanelBackdrop';
 import { useWorkspace } from './WorkspaceProvider';
@@ -84,6 +84,7 @@ export function SubscribeOffer() {
   const [discountCode, setDiscountCode] = useState('');
   const [applied, setApplied] = useState<DiscountPreview | null>(null);
   const [pending, start] = useTransition();
+  const [previewing, startPreview] = useTransition();
 
   const selectedPlan = selectedPlanId ? planFromList(plans, selectedPlanId) : null;
   const catalogPrice = selectedPlan ? planPrice(selectedPlan, cycle, annualDiscount) : 0;
@@ -118,7 +119,8 @@ export function SubscribeOffer() {
       return;
     }
     setSelectedPlanId(plan.id);
-    start(async () => {
+    setCheckoutOpen(true);
+    startPreview(async () => {
       const res = await previewSubscriptionDiscount({
         planId: plan.id,
         billingCycle: cycle,
@@ -127,14 +129,13 @@ export function SubscribeOffer() {
       if (redirectIfUnauthorized(res)) return;
       if (res.ok && res.data) setApplied(res.data as DiscountPreview);
       else setApplied(null);
-      setCheckoutOpen(true);
     });
   }
 
   function applyDiscount() {
     if (!selectedPlan) return;
     const code = discountCode.trim();
-    start(async () => {
+    startPreview(async () => {
       const res = await previewSubscriptionDiscount({
         planId: selectedPlan.id,
         billingCycle: cycle,
@@ -283,7 +284,7 @@ export function SubscribeOffer() {
                 cycle={cycle}
                 annualDiscount={annualDiscount}
                 selected={selectedPlanId === plan.id}
-                pending={pending}
+                pending={pending || previewing}
                 onSelect={() => selectPlan(plan.id)}
                 onBuy={() => openCheckout(plan.id)}
               />
@@ -317,7 +318,7 @@ export function SubscribeOffer() {
             </p>
             <p className="text-xs text-shop-saffron">{selectedPlan ? toman(catalogPrice) : 'یک طرح را انتخاب کن'}</p>
           </div>
-          <ShopButton disabled={pending || !selectedPlan} onClick={() => openCheckout()} className="shrink-0 px-5 py-2.5">
+          <ShopButton disabled={pending || previewing || !selectedPlan} onClick={() => openCheckout()} className="shrink-0 px-5 py-2.5">
             ادامه پرداخت
           </ShopButton>
         </div>
@@ -325,60 +326,67 @@ export function SubscribeOffer() {
 
       <Modal isOpen={checkoutOpen} onClose={() => setCheckoutOpen(false)} size="md" rounded="lg" title="پرداخت و باز شدن پنل">
         <FormCard className="rounded-[inherit] border-0 shadow-none">
-          <div className="space-y-4">
-            <p className="text-sm text-gray-500">
-              {selectedPlan
-                ? `${selectedPlan.name} · ${cycleLabel(cycle)} · ${toman(catalogPrice)}`
-                : 'طرحی انتخاب نشده'}
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <Input
-                  label="کد تخفیف"
-                  value={discountCode}
-                  onChange={(event) => setDiscountCode(event.target.value)}
-                />
-              </div>
-              <Button variant="outline" disabled={pending} onClick={applyDiscount}>
-                اعمال تخفیف
-              </Button>
-            </div>
-            {applied?.remainingCredit ? (
-              <p className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-950">
-                {faNumber(applied.remainingPeriods || 0)} اشتراک از طرح فعلی
-                {applied.currentPlanName ? ` «${applied.currentPlanName}»` : ''} مانده است؛ ارزش آن{' '}
-                {toman(applied.remainingCredit)} از مبلغ طرح جدید کم می‌شود.
+          {previewing && !applied ? (
+            <ApiWait title="در حال محاسبه مبلغ…" hint="تخفیف و مبلغ نهایی دارد می‌آید." />
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                {selectedPlan
+                  ? `${selectedPlan.name} · ${cycleLabel(cycle)} · ${toman(catalogPrice)}`
+                  : 'طرحی انتخاب نشده'}
               </p>
-            ) : null}
-            <PriceSection
-              label="مبلغ قابل پرداخت"
-              value={payable}
-              description={
-                applied ? (
-                  <>
-                    قیمت طرح: <Price value={applied.catalogPrice ?? applied.originalPrice} />
-                    {applied.percent ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <Input
+                    label="کد تخفیف"
+                    value={discountCode}
+                    onChange={(event) => setDiscountCode(event.target.value)}
+                  />
+                </div>
+                <Button variant="outline" disabled={previewing || pending} onClick={applyDiscount}>
+                  اعمال تخفیف
+                </Button>
+              </div>
+              {previewing ? <ApiWait compact title="در حال به‌روزرسانی مبلغ…" /> : null}
+              {applied?.remainingCredit ? (
+                <p className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-950">
+                  {faNumber(applied.remainingPeriods || 0)} اشتراک از طرح فعلی
+                  {applied.currentPlanName ? ` «${applied.currentPlanName}»` : ''} مانده است؛ ارزش آن{' '}
+                  {toman(applied.remainingCredit)} از مبلغ طرح جدید کم می‌شود.
+                </p>
+              ) : null}
+              {!previewing ? (
+                <PriceSection
+                  label="مبلغ قابل پرداخت"
+                  value={payable}
+                  description={
+                    applied ? (
                       <>
-                        {' '}
-                        · بعد از {faNumber(applied.percent)}٪ تخفیف:{' '}
-                        <Price value={applied.afterDiscount ?? applied.originalPrice} />
+                        قیمت طرح: <Price value={applied.catalogPrice ?? applied.originalPrice} />
+                        {applied.percent ? (
+                          <>
+                            {' '}
+                            · بعد از {faNumber(applied.percent)}٪ تخفیف:{' '}
+                            <Price value={applied.afterDiscount ?? applied.originalPrice} />
+                          </>
+                        ) : null}
                       </>
-                    ) : null}
-                  </>
-                ) : (
-                  'بعد از پرداخت، منوی حسابداری باز می‌شود.'
-                )
-              }
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" disabled={pending} onClick={() => setCheckoutOpen(false)}>
-                انصراف
-              </Button>
-              <Button disabled={pending || !selectedPlan} onClick={buy}>
-                پرداخت و ورود به پنل
-              </Button>
+                    ) : (
+                      'بعد از پرداخت، منوی حسابداری باز می‌شود.'
+                    )
+                  }
+                />
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" disabled={pending} onClick={() => setCheckoutOpen(false)}>
+                  انصراف
+                </Button>
+                <Button disabled={pending || previewing || !selectedPlan} onClick={buy}>
+                  پرداخت و ورود به پنل
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </FormCard>
       </Modal>
       </div>

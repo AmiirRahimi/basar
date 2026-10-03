@@ -18,6 +18,7 @@ export {
   type KeyValueRepeaterProps,
 } from './components/KeyValueRepeater';
 export { PageLoader, type PageLoaderProps } from './components/PageLoader';
+export { ApiWait, type ApiWaitProps } from './components/ApiWait';
 export {
   AppSwitcher,
   type AppSwitcherItem,

@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { getPersonReturns, receiveReturnedCloth } from '@/actions/crud';
-import { Button, Checkbox, FormCard, IconButton, Input, Select, fieldLabelClassName, toast } from '@/ui';
+import { ApiWait, Button, Checkbox, FormCard, IconButton, Input, Select, fieldLabelClassName, toast } from '@/ui';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { PriceField, PriceSection } from './Price';
@@ -57,7 +57,8 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
   const [description, setDescription] = useState('');
   const [returnable, setReturnable] = useState<ReturnableLine[]>([]);
   const [receipts, setReceipts] = useState<ReturnReceipt[]>([]);
-  const [pending, start] = useTransition();
+  const [loading, startLoad] = useTransition();
+  const [saving, startSave] = useTransition();
 
   const invoices = useMemo(() => {
     const map = new Map<string, { id: string; number?: string | number; date?: string; count: number }>();
@@ -79,7 +80,7 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
   const credit = chosen.reduce((sum, row) => sum + rowCount(picks[row.key]) * Number(picks[row.key]?.price || 0), 0);
 
   function load(id: string) {
-    start(async () => {
+    startLoad(async () => {
       const res = await getPersonReturns(id);
       if (redirectIfUnauthorized(res)) return;
       if (!res.ok || !res.data) {
@@ -143,7 +144,7 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
         return;
       }
     }
-    start(async () => {
+    startSave(async () => {
       const res = await receiveReturnedCloth({
         personId: person,
         invoiceId,
@@ -185,7 +186,7 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
               if (id) load(id);
             }}
           />
-          {person ? (
+          {person && !loading ? (
             <Select
               label="فاکتور"
               options={invoices.map((row) => ({
@@ -206,18 +207,20 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
         </div>
 
         <h3 className="mt-5 mb-2 font-medium">لباس‌های این فاکتور</h3>
-        {pending ? <p className="text-sm text-gray-500">در حال بارگذاری...</p> : null}
-        {!person ? <p className="text-sm text-gray-500">ابتدا مشتری را انتخاب کنید.</p> : null}
-        {person && !pending && !invoices.length ? (
+        {loading ? (
+          <ApiWait title="در حال بارگذاری مرجوعی…" hint="فاکتورها و لباس‌های قابل برگشت دارد می‌آید." />
+        ) : null}
+        {!person && !loading ? <p className="text-sm text-gray-500">ابتدا مشتری را انتخاب کنید.</p> : null}
+        {person && !loading && !invoices.length ? (
           <p className="rounded-2xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
             لباس قابل مرجوعی برای این مشتری نمانده است.
           </p>
         ) : null}
-        {person && invoices.length && !invoiceId ? (
+        {person && !loading && invoices.length && !invoiceId ? (
           <p className="text-sm text-gray-500">فاکتور را انتخاب کنید تا لباس‌های خریده‌شده بیاید.</p>
         ) : null}
 
-        {invoiceId ? (
+        {!loading && invoiceId ? (
           <div className="space-y-3 rounded-xl border border-gray-200 p-3">
             {lines.map((row) => {
               const pick = picks[row.key];
@@ -292,7 +295,7 @@ export function ReturnedClient({ people }: { people: FieldOption[] }) {
               value={credit}
               description="جمع قیمت لباس‌های انتخاب‌شده. این مبلغ از مانده بدهی مشتری کم می‌شود."
             />
-            <Button type="button" loading={pending} disabled={!chosen.length} onClick={save}>
+            <Button type="button" loading={saving} disabled={!chosen.length || loading} onClick={save}>
               ثبت مرجوعی
             </Button>
           </div>
