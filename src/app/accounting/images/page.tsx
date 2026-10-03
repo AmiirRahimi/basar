@@ -16,7 +16,7 @@ export default async function ProductImagesPage() {
   return (
     <AccountingShell
       title="تصویر محصول"
-      description="با توکن، پس‌زمینه را سفید کنید یا عکس کاتالوگ استودیویی بسازید. هر ویرایش یک توکن است."
+      description="با توکن، پس‌زمینه را سفید کنید یا عکس کاتالوگ استودیویی بسازید. هر ویرایش تصویر یک توکن است."
       error={errorMessage(clothesRes) || errorMessage(studioRes)}
     >
       <ImageStudioBoard clothes={clothes} purchases={studio.purchases} edits={studio.edits} />

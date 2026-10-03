@@ -1,4 +1,4 @@
-import { IMAGE_EDIT_TOKEN_COST, imageTokenPackById } from '@/lib/image-tokens';
+import { IMAGE_EDIT_TOKEN_COST, imageTokenPurchaseLabel } from '@/lib/image-tokens';
 import { PERSIAN_MONTHS, persianYearMonth } from '@/lib/checks';
 import { requirePlatformAdmin } from './admin';
 import { db, dbEngine, serialize } from './db';
@@ -94,7 +94,6 @@ export async function getAdminUsageReport(): Promise<ActionResult> {
     const user = userById.get(userId);
     const tokens = Number(row.tokens || 0);
     const price = Number(row.price || 0);
-    const pack = imageTokenPackById(row.packId);
     const current = boughtByUser.get(userId) || { tokens: 0, price: 0, count: 0, lastAt: '' };
     current.tokens += tokens;
     current.price += price;
@@ -114,7 +113,7 @@ export async function getAdminUsageReport(): Promise<ActionResult> {
       _id: String(row._id),
       fullName: user?.fullName || '',
       phonenumber: String(user?.phonenumber || ''),
-      packName: pack?.name || row.packId || 'بسته',
+      packName: imageTokenPurchaseLabel(row.packId, tokens),
       tokens,
       price,
       timeStamp: row.timeStamp,

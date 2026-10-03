@@ -3,22 +3,20 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { buyImageTokens, editProductImage, generateClothOnModel, previewImageTokenDiscount } from '@/actions/image-ai';
 import {
   IMAGE_EDIT_STYLES,
   IMAGE_EDIT_TOKEN_COST,
-  IMAGE_TOKEN_LIST_PRICE,
-  IMAGE_TOKEN_PACKS,
-  imageTokenPackById,
-  tokenSavePercent,
-  tokenUnitPrice,
+  IMAGE_TOKEN_AMOUNTS,
+  IMAGE_TOKEN_UNIT_PRICE,
+  imageTokenPrice,
 } from '@/lib/image-tokens';
 import { faDate, faNumber, toman } from '@/lib/format';
 import { parseImageList } from '@/lib/shop-cart';
 import { MAX_VIRTUAL_MODEL_IMAGES, PHOTOROOM_MODELS, PHOTOROOM_POSES, PHOTOROOM_SCENES } from '@/lib/photoroom';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { ApiWait, Button, FormCard, Input, Modal, Select, toast } from '@/ui';
+import { ApiWait, Button, FormCard, Input, Modal, Select, cn, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 import { PlanLocked } from './PlanLocked';
 import { Price, PriceSection } from './Price';
@@ -30,21 +28,33 @@ type DiscountPreview = {
   percent: number;
 };
 
+const DEFAULT_TOKEN_STEP = IMAGE_TOKEN_AMOUNTS.indexOf(50) >= 0 ? IMAGE_TOKEN_AMOUNTS.indexOf(50) : 2;
+
 export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [previewing, startPreview] = useTransition();
-  const [selectedPackId, setSelectedPackId] = useState('');
+  const [stepIndex, setStepIndex] = useState(DEFAULT_TOKEN_STEP);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [discountCode, setDiscountCode] = useState('');
   const [applied, setApplied] = useState<DiscountPreview | null>(null);
-  const selectedPack = imageTokenPackById(selectedPackId);
-  const catalogPrice = selectedPack?.price || 0;
-  const payable = applied?.price ?? catalogPrice;
 
-  function selectPack(packId: string) {
-    setSelectedPackId(packId);
+  const tokens = IMAGE_TOKEN_AMOUNTS[stepIndex] ?? IMAGE_TOKEN_AMOUNTS[0];
+  const catalogPrice = imageTokenPrice(tokens);
+  const payable = applied?.price ?? catalogPrice;
+  const progress =
+    IMAGE_TOKEN_AMOUNTS.length > 1 ? (stepIndex / (IMAGE_TOKEN_AMOUNTS.length - 1)) * 100 : 0;
+
+  function setStep(next: number) {
+    const clamped = Math.max(0, Math.min(IMAGE_TOKEN_AMOUNTS.length - 1, next));
+    setStepIndex(clamped);
     setApplied(null);
+  }
+
+  function setTokensByAmount(amount: number) {
+    const next = IMAGE_TOKEN_AMOUNTS.indexOf(amount as (typeof IMAGE_TOKEN_AMOUNTS)[number]);
+    if (next < 0) return;
+    setStep(next);
   }
 
   function openCheckout() {
@@ -52,16 +62,11 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
       toast.error('فقط صاحب برند می‌تواند توکن بخرد');
       return;
     }
-    if (!selectedPack) {
-      toast.error('اول یکی از بسته‌ها را انتخاب کنید');
-      return;
-    }
     setDiscountCode(applied?.code || '');
     setCheckoutOpen(true);
   }
 
   function applyDiscount() {
-    if (!selectedPack) return;
     const code = discountCode.trim();
     if (!code) {
       setApplied(null);
@@ -69,7 +74,7 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
       return;
     }
     startPreview(async () => {
-      const res = await previewImageTokenDiscount({ packId: selectedPack.id, discountCode: code });
+      const res = await previewImageTokenDiscount({ tokens, discountCode: code });
       if (redirectIfUnauthorized(res)) return;
       if (!res.ok || !res.data) {
         setApplied(null);
@@ -83,9 +88,8 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
   }
 
   function buy() {
-    if (!selectedPack) return;
     start(async () => {
-      const res = await buyImageTokens(selectedPack.id, discountCode.trim());
+      const res = await buyImageTokens(tokens, discountCode.trim());
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
         const redirectUrl = (res.data as { redirectUrl?: string } | null)?.redirectUrl;
@@ -105,87 +109,115 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-3">
-        {IMAGE_TOKEN_PACKS.map((pack) => {
-          const save = tokenSavePercent(pack);
-          const selected = selectedPackId === pack.id;
-          return (
-            <button
-              key={pack.id}
-              type="button"
-              onClick={() => selectPack(pack.id)}
-              aria-pressed={selected}
-              className={`flex flex-col rounded-2xl border bg-white p-4 text-right shadow-sm transition ${
-                selected
-                  ? 'border-teal-600 bg-teal-50/70 ring-2 ring-teal-600'
-                  : pack.highlight
-                    ? 'border-teal-200 hover:border-teal-400'
-                    : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                {pack.highlight ? (
-                  <span className="w-fit rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-800">
-                    پیشنهادی
-                  </span>
-                ) : null}
-                {selected ? (
-                  <span className="w-fit rounded-full bg-teal-600 px-2 py-0.5 text-[11px] font-medium text-white">
-                    انتخاب شده
-                  </span>
-                ) : null}
-              </div>
-              <h3 className="text-base font-semibold text-gray-900">{pack.name}</h3>
-              <p className="mt-1 min-h-10 text-xs text-gray-500">{pack.blurb}</p>
-              <p className="mt-4 text-3xl font-semibold tracking-tight text-gray-900">{faNumber(pack.tokens)}</p>
-              <p className="text-sm text-gray-500">توکن · هر تصویر یک توکن</p>
-              <PriceSection
-                className="mt-3"
-                label="قیمت بسته"
-                value={pack.price}
-                description={
-                  <>
-                    <Price value={tokenUnitPrice(pack)} /> برای هر ویرایش تصویر
-                    {save ? (
-                      <span className="mt-1 block text-teal-700">
-                        {faNumber(save)}٪ ارزان‌تر از خرید تکی <Price value={IMAGE_TOKEN_LIST_PRICE} />
-                      </span>
-                    ) : (
-                      <span className="mt-1 block text-gray-400">قیمت پایه هر توکن</span>
-                    )}
-                  </>
-                }
-              />
-              <ul className="mt-4 flex-1 space-y-2 text-sm text-gray-700">
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />
-                  هر توکن = ویرایش یک تصویر
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />
-                  پس‌زمینه سفید، استودیو و عکس مربعی کاتالوگ
-                </li>
-              </ul>
-            </button>
-          );
-        })}
+    <div className="space-y-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-gray-500">تعداد توکن</p>
+          <p
+            key={tokens}
+            className="mt-1 text-3xl font-semibold tracking-tight text-gray-900 transition-all duration-300 ease-out"
+          >
+            {faNumber(tokens)}
+          </p>
+          <p className="mt-1 text-sm text-gray-600">
+            هر توکن = ویرایش یک تصویر · هر توکن {toman(IMAGE_TOKEN_UNIT_PRICE)}
+          </p>
+        </div>
+        <PriceSection label="مبلغ" value={catalogPrice} className="min-w-[10rem] transition-all duration-300" />
       </div>
+
+      <div className="space-y-3" dir="rtl">
+        <div className="relative mx-2.5">
+          {IMAGE_TOKEN_AMOUNTS.map((amount, index) => {
+            const offset =
+              IMAGE_TOKEN_AMOUNTS.length > 1 ? (index / (IMAGE_TOKEN_AMOUNTS.length - 1)) * 100 : 0;
+            const active = index === stepIndex;
+            const reached = index <= stepIndex;
+            return (
+              <button
+                key={amount}
+                type="button"
+                onClick={() => setTokensByAmount(amount)}
+                className={cn(
+                  'absolute top-0 translate-x-1/2 text-xs transition-all duration-300 ease-out sm:text-sm',
+                  active
+                    ? 'font-semibold text-teal-800'
+                    : reached
+                      ? 'font-medium text-teal-700/75 hover:text-teal-800'
+                      : 'text-gray-400 hover:text-gray-600',
+                )}
+                style={{ right: `${offset}%` }}
+              >
+                {faNumber(amount)}
+              </button>
+            );
+          })}
+          <div className="h-5" />
+        </div>
+
+        <div className="relative mx-2.5 h-8 select-none">
+          <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+            <div
+              className="ml-auto h-full rounded-full bg-gradient-to-l from-teal-700 to-teal-500 transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          {IMAGE_TOKEN_AMOUNTS.map((amount, index) => {
+            const offset =
+              IMAGE_TOKEN_AMOUNTS.length > 1 ? (index / (IMAGE_TOKEN_AMOUNTS.length - 1)) * 100 : 0;
+            const reached = index <= stepIndex;
+            return (
+              <span
+                key={amount}
+                className={cn(
+                  'pointer-events-none absolute top-1/2 size-1.5 translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-300',
+                  reached ? 'bg-teal-700' : 'bg-gray-300 dark:bg-gray-600',
+                )}
+                style={{ right: `${offset}%` }}
+              />
+            );
+          })}
+
+          <div
+            className="pointer-events-none absolute top-1/2 z-[1] size-5 translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-teal-600 bg-white shadow-[0_2px_8px_rgba(15,118,110,0.22)] transition-all duration-300 ease-out dark:bg-gray-900"
+            style={{ right: `${progress}%` }}
+          />
+
+          <input
+            type="range"
+            min={0}
+            max={IMAGE_TOKEN_AMOUNTS.length - 1}
+            step={1}
+            value={stepIndex}
+            onChange={(event) => setStep(Number(event.target.value))}
+            aria-label="تعداد توکن"
+            aria-valuemin={IMAGE_TOKEN_AMOUNTS[0]}
+            aria-valuemax={IMAGE_TOKEN_AMOUNTS[IMAGE_TOKEN_AMOUNTS.length - 1]}
+            aria-valuenow={tokens}
+            dir="rtl"
+            className="absolute inset-0 z-[2] w-full cursor-pointer opacity-0"
+          />
+        </div>
+      </div>
+
       <div className="flex justify-end">
         <Button disabled={pending} onClick={openCheckout}>
           {canBuy ? 'ادامه خرید' : 'فقط صاحب برند'}
         </Button>
       </div>
 
-      <Modal isOpen={checkoutOpen} onClose={() => setCheckoutOpen(false)} size="md" rounded="lg" title="کد تخفیف">
+      <Modal isOpen={checkoutOpen} onClose={() => setCheckoutOpen(false)} size="md" rounded="lg" title="خرید توکن تصویر">
         <FormCard className="border-0 shadow-none rounded-[inherit]">
           <div className="space-y-4">
-            <p className="text-sm text-gray-500">
-              {selectedPack
-                ? `${selectedPack.name} · ${faNumber(selectedPack.tokens)} توکن · ${toman(catalogPrice)}`
-                : 'بسته‌ای انتخاب نشده'}
-            </p>
-            <p className="text-xs text-gray-500">هر توکن برای ویرایش یک تصویر مصرف می‌شود.</p>
+            <div className="rounded-xl bg-teal-50/80 px-3 py-3 text-sm text-teal-950">
+              <p className="font-medium">
+                {faNumber(tokens)} توکن · {toman(catalogPrice)}
+              </p>
+              <p className="mt-1 text-xs text-teal-900/80">
+                هر توکن یک تصویر را ویرایش می‌کند. قیمت هر توکن {toman(IMAGE_TOKEN_UNIT_PRICE)} است.
+              </p>
+            </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1">
                 <Input
@@ -221,7 +253,7 @@ export function TokenPackCards({ canBuy = true }: { canBuy?: boolean }) {
               <Button variant="outline" disabled={pending} onClick={() => setCheckoutOpen(false)}>
                 انصراف
               </Button>
-              <Button disabled={pending || previewing || !selectedPack} onClick={buy}>
+              <Button disabled={pending || previewing} onClick={buy}>
                 پرداخت و افزودن توکن
               </Button>
             </div>
@@ -511,7 +543,7 @@ export function ImageStudioBoard({
               {unlimited ? 'نامحدود' : faNumber(tokens)}
             </p>
             <p className="mt-1 text-sm text-gray-600">
-              هر ویرایش یک توکن است. چند زاویه لباس را بدهید تا عکس مدل ساخته شود، یا پس‌زمینه سفید و کاتالوگ.
+              هر ویرایش تصویر یک توکن مصرف می‌کند. چند زاویه لباس را بدهید تا عکس مدل ساخته شود، یا پس‌زمینه سفید و کاتالوگ.
             </p>
           </div>
           <Sparkles className="h-10 w-10 text-teal-700" />
@@ -524,7 +556,9 @@ export function ImageStudioBoard({
           <section className="space-y-3">
             <div>
               <h2 className="text-base font-semibold text-gray-900">خرید توکن</h2>
-              <p className="text-sm text-gray-500">یک بسته را انتخاب کنید، بعد با یک دکمه ادامه دهید. هر توکن یک تصویر را ویرایش می‌کند.</p>
+              <p className="text-sm text-gray-500">
+                با نوار تعداد را انتخاب کنید (۵ تا ۵۰۰). هر توکن {toman(IMAGE_TOKEN_UNIT_PRICE)} است و یک تصویر را ویرایش می‌کند.
+              </p>
             </div>
             <TokenPackCards canBuy={canBuy} />
           </section>

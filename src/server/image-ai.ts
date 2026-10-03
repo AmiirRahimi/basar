@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 import { canWriteResource } from '@/lib/roles';
-import { IMAGE_EDIT_TOKEN_COST, imageEditStyleById, imageTokenPackById, type ImageEditStyleId } from '@/lib/image-tokens';
+import {
+  IMAGE_EDIT_TOKEN_COST,
+  imageEditStyleById,
+  imageTokenPackId,
+  imageTokenPrice,
+  normalizeImageTokenAmount,
+  type ImageEditStyleId,
+} from '@/lib/image-tokens';
 import { MAX_VIRTUAL_MODEL_IMAGES, replaceSelectedImages } from '@/lib/photoroom';
 import { MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { db, dbEngine, serialize } from './db';
@@ -79,26 +86,27 @@ export async function listImageStudio(): Promise<ActionResult> {
   );
 }
 
-export async function previewImageTokenDiscount(packId: string, discountCode = ''): Promise<ActionResult> {
+export async function previewImageTokenDiscount(tokens: number, discountCode = ''): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
   if (access.session.storeRole !== 'owner' && !access.session.isPlatformAdmin) {
     return fail('فقط صاحب برند می‌تواند توکن بخرد', 403);
   }
-  const pack = imageTokenPackById(packId);
-  if (!pack) return fail('بسته توکن نامعتبر است');
+  const amount = normalizeImageTokenAmount(tokens);
+  if (!amount) return fail('تعداد توکن نامعتبر است');
+  const originalPrice = imageTokenPrice(amount);
   await db();
   const { consumeDiscountCode } = await import('./admin');
-  const discounted = await consumeDiscountCode(discountCode, pack.price, access.session._id);
+  const discounted = await consumeDiscountCode(discountCode, originalPrice, access.session._id);
   if (!discounted.ok) return fail(discounted.message);
-  const percent = pack.price > 0 ? Math.round((1 - discounted.price / pack.price) * 100) : 0;
+  const percent = originalPrice > 0 ? Math.round((1 - discounted.price / originalPrice) * 100) : 0;
   return ok({
-    packId: pack.id,
-    originalPrice: pack.price,
+    packId: imageTokenPackId(amount),
+    originalPrice,
     price: discounted.price,
     code: discounted.code,
     percent,
-    tokens: pack.tokens,
+    tokens: amount,
   });
 }
 
@@ -131,7 +139,7 @@ export async function grantImageTokens(input: {
   return ok(serialize({ imageTokens: next, added: input.tokens, price: input.price }), `${input.tokens} توکن به حساب اضافه شد`);
 }
 
-export async function buyImageTokens(packId: string, discountCode = ''): Promise<ActionResult> {
+export async function buyImageTokens(tokens: number, discountCode = ''): Promise<ActionResult> {
   const access = await withWorkspace();
   if ('error' in access) return access.error;
   if (access.session.storeRole !== 'owner' && !access.session.isPlatformAdmin) {
@@ -139,8 +147,9 @@ export async function buyImageTokens(packId: string, discountCode = ''): Promise
   }
   const tokenPlan = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');
   if (tokenPlan) return tokenPlan;
-  const pack = imageTokenPackById(packId);
-  if (!pack) return fail('بسته توکن نامعتبر است');
+  const amount = normalizeImageTokenAmount(tokens);
+  if (!amount) return fail('تعداد توکن نامعتبر است');
+  const originalPrice = imageTokenPrice(amount);
   const ip = await clientIp();
   if (
     !(await rateLimit(`image-tokens:buy:${access.session._id}`, 8, 10 * 60 * 1000)) ||
@@ -150,16 +159,16 @@ export async function buyImageTokens(packId: string, discountCode = ''): Promise
   }
   await db();
   const { consumeDiscountCode } = await import('./admin');
-  const discounted = await consumeDiscountCode(discountCode, pack.price, access.session._id);
+  const discounted = await consumeDiscountCode(discountCode, originalPrice, access.session._id);
   if (!discounted.ok) return fail(discounted.message);
   const ownerId = await tokenOwnerId(access.session);
   const { startImageTokenPayment } = await import('./pay');
   return startImageTokenPayment({
     userId: ownerId,
-    packId: pack.id,
-    tokens: pack.tokens,
+    packId: imageTokenPackId(amount),
+    tokens: amount,
     price: discounted.price,
-    originalPrice: pack.price,
+    originalPrice,
     discountCode: discounted.code,
     discountId: discounted.id || '',
     mobile: access.session.phonenumber,

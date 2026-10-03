@@ -1,14 +1,5 @@
 export type ImageEditStyleId = 'white-studio' | 'soft-gray' | 'hero-light' | 'square-packshot';
 
-export type ImageTokenPack = {
-  id: string;
-  name: string;
-  blurb: string;
-  tokens: number;
-  price: number;
-  highlight?: boolean;
-};
-
 export type ImageEditStyle = {
   id: ImageEditStyleId;
   name: string;
@@ -18,35 +9,16 @@ export type ImageEditStyle = {
   prompt: string;
 };
 
-/** List price of one edit token, used to show savings on larger packs. */
-export const IMAGE_TOKEN_LIST_PRICE = 1_500;
-/** One token is always one image edit. */
+/** One token always edits exactly one image. */
 export const IMAGE_EDIT_TOKEN_COST = 1;
 
-export const IMAGE_TOKEN_PACKS: ImageTokenPack[] = [
-  {
-    id: 'pack-30',
-    name: 'شروع',
-    blurb: 'برای چند محصول اول فروشگاه',
-    tokens: 30,
-    price: 45_000,
-  },
-  {
-    id: 'pack-100',
-    name: 'استودیو',
-    blurb: 'به‌صرفه‌ترین انتخاب برای کاتالوگ فروشگاه',
-    tokens: 100,
-    price: 119_000,
-    highlight: true,
-  },
-  {
-    id: 'pack-200',
-    name: 'حرفه‌ای',
-    blurb: 'برای برندهایی که تصویر زیاد می‌سازند',
-    tokens: 200,
-    price: 199_000,
-  },
-];
+/** Price of one edit token in toman (۵ هزار تومان). */
+export const IMAGE_TOKEN_UNIT_PRICE = 5_000;
+
+/** Snap points on the buy slider. */
+export const IMAGE_TOKEN_AMOUNTS = [5, 20, 50, 100, 300, 500] as const;
+
+export type ImageTokenAmount = (typeof IMAGE_TOKEN_AMOUNTS)[number];
 
 export const IMAGE_EDIT_STYLES: ImageEditStyle[] = [
   {
@@ -106,20 +78,38 @@ export const IMAGE_EDIT_STYLES: ImageEditStyle[] = [
   },
 ];
 
-export function imageTokenPackById(id?: string | null) {
-  return IMAGE_TOKEN_PACKS.find((pack) => pack.id === id) || null;
-}
-
 export function imageEditStyleById(id?: string | null) {
   return IMAGE_EDIT_STYLES.find((style) => style.id === id) || null;
 }
 
-export function tokenUnitPrice(pack: ImageTokenPack) {
-  return Math.round(pack.price / pack.tokens);
+export function isImageTokenAmount(value: unknown): value is ImageTokenAmount {
+  const n = Number(value);
+  return IMAGE_TOKEN_AMOUNTS.includes(n as ImageTokenAmount);
 }
 
-export function tokenSavePercent(pack: ImageTokenPack) {
-  const full = pack.tokens * IMAGE_TOKEN_LIST_PRICE;
-  if (full <= pack.price) return 0;
-  return Math.round((1 - pack.price / full) * 100);
+export function normalizeImageTokenAmount(value: unknown): ImageTokenAmount | null {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return isImageTokenAmount(n) ? (n as ImageTokenAmount) : null;
+}
+
+export function imageTokenPrice(tokens: number) {
+  return Math.max(0, Math.round(Number(tokens) || 0) * IMAGE_TOKEN_UNIT_PRICE);
+}
+
+/** Stored on purchase rows / payment snapshots (`qty-100`). */
+export function imageTokenPackId(tokens: number) {
+  return `qty-${Math.round(Number(tokens) || 0)}`;
+}
+
+export function imageTokenAmountFromPackId(packId?: string | null) {
+  const match = String(packId || '').match(/^qty-(\d+)$/);
+  if (!match) return null;
+  return normalizeImageTokenAmount(match[1]);
+}
+
+export function imageTokenPurchaseLabel(packId?: string | null, tokens?: number) {
+  const qty = Number(tokens) || imageTokenAmountFromPackId(packId) || 0;
+  if (qty > 0) return `${qty} توکن`;
+  return packId || 'توکن تصویر';
 }
