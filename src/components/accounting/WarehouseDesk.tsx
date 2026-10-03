@@ -6,6 +6,8 @@ import { setLineLeftWarehouse } from '@/actions/crud';
 import { Checkbox, toast } from '@/ui';
 import { faDate, faNumber } from '@/lib/format';
 import { redirectIfUnauthorized } from '@/lib/session-client';
+import { PlanLocked } from './PlanLocked';
+import { useWorkspace } from './WorkspaceProvider';
 
 export type WarehouseDeskInvoice = {
   id: string;
@@ -17,9 +19,11 @@ export type WarehouseDeskInvoice = {
 };
 
 export function WarehouseDesk({ invoices }: { invoices: WarehouseDeskInvoice[] }) {
+  const workspace = useWorkspace();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState('');
+  const allowWarehouses = Boolean(workspace?.isPlatformAdmin || workspace?.subscription?.allowWarehouses);
 
   function mark(lineId: string, left: boolean) {
     setBusy(lineId);
@@ -34,6 +38,16 @@ export function WarehouseDesk({ invoices }: { invoices: WarehouseDeskInvoice[] }
       toast.success(res.message || 'ثبت شد');
       router.refresh();
     });
+  }
+
+  if (!allowWarehouses) {
+    return (
+      <PlanLocked
+        title="خروج از انبار"
+        what="خروج لباس از انبار را روی فاکتورهای باز ثبت می‌کنید. در طرح پایه این بخش باز نیست."
+        planHint="فروشگاه و شرکا یا ویترین"
+      />
+    );
   }
 
   if (!invoices.length) {

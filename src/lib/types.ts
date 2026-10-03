@@ -204,6 +204,7 @@ export type Workspace = {
     maxStores?: number;
     allowPartners?: boolean;
     allowMembers?: boolean;
+    allowWarehouses?: boolean;
     allowClothImages?: boolean;
     allowProductShare?: boolean;
     allowShareSms?: boolean;

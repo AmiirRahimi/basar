@@ -15,7 +15,7 @@ import * as mongo from './models';
 import { fail, failAuth, failDb, ok, type ActionResult } from './result';
 import { requireSession, setAuthCookies, signTokens, type Session } from './session';
 import { livePlanCatalog } from './plan-catalog';
-import { listPurchases, subscriptionForSession } from './subscription';
+import { denyPlanFeature, listPurchases, subscriptionForSession } from './subscription';
 import {
   acceptedTeamRows,
   activateTeamMemberships,
@@ -667,6 +667,11 @@ export async function updateStore(id: string, payload: Record<string, unknown>):
   const adminHere = access.session.storeRole === 'admin' && access.session._storeId === String(store._id);
   if (!owned && !adminHere && !hasGranted(access.session, 'workspace.write')) {
     return fail('اجازه ویرایش این فروشگاه را ندارید', 403);
+  }
+  if (payload.warehouses != null) {
+    const sub = await subscriptionForSession(access.session);
+    const blocked = denyPlanFeature(sub, 'warehouses');
+    if (blocked) return blocked;
   }
   const next: Record<string, unknown> = {};
   for (const key of ['name', 'address', 'city'] as const) {

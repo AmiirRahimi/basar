@@ -9,6 +9,7 @@ import { redirectIfUnauthorized } from '@/lib/session-client';
 import { Button, Input, Select, Tabs, toast } from '@/ui';
 import { BrandStoreWorkspace } from './BrandStoreWorkspace';
 import { PageActionOutlet, usePageMeta } from './PageAction';
+import { PlanLocked } from './PlanLocked';
 import { PartnersPanel } from './PartnersPanel';
 import { TeamInviteInbox } from './TeamInviteInbox';
 import { TeamsPanel } from './TeamsPanel';
@@ -102,6 +103,7 @@ function WarehouseBoard() {
   const [brandId, setBrandId] = useState(workspace?.activeBrandId || '');
   const [storeId, setStoreId] = useState('');
   const [name, setName] = useState('');
+  const allowWarehouses = Boolean(workspace?.isPlatformAdmin || workspace?.subscription?.allowWarehouses);
   const stores = useMemo(
     () => (workspace?.stores || []).filter((store) => !brandId || store._brandId === brandId),
     [workspace?.stores, brandId],
@@ -118,6 +120,10 @@ function WarehouseBoard() {
   }, [workspace]);
 
   function save() {
+    if (!allowWarehouses) {
+      toast.error('ساخت انبار از طرح فروشگاه و شرکا به بعد است. طرح را ارتقا دهید.');
+      return;
+    }
     const store = stores.find((row) => row._id === storeId) || stores.find((row) => row.isMain) || stores[0];
     if (!store) {
       toast.error('برای این برند فروشگاهی نیست');
@@ -139,6 +145,16 @@ function WarehouseBoard() {
       setName('');
       router.refresh();
     });
+  }
+
+  if (!allowWarehouses) {
+    return (
+      <PlanLocked
+        title="انبار"
+        what="انبار را برای برند یا فروشگاه می‌سازید و خروج لباس از انبار را ثبت می‌کنید. در طرح پایه این کار نیست."
+        planHint="فروشگاه و شرکا یا ویترین"
+      />
+    );
   }
 
   return (

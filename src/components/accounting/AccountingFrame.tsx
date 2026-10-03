@@ -54,9 +54,11 @@ function AccountingChrome({
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const sidebarExpanded = sidebarPinned || sidebarHovered || mobileOpen;
   const role = workspace?.storeRole || 'owner';
-  const visibleMenu = accountingMenuSections.filter((section) =>
-    canAccessMenu(role, section.id, workspace?.isPlatformAdmin, workspace?.permissions),
-  );
+  const allowWarehouses = Boolean(workspace?.isPlatformAdmin || workspace?.subscription?.allowWarehouses);
+  const visibleMenu = accountingMenuSections.filter((section) => {
+    if (section.id === 'dispatch' && !allowWarehouses) return false;
+    return canAccessMenu(role, section.id, workspace?.isPlatformAdmin, workspace?.permissions);
+  });
 
   useEffect(() => {
     try {

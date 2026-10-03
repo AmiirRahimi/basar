@@ -22,6 +22,7 @@ type Catalog = {
 const FLAGS: { key: keyof SubscriptionPlan; label: string }[] = [
   { key: 'allowMembers', label: 'افزودن عضو' },
   { key: 'allowPartners', label: 'شریک درآمد' },
+  { key: 'allowWarehouses', label: 'انبار' },
   { key: 'allowClothImages', label: 'تصویر محصول' },
   { key: 'allowProductShare', label: 'ویترین و لینک محصول' },
   { key: 'allowShareSms', label: 'ارسال لینک با پیامک' },
@@ -115,6 +116,7 @@ export function PlanCatalogEditor({ initial }: { initial: Catalog }) {
             maxStores: 1,
             allowPartners: false,
             allowMembers: false,
+            allowWarehouses: false,
             allowClothImages: false,
             allowProductShare: false,
             allowShareSms: false,

@@ -10,6 +10,7 @@ export type SubscriptionPlan = {
   maxStores: number;
   allowPartners: boolean;
   allowMembers: boolean;
+  allowWarehouses: boolean;
   allowClothImages: boolean;
   allowProductShare: boolean;
   allowShareSms: boolean;
@@ -62,6 +63,7 @@ const CORE_FEATURES = {
   invoice: { label: 'فاکتور، چک، البسه و پارچه', included: true as const },
   members: { label: 'افزودن عضو به فروشگاه', included: true as const },
   partners: { label: 'شریک درآمد', included: true as const },
+  warehouses: { label: 'انبار و خروج از انبار', included: false as const },
   images: { label: 'تصویر محصول', included: false as const },
   vitrin: { label: 'ویترین اختصاصی: لینک محصول، سبد و پرداخت مشتری (مثل فروشگاه خودت)', included: false as const },
   smsLink: { label: 'ارسال لینک با پیامک', included: false as const },
@@ -78,6 +80,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     maxStores: 1,
     allowPartners: false,
     allowMembers: false,
+    allowWarehouses: false,
     allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
@@ -88,6 +91,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       CORE_FEATURES.invoice,
       { ...CORE_FEATURES.members, included: false },
       { ...CORE_FEATURES.partners, included: false },
+      CORE_FEATURES.warehouses,
       CORE_FEATURES.images,
       CORE_FEATURES.vitrin,
       CORE_FEATURES.smsLink,
@@ -97,12 +101,13 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'partners',
     name: 'فروشگاه و شرکا',
-    blurb: 'دو فروشگاه روی یک برند، افزودن عضو با دسترسی، و ثبت شریک و سهم سود.',
+    blurb: 'دو فروشگاه روی یک برند، افزودن عضو با دسترسی، ثبت شریک و سهم سود، و ساخت انبار.',
     monthlyPrice: 2_500_000,
     maxBrands: 1,
     maxStores: 2,
     allowPartners: true,
     allowMembers: true,
+    allowWarehouses: true,
     allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
@@ -113,6 +118,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       CORE_FEATURES.invoice,
       CORE_FEATURES.members,
       CORE_FEATURES.partners,
+      { ...CORE_FEATURES.warehouses, included: true },
       CORE_FEATURES.images,
       CORE_FEATURES.vitrin,
       CORE_FEATURES.smsLink,
@@ -122,12 +128,13 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'brands',
     name: 'ویترین',
-    blurb: 'برند و فروشگاه نامحدود، عضو و شریک، عکس لباس، لینک مشتری و پرداخت.',
+    blurb: 'برند و فروشگاه نامحدود، عضو و شریک، انبار، عکس لباس، لینک مشتری و پرداخت.',
     monthlyPrice: HIGHEST_PLAN_TOMAN,
     maxBrands: 99,
     maxStores: 99,
     allowPartners: true,
     allowMembers: true,
+    allowWarehouses: true,
     allowClothImages: true,
     allowProductShare: true,
     allowShareSms: true,
@@ -139,6 +146,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       CORE_FEATURES.invoice,
       CORE_FEATURES.members,
       CORE_FEATURES.partners,
+      { ...CORE_FEATURES.warehouses, included: true },
       { ...CORE_FEATURES.images, included: true },
       { ...CORE_FEATURES.vitrin, included: true },
       { ...CORE_FEATURES.smsLink, included: true },
@@ -230,6 +238,7 @@ function blankPlan(id: string): SubscriptionPlan {
     maxStores: 1,
     allowPartners: false,
     allowMembers: false,
+    allowWarehouses: false,
     allowClothImages: false,
     allowProductShare: false,
     allowShareSms: false,
@@ -256,8 +265,14 @@ function sanitizePlan(
             included: Boolean(row?.included),
           }))
           .filter((row) => row.label)
-          .slice(0, 16)
       : base.features.map((row) => ({ ...row }));
+  const allowWarehouses = Boolean(patch.allowWarehouses ?? base.allowWarehouses);
+  if (!features.some((row) => row.label.includes('انبار'))) {
+    const partnerIndex = features.findIndex((row) => row.label.includes('شریک'));
+    const insertAt = partnerIndex >= 0 ? partnerIndex + 1 : Math.min(5, features.length);
+    features.splice(insertAt, 0, { label: CORE_FEATURES.warehouses.label, included: allowWarehouses });
+  }
+  features.splice(16);
   const storedName = String(patch.name || '').trim();
   const storedBlurb = String(patch.blurb || '').trim();
   const name =
@@ -282,6 +297,7 @@ function sanitizePlan(
     maxStores,
     allowPartners: Boolean(patch.allowPartners ?? base.allowPartners),
     allowMembers: Boolean(patch.allowMembers ?? base.allowMembers),
+    allowWarehouses,
     allowClothImages: Boolean(patch.allowClothImages ?? base.allowClothImages),
     allowProductShare: Boolean(patch.allowProductShare ?? base.allowProductShare),
     allowShareSms: Boolean(patch.allowShareSms ?? base.allowShareSms),
@@ -311,6 +327,7 @@ export function planFeatureFlags(plan: SubscriptionPlan) {
   return {
     allowPartners: Boolean(plan.allowPartners),
     allowMembers: Boolean(plan.allowMembers),
+    allowWarehouses: Boolean(plan.allowWarehouses),
     allowClothImages: Boolean(plan.allowClothImages),
     allowProductShare: Boolean(plan.allowProductShare),
     allowShareSms: Boolean(plan.allowShareSms),

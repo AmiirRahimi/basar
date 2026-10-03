@@ -2675,6 +2675,9 @@ export async function setLineLeftWarehouse(lineId: string, left: boolean): Promi
   const auth = await withSession();
   if ('error' in auth) return auth.error;
   if (!canLeaveWarehouse(auth.session)) return fail('اجازه این کار را ندارید', 403);
+  const sub = await subscriptionForSession(auth.session);
+  const blocked = denyPlanFeature(sub, 'warehouses');
+  if (blocked) return blocked;
   const line = await M().CustomerCart.findOne({
     _id: lineId,
     _storeId: oid(auth.session._storeId),
@@ -2711,6 +2714,9 @@ export async function warehouseDesk(): Promise<ActionResult> {
   if ('error' in auth) return auth.error;
   const denied = denyMenu(auth.session, 'dispatch');
   if (denied && !canLeaveWarehouse(auth.session)) return denied || fail('اجازه این کار را ندارید', 403);
+  const sub = await subscriptionForSession(auth.session);
+  const warehouseBlocked = denyPlanFeature(sub, 'warehouses');
+  if (warehouseBlocked) return warehouseBlocked;
   const invoices = await M().Invoice.find(storeFilter(auth.session, {})).sort('-timeStamp').limit(80).lean();
   const open = (invoices as any[]).filter((row) => {
     const status = wholesaleInvoiceStatus(row.orderStatus, Boolean(row.isSent));
