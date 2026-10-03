@@ -9,9 +9,8 @@ import {
   type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table';
-import { BasicTable, Checkbox, ColumnPickerPanel, EmptyState, Input, Popover, PopoverContent, PopoverTrigger, TableFilter, cn } from '@/ui';
-import type { ColumnOption } from '@/ui';
-import { ListFilter } from 'lucide-react';
+import { BasicTable, Checkbox, ColumnPickerPanel, EmptyState, Input, TableFilter } from '@/ui';
+import type { ColumnOption, TableFilterPanel } from '@/ui';
 import { listResource } from '@/actions/crud';
 import { redirectIfUnauthorized } from '@/lib/session-client';
 import { encodeListQuery, matchesTableSearch } from '@/lib/table-search';
@@ -34,6 +33,7 @@ const COLUMN_PICKER_LABELS = {
 
 const TABLE_FILTER_LABELS = {
   columns: 'ستون‌ها',
+  searchFields: 'فیلدها',
   filters: 'فیلتر',
   active: 'فعال',
   clearAll: 'پاک کردن جستجو',
@@ -115,7 +115,7 @@ function searchPlaceholder(options: ColumnOption[], selected: string[] | null) {
   return `جستجو در ${labels.slice(0, 2).join('، ')} و ${labels.length - 2} فیلد دیگر`;
 }
 
-function SearchFieldPicker({
+function SearchFieldPanel({
   options,
   selected,
   onChange,
@@ -127,7 +127,6 @@ function SearchFieldPicker({
   const ids = options.map((option) => option.value);
   const searchingAll = !selected || selected.length === ids.length;
   const current = searchingAll ? ids : selected || [];
-  const count = searchingAll ? ids.length : current.length;
 
   function toggle(id: string) {
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
@@ -135,47 +134,31 @@ function SearchFieldPicker({
   }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            '-ms-px inline-flex h-9 shrink-0 items-center gap-1.5 rounded-s-none rounded-e-xl border px-3 text-sm font-medium shadow-sm transition-colors',
-            searchingAll
-              ? 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'
-              : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15',
-          )}
-          aria-label="انتخاب فیلدهای جستجو"
-        >
-          <ListFilter className="size-3.5" />
-          فیلدها
-          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-100 px-1 text-[10px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-            {count}
-          </span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-64 p-3" dir="rtl">
-        <p className="mb-2 text-sm font-medium text-gray-800">جستجو در کدام فیلدها؟</p>
-        <p className="mb-3 text-xs text-gray-500">پیش‌فرض همه فیلدهاست. برداشتن تیک همه، همه فیلدها را از انتخاب خارج می‌کند.</p>
-        <div className="mb-2">
+    <div className="space-y-3" dir="rtl">
+      <div>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-100">جستجو در کدام فیلدها؟</p>
+        <p className="mt-1 text-xs text-gray-500">
+          پیش‌فرض همه فیلدهاست. می‌توانید فقط بعضی ستون‌ها را برای جستجو فعال کنید.
+        </p>
+      </div>
+      <div>
+        <Checkbox
+          checked={searchingAll}
+          onChange={() => onChange(searchingAll ? [] : null)}
+          label="همه فیلدها"
+        />
+      </div>
+      <div className="grid max-h-64 gap-1 overflow-auto border-t border-gray-200/70 pt-3 dark:border-gray-700/50 sm:grid-cols-2 lg:grid-cols-3">
+        {options.map((option) => (
           <Checkbox
-            checked={searchingAll}
-            onChange={() => onChange(searchingAll ? [] : null)}
-            label="همه فیلدها"
+            key={option.value}
+            checked={current.includes(option.value)}
+            onChange={() => toggle(option.value)}
+            label={option.label}
           />
-        </div>
-        <div className="max-h-64 space-y-1 overflow-auto border-t border-gray-100 pt-2 dark:border-gray-800">
-          {options.map((option) => (
-            <Checkbox
-              key={option.value}
-              checked={current.includes(option.value)}
-              onChange={() => toggle(option.value)}
-              label={option.label}
-            />
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -215,7 +198,7 @@ export function SearchableTable<T>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [serverRows, setServerRows] = useState<T[]>(data);
   const [fetching, setFetching] = useState(false);
-  const [panel, setPanel] = useState<'columns' | null>(null);
+  const [panel, setPanel] = useState<TableFilterPanel>(null);
   const [layout, setLayout] = useState<StoredLayout>({ order: ids, visible: fallbackVisible });
   const idsKey = ids.join('|');
   const serverMode = Boolean(resource);
@@ -326,23 +309,26 @@ export function SearchableTable<T>({
     return <EmptyState message={emptyMessage} />;
   }
 
+  const searchingAllFields = !searchFields || searchFields.length === options.length;
+  const searchFieldCount = searchingAllFields ? options.length : searchFields?.length || 0;
+
   return (
     <div>
       <TableFilter
         search={
-          <div className="flex w-full min-w-0 items-stretch">
-            <div className="min-w-0 flex-1">
-              <Input
-                placeholder={searchPlaceholder(options, searchFields)}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                fullWidth
-                className="rounded-e-none"
-              />
-            </div>
-            <SearchFieldPicker options={options} selected={searchFields} onChange={setSearchFields} />
-          </div>
+          <Input
+            placeholder={searchPlaceholder(options, searchFields)}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            fullWidth
+          />
         }
+        showSearchFields
+        searchFieldsContent={
+          <SearchFieldPanel options={options} selected={searchFields} onChange={setSearchFields} />
+        }
+        searchFieldCount={searchFieldCount}
+        searchFieldsActive={!searchingAllFields}
         showColumns
         columnsContent={
           <ColumnPickerPanel
@@ -355,7 +341,7 @@ export function SearchableTable<T>({
         }
         visibleColumnCount={layout.visible.length}
         panel={panel}
-        onPanelChange={(next) => setPanel(next === 'columns' ? 'columns' : null)}
+        onPanelChange={setPanel}
         labels={TABLE_FILTER_LABELS}
       />
       <BasicTable

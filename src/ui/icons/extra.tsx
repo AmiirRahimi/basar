@@ -298,6 +298,11 @@ export const Columns = createIcon(
   />
 );
 
+export const ListFilter = createIcon(
+  'ListFilter',
+  <path {...stroke} d="M3 6h18M7 12h10M10 18h4" />
+);
+
 export const GripVertical = createIcon(
   'GripVertical',
   <path

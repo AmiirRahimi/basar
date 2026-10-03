@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Columns, Filter as FilterIcon, Search, X } from '../icons';
+import { Columns, Filter as FilterIcon, ListFilter, Search, X } from '../icons';
 import { cn } from '../lib/cn';
 
-export type TableFilterPanel = 'filters' | 'columns' | null;
+export type TableFilterPanel = 'filters' | 'columns' | 'searchFields' | null;
 
 export type TableFilterChip = {
   id: string;
@@ -16,6 +16,7 @@ export type TableFilterChip = {
 export type TableFilterLabels = {
   filters?: string;
   columns?: string;
+  searchFields?: string;
   active?: string;
   clearAll?: string;
   clearFilter?: string;
@@ -25,9 +26,13 @@ export type TableFilterProps = {
   search?: ReactNode;
   filtersContent?: ReactNode;
   columnsContent?: ReactNode;
+  searchFieldsContent?: ReactNode;
   showColumns?: boolean;
+  showSearchFields?: boolean;
   filterCount?: number;
   visibleColumnCount?: number;
+  searchFieldCount?: number;
+  searchFieldsActive?: boolean;
   chips?: TableFilterChip[];
   onRemoveChip?: (id: string) => void;
   onClearAll?: () => void;
@@ -41,6 +46,7 @@ export type TableFilterProps = {
 const DEFAULT_LABELS: Required<TableFilterLabels> = {
   filters: 'Filters',
   columns: 'Columns',
+  searchFields: 'Fields',
   active: 'Active',
   clearAll: 'Clear all',
   clearFilter: 'Clear',
@@ -50,9 +56,13 @@ export function TableFilter({
   search,
   filtersContent,
   columnsContent,
+  searchFieldsContent,
   showColumns = false,
+  showSearchFields = false,
   filterCount = 0,
   visibleColumnCount = 0,
+  searchFieldCount = 0,
+  searchFieldsActive = false,
   chips = [],
   onRemoveChip,
   onClearAll,
@@ -123,6 +133,22 @@ export function TableFilter({
               </button>
             ) : null}
 
+            {showSearchFields && searchFieldsContent ? (
+              <button
+                type="button"
+                onClick={() => togglePanel('searchFields')}
+                className={toolbarButtonClass(activePanel === 'searchFields' || searchFieldsActive)}
+              >
+                <ListFilter className="h-3.5 w-3.5" />
+                {copy.searchFields}
+                {searchFieldCount > 0 ? (
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-100 px-1 text-[10px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                    {searchFieldCount}
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
+
             {showColumns && columnsContent ? (
               <button
                 type="button"
@@ -152,7 +178,11 @@ export function TableFilter({
               className="overflow-hidden"
             >
               <div className="mt-2 rounded-xl border border-gray-200/70 bg-gray-50/80 p-3 dark:border-gray-700/50 dark:bg-gray-800/40 sm:p-4">
-                {activePanel === 'filters' ? filtersContent : columnsContent}
+                {activePanel === 'filters'
+                  ? filtersContent
+                  : activePanel === 'searchFields'
+                    ? searchFieldsContent
+                    : columnsContent}
               </div>
             </motion.div>
           ) : null}
