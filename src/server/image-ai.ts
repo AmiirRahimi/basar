@@ -14,6 +14,7 @@ import {
   normalizeClothImageLibrary,
   shownUrlsFromLibrary,
 } from '@/lib/cloth-images';
+import { clothAppliesToStore } from '@/lib/cloth-share';
 import { MAX_VIRTUAL_MODEL_IMAGES } from '@/lib/photoroom';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
@@ -359,4 +360,50 @@ export async function generateClothOnModel(payload: {
     if (message) return fail(message);
     return fail('ساخت عکس مدل ناموفق بود');
   }
+}
+
+/** Update which library images are shown on a product — no brand/inventory rewrite. */
+export async function updateClothImageLibrary(payload: {
+  clothId: string;
+  imageLibrary: unknown;
+}): Promise<ActionResult> {
+  const access = await withWorkspace();
+  if ('error' in access) return access.error;
+  const canEdit = canWriteResource(
+    access.session.storeRole,
+    'cloth',
+    Boolean(access.session.isPlatformAdmin),
+    access.session.subscriptionActive !== false,
+    access.session.permissions,
+  );
+  if (!canEdit) return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
+  const imagePlan = denyPlanFeature(await subscriptionForSession(access.session), 'cloth-images');
+  if (imagePlan) return imagePlan;
+
+  const clothId = String(payload.clothId || '').trim();
+  if (!clothId) return fail('لباس را انتخاب کنید');
+
+  await db();
+  const cloth = await M().Cloth.findById(clothId).lean();
+  if (!cloth || cloth.isDeleted) return fail('لباس پیدا نشد', 404);
+  if (
+    !access.session.isPlatformAdmin &&
+    !clothAppliesToStore(cloth, String(access.session._storeId || ''), access.session._brandId)
+  ) {
+    return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
+  }
+
+  const nextLibrary = normalizeClothImageLibrary(payload.imageLibrary, cloth.images);
+  const nextImages = shownUrlsFromLibrary(nextLibrary);
+  await M().Cloth.findByIdAndUpdate(clothId, {
+    images: nextImages,
+    imageLibrary: nextLibrary,
+  });
+  return ok(
+    serialize({
+      images: nextImages,
+      imageLibrary: nextLibrary,
+    }),
+    'نمایش تصاویر محصول به‌روز شد',
+  );
 }

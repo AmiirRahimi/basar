@@ -515,6 +515,12 @@ async function applyClothShare(
     return ok(body);
   }
 
+  // Partial updates (e.g. only images) omit placement — keep the previous brands/stores.
+  if (previous && body._brandIds === undefined && body._storeIds === undefined) {
+    copyClothPlacement(body, previous);
+    return ok(body);
+  }
+
   const { stores } = await accessibleStores(session._id, session.phonenumber);
   const accessibleStoreIds = new Set(stores.map((row: any) => String(row._id)));
   const accessibleBrandIds = new Set(stores.map((row: any) => String(row._brandId || '')).filter(Boolean));

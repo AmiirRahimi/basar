@@ -6,6 +6,7 @@ import {
   generateClothOnModel as generateModel,
   listImageStudio as studio,
   previewImageTokenDiscount as previewTokens,
+  updateClothImageLibrary as updateLibrary,
 } from '@/server/image-ai';
 
 export async function listImageStudio() {
@@ -33,4 +34,8 @@ export async function generateClothOnModel(payload: {
   prompt?: string;
 }) {
   return generateModel(payload);
+}
+
+export async function updateClothImageLibrary(payload: { clothId: string; imageLibrary: unknown }) {
+  return updateLibrary(payload);
 }

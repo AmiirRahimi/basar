@@ -4,8 +4,13 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Check, Eye, EyeOff, Sparkles } from 'lucide-react';
-import { updateResource } from '@/actions/crud';
-import { buyImageTokens, editProductImage, generateClothOnModel, previewImageTokenDiscount } from '@/actions/image-ai';
+import {
+  buyImageTokens,
+  editProductImage,
+  generateClothOnModel,
+  previewImageTokenDiscount,
+  updateClothImageLibrary,
+} from '@/actions/image-ai';
 import {
   modelPresetSample,
   modelSceneSample,
@@ -728,14 +733,15 @@ function ProductImageDesk({
   }
 
   function persistLibrary(next: ClothImageGroup[], highlightUrl?: string) {
+    const previous = library;
     applyLocal(next, highlightUrl);
     startSave(async () => {
-      const res = await updateResource('cloth', clothId, {
-        images: shownUrlsFromLibrary(next),
-        imageLibrary: next,
-      });
+      const res = await updateClothImageLibrary({ clothId, imageLibrary: next });
       if (redirectIfUnauthorized(res)) return;
-      if (!res.ok) toast.error(res.message || 'ذخیره نمایش تصویر انجام نشد');
+      if (!res.ok) {
+        applyLocal(previous);
+        toast.error(res.message || 'ذخیره نمایش تصویر انجام نشد');
+      }
     });
   }
 
