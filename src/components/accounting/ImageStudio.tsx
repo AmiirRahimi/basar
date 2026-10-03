@@ -38,7 +38,7 @@ import { faDate, faNumber, toman } from '@/lib/format';
 import { MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { MAX_VIRTUAL_MODEL_IMAGES, PHOTOROOM_MODELS, PHOTOROOM_POSES, PHOTOROOM_SCENES } from '@/lib/photoroom';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { ApiWait, Button, FormCard, IconButton, Input, Modal, Select, Tabs, cn, toast } from '@/ui';
+import { ApiWait, Button, DeletePopover, FormCard, Input, Modal, Select, Tabs, cn, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 import { PlanLocked } from './PlanLocked';
 import { Price, PriceSection } from './Price';
@@ -824,7 +824,7 @@ function ProductImageDesk({
                         </span>
                       ) : null}
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => toggleShown(group.id, 'original')}
@@ -838,15 +838,14 @@ function ProductImageDesk({
                         {group.originalShown ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                         {group.originalShown ? 'نمایش در محصول' : 'مخفی از محصول'}
                       </button>
-                      <IconButton
-                        type="button"
-                        size="xs"
-                        variant="ghost"
-                        aria-label="حذف تصویر اصلی"
-                        onClick={() => deleteOriginal(group.id, group.originalUrl)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </IconButton>
+                      <DeletePopover
+                        dir="rtl"
+                        title="حذف این تصویر؟"
+                        description="تصویر اصلی و نسخه‌های AI آن حذف می‌شوند."
+                        onDelete={() => deleteOriginal(group.id, group.originalUrl)}
+                        labels={{ yes: 'حذف', no: 'انصراف', deleteAriaLabel: 'حذف تصویر اصلی' }}
+                        icon={<Trash2 className="size-3.5" />}
+                      />
                     </div>
                   </div>
                   <Button
@@ -891,16 +890,16 @@ function ProductImageDesk({
                                 </span>
                               ) : null}
                             </button>
-                            <IconButton
-                              type="button"
-                              size="xs"
-                              variant="ghost"
-                              aria-label="حذف نسخه AI"
-                              className="absolute right-1.5 top-1.5 bg-white/90 shadow-sm hover:bg-white"
-                              onClick={() => deleteGenerated(group.id, gen.id, gen.url)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-red-600" />
-                            </IconButton>
+                            <div className="absolute right-1.5 top-1.5 rounded-lg bg-white/90 shadow-sm">
+                              <DeletePopover
+                                dir="rtl"
+                                title="حذف این تصویر؟"
+                                description="این نسخه AI حذف می‌شود و دیگر در محصول دیده نمی‌شود."
+                                onDelete={() => deleteGenerated(group.id, gen.id, gen.url)}
+                                labels={{ yes: 'حذف', no: 'انصراف', deleteAriaLabel: 'حذف نسخه AI' }}
+                                icon={<Trash2 className="size-3.5" />}
+                              />
+                            </div>
                           </div>
                           <div className="space-y-2 p-2.5">
                             <p className="text-xs font-medium text-gray-800">{aiStyleLabel(gen.styleId)}</p>

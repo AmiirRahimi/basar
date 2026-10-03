@@ -50,7 +50,7 @@ export function DeletePopover({
           {icon}
         </IconButton>
       </Popover.Trigger>
-      <Popover.Content className="z-10 border-gray-200/80 shadow-2xl shadow-black/10 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/95 dark:shadow-black/40">
+      <Popover.Content className="z-[1100] border-gray-200/80 shadow-2xl shadow-black/10 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/95 dark:shadow-black/40">
         {({ setOpen }: { setOpen: (open: boolean) => void }) => (
           <div className="w-64 pb-2 pt-1 text-left rtl:text-right">
             <div className="mb-3 flex items-center gap-2">
