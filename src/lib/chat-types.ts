@@ -6,9 +6,15 @@ export type ChatMessageDto = {
   _id: string;
   conversationId: string;
   body: string;
+  imageUrl?: string;
   sender: ChatSender;
   senderUserId?: string;
   createdAt: string;
+};
+
+export type ChatSendPayload = {
+  body: string;
+  imageFile?: File | null;
 };
 
 export type ChatConversationDto = {

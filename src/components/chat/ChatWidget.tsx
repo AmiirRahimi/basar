@@ -14,8 +14,9 @@ import {
   sendShopMessage,
   shopUnread,
   startShopThread,
+  uploadChatImage,
 } from '@/actions/chat';
-import type { ChatThreadDto } from '@/lib/chat-types';
+import type { ChatSendPayload, ChatThreadDto } from '@/lib/chat-types';
 import { cn } from '@/ui';
 import { ChatPanel } from './ChatPanel';
 import { NewMessageBadge } from './NewMessageBadge';
@@ -141,9 +142,21 @@ export function ChatWidget({
     };
   }, [open, refreshThread, variant]);
 
-  async function handleSend(body: string) {
+  async function handleSend({ body, imageFile }: ChatSendPayload) {
     try {
-      const res = variant === 'accounting' ? await sendAccountingMessage(body) : await sendShopMessage(body);
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.set('file', imageFile);
+        const uploaded = await uploadChatImage(formData);
+        if (!uploaded.ok || !uploaded.data?.url) {
+          toast.error(uploaded.message || 'بارگذاری تصویر نشد');
+          return false;
+        }
+        imageUrl = uploaded.data.url;
+      }
+      const payload = { body, imageUrl };
+      const res = variant === 'accounting' ? await sendAccountingMessage(payload) : await sendShopMessage(payload);
       if (!res.ok) {
         toast.error(res.message || 'ارسال نشد');
         return false;

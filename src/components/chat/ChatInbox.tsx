@@ -8,8 +8,9 @@ import {
   listAdminConversations,
   reopenAdminConversation,
   sendAdminMessage,
+  uploadChatImage,
 } from '@/actions/chat';
-import type { ChatChannel, ChatConversationDto, ChatThreadDto } from '@/lib/chat-types';
+import type { ChatChannel, ChatConversationDto, ChatSendPayload, ChatThreadDto } from '@/lib/chat-types';
 import { faRelativeTime } from '@/lib/format';
 import { ApiWait, cn } from '@/ui';
 import { MessageSquare, RotateCcw, X } from 'lucide-react';
@@ -104,16 +105,33 @@ export function ChatInbox({
     });
   }, [refreshList]);
 
-  async function handleSend(body: string) {
-    if (!activeId) return;
-    const res = await sendAdminMessage(activeId, body);
-    if (!res.ok) {
-      toast.error(res.message || 'ارسال نشد');
-      return;
-    }
-    if (res.data) {
-      setThread(res.data);
-      await refreshList();
+  async function handleSend({ body, imageFile }: ChatSendPayload) {
+    if (!activeId) return false;
+    try {
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.set('file', imageFile);
+        const uploaded = await uploadChatImage(formData);
+        if (!uploaded.ok || !uploaded.data?.url) {
+          toast.error(uploaded.message || 'بارگذاری تصویر نشد');
+          return false;
+        }
+        imageUrl = uploaded.data.url;
+      }
+      const res = await sendAdminMessage(activeId, { body, imageUrl });
+      if (!res.ok) {
+        toast.error(res.message || 'ارسال نشد');
+        return false;
+      }
+      if (res.data) {
+        setThread(res.data);
+        await refreshList();
+      }
+      return true;
+    } catch {
+      toast.error('ارسال نشد');
+      return false;
     }
   }
 

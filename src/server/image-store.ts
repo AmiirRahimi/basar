@@ -7,6 +7,7 @@ const PUBLIC_ROOT = path.join(process.cwd(), 'public');
 const UPLOADS_ROOT = path.join(PUBLIC_ROOT, 'uploads');
 const PRODUCT_EDITS_DIR = path.join(UPLOADS_ROOT, 'product-edits');
 const CLOTHES_DIR = path.join(UPLOADS_ROOT, 'clothes');
+const CHAT_DIR = path.join(UPLOADS_ROOT, 'chat');
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 const ALLOWED_MIME: Record<string, string> = {
@@ -92,13 +93,14 @@ async function saveInDir(dir: string, publicPrefix: string, buffer: Buffer, ext 
   return `${publicPrefix}/${name}`;
 }
 
-async function saveUpload(folder: 'clothes' | 'product-edits', buffer: Buffer, ext = 'jpg') {
+async function saveUpload(folder: 'clothes' | 'product-edits' | 'chat', buffer: Buffer, ext = 'jpg') {
   const safeExt = String(ext || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
   const name = `${Date.now()}-${randomBytes(6).toString('hex')}.${safeExt}`;
   if (supabaseConfigured()) {
     return uploadObject(`${folder}/${name}`, buffer, safeExt);
   }
   if (folder === 'clothes') return saveInDir(CLOTHES_DIR, '/uploads/clothes', buffer, safeExt);
+  if (folder === 'chat') return saveInDir(CHAT_DIR, '/uploads/chat', buffer, safeExt);
   return saveInDir(PRODUCT_EDITS_DIR, '/uploads/product-edits', buffer, safeExt);
 }
 
@@ -108,6 +110,10 @@ export async function saveProductImage(buffer: Buffer, ext = 'jpg') {
 
 export async function saveClothImage(buffer: Buffer, ext = 'jpg') {
   return saveUpload('clothes', buffer, ext);
+}
+
+export async function saveChatImage(buffer: Buffer, ext = 'jpg') {
+  return saveUpload('chat', buffer, ext);
 }
 
 export function extensionForMime(mime: string) {

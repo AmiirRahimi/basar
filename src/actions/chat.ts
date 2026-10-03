@@ -17,14 +17,15 @@ import {
   sendShopMessage as sendShopMessageServer,
   shopUnread as shopUnreadServer,
   startShopThread as startShopThreadServer,
+  uploadChatImage as uploadChatImageServer,
 } from '@/server/chat';
 
 export async function getAccountingThread() {
   return getAccountingThreadServer();
 }
 
-export async function sendAccountingMessage(body: string) {
-  return sendAccountingMessageServer(body);
+export async function sendAccountingMessage(payload: string | { body?: string; imageUrl?: string }) {
+  return sendAccountingMessageServer(payload);
 }
 
 export async function markAccountingRead() {
@@ -43,8 +44,8 @@ export async function startShopThread(payload: { name?: string; phone?: string; 
   return startShopThreadServer(payload);
 }
 
-export async function sendShopMessage(body: string) {
-  return sendShopMessageServer(body);
+export async function sendShopMessage(payload: string | { body?: string; imageUrl?: string }) {
+  return sendShopMessageServer(payload);
 }
 
 export async function markShopRead() {
@@ -66,8 +67,11 @@ export async function getAdminThread(conversationId: string) {
   return getAdminThreadServer(conversationId);
 }
 
-export async function sendAdminMessage(conversationId: string, body: string) {
-  return sendAdminMessageServer(conversationId, body);
+export async function sendAdminMessage(
+  conversationId: string,
+  payload: string | { body?: string; imageUrl?: string },
+) {
+  return sendAdminMessageServer(conversationId, payload);
 }
 
 export async function closeAdminConversation(conversationId: string) {
@@ -80,4 +84,8 @@ export async function reopenAdminConversation(conversationId: string) {
 
 export async function adminUnread() {
   return adminUnreadServer();
+}
+
+export async function uploadChatImage(formData: FormData) {
+  return uploadChatImageServer(formData);
 }

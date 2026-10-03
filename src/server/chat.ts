@@ -17,6 +17,13 @@ import type {
 import { requirePlatformAdmin } from './admin';
 import { db, dbEngine } from './db';
 import { fileModels } from './file-db';
+import {
+  isAllowedImageMime,
+  isSafeImageUrl,
+  MAX_UPLOAD_BYTES,
+  saveChatImage,
+  sniffImageExt,
+} from './image-store';
 import * as mongo from './models';
 import { clientIp, rateLimit } from './rate-limit';
 import { fail, ok, type ActionResult } from './result';
@@ -48,9 +55,37 @@ function newGuestToken() {
   return randomBytes(24).toString('hex');
 }
 
-function previewOf(body: string) {
+function previewOf(body: string, imageUrl?: string) {
   const trimmed = body.trim().replace(/\s+/g, ' ');
-  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
+  if (trimmed) return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
+  if (imageUrl) return 'تصویر';
+  return '';
+}
+
+function normalizeImageUrl(raw: unknown) {
+  const url = String(raw || '').trim();
+  if (!url) return '';
+  if (!isSafeImageUrl(url)) return '';
+  return url;
+}
+
+function messageBody(bodyRaw: unknown, imageUrl: string) {
+  const body = clipBody(bodyRaw);
+  if (body) return body;
+  if (imageUrl) return 'تصویر';
+  return '';
+}
+
+async function storeChatImageFile(file: File) {
+  const mime = String(file.type || '').toLowerCase();
+  if (!isAllowedImageMime(mime)) return { error: 'فقط فایل‌های JPG، PNG، WEBP و GIF مجاز هستند' as const };
+  if (file.size > MAX_UPLOAD_BYTES) return { error: 'حجم تصویر حداکثر ۸ مگابایت است' as const };
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (buffer.length > MAX_UPLOAD_BYTES) return { error: 'حجم تصویر حداکثر ۸ مگابایت است' as const };
+  const sniffed = sniffImageExt(buffer);
+  if (!sniffed) return { error: 'فقط فایل‌های JPG، PNG، WEBP و GIF مجاز هستند' as const };
+  const url = await saveChatImage(buffer, sniffed);
+  return { url };
 }
 
 function clipBody(body: unknown) {
@@ -139,6 +174,8 @@ function toMessageDto(row: any): ChatMessageDto {
     createdAt: iso(row.createdAt || row.timeStamp),
   };
   if (row.senderUserId) dto.senderUserId = String(row.senderUserId);
+  const imageUrl = String(row.imageUrl || '').trim();
+  if (imageUrl) dto.imageUrl = imageUrl;
   return dto;
 }
 
@@ -205,12 +242,14 @@ async function findShopConversation() {
 async function insertMessage(input: {
   conversationId: string;
   body: string;
+  imageUrl?: string;
   sender: ChatSender;
   senderUserId?: string;
 }) {
   await M().ChatMessage.create({
     conversationId: oid(input.conversationId),
     body: input.body,
+    imageUrl: input.imageUrl || '',
     sender: input.sender,
     senderUserId: input.senderUserId ? oid(input.senderUserId) : null,
     createdAt: new Date(),
@@ -218,12 +257,12 @@ async function insertMessage(input: {
 }
 
 /** Never auto-reopens a closed conversation — closed stays in history. */
-async function bumpConversation(conversationId: string, body: string, forAdmin: boolean) {
+async function bumpConversation(conversationId: string, body: string, forAdmin: boolean, imageUrl?: string) {
   const row = await M().Conversation.findById(oid(conversationId)).lean();
   if (!row) return null;
   const patch: Record<string, unknown> = {
     lastMessageAt: new Date(),
-    lastMessagePreview: previewOf(body),
+    lastMessagePreview: previewOf(body, imageUrl),
   };
   if (forAdmin) {
     patch.unreadForAdmin = Number((row as any).unreadForAdmin || 0) + 1;
@@ -347,11 +386,18 @@ async function loadAccountingThread(): Promise<ActionResult<ChatThreadDto | null
   return ok(await threadFor(row, await accountingExtras(session)));
 }
 
-export async function sendAccountingMessage(bodyRaw: unknown): Promise<ActionResult<ChatThreadDto>> {
+export async function sendAccountingMessage(
+  payload: unknown,
+): Promise<ActionResult<ChatThreadDto>> {
   const access = await withWorkspace();
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
-  const body = clipBody(bodyRaw);
-  if (!body) return failDto('متن پیام خالی است');
+  const raw = typeof payload === 'string' || typeof payload === 'number' ? { body: payload } : (payload || {}) as {
+    body?: unknown;
+    imageUrl?: unknown;
+  };
+  const imageUrl = normalizeImageUrl(raw.imageUrl);
+  const body = messageBody(raw.body, imageUrl);
+  if (!body) return failDto('متن یا تصویر پیام را وارد کنید');
   if (!(await allowSend(`user:${access.session._id}`))) {
     return failDto('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
   }
@@ -378,10 +424,11 @@ export async function sendAccountingMessage(bodyRaw: unknown): Promise<ActionRes
   await insertMessage({
     conversationId,
     body,
+    imageUrl: imageUrl || undefined,
     sender: 'user',
     senderUserId: session._id,
   });
-  await bumpConversation(conversationId, body, true);
+  await bumpConversation(conversationId, body, true, imageUrl || undefined);
 
   const refreshed = await M().Conversation.findById(oid(conversationId)).lean();
   return ok(await threadFor(refreshed || row, await accountingExtras(session)));
@@ -494,14 +541,20 @@ export async function startShopThread(input: {
   return ok(await createShopConversation({ name, phone, body, userId: profile?.userId }));
 }
 
-export async function sendShopMessage(bodyRaw: unknown): Promise<ActionResult<ChatThreadDto>> {
-  const body = clipBody(bodyRaw);
-  if (!body) return failDto('متن پیام خالی است');
+export async function sendShopMessage(payload: unknown): Promise<ActionResult<ChatThreadDto>> {
+  const raw = typeof payload === 'string' || typeof payload === 'number' ? { body: payload } : (payload || {}) as {
+    body?: unknown;
+    imageUrl?: unknown;
+  };
+  const imageUrl = normalizeImageUrl(raw.imageUrl);
+  const body = messageBody(raw.body, imageUrl);
+  if (!body) return failDto('متن یا تصویر پیام را وارد کنید');
   await db();
   const row = await findShopConversation();
   if (!row) {
     const profile = await loggedInShopUser();
     if (!profile) return failDto('گفتگو پیدا نشد؛ دوباره شروع کنید', 404);
+    if (imageUrl) return failDto('برای ارسال تصویر ابتدا یک پیام متنی بفرستید');
     return ok(await createShopConversation({ name: profile.name, phone: profile.phone, body, userId: profile.userId }));
   }
   if (!(await allowSend(`guest:${row.visitorPhone || row._id}`))) {
@@ -509,6 +562,7 @@ export async function sendShopMessage(bodyRaw: unknown): Promise<ActionResult<Ch
   }
 
   if ((row as any).status === 'closed') {
+    if (imageUrl) return failDto('برای ارسال تصویر ابتدا گفتگوی جدید را با متن شروع کنید');
     const profile = await loggedInShopUser();
     return ok(
       await createShopConversation({
@@ -523,9 +577,10 @@ export async function sendShopMessage(bodyRaw: unknown): Promise<ActionResult<Ch
   await insertMessage({
     conversationId: String(row._id),
     body,
+    imageUrl: imageUrl || undefined,
     sender: 'visitor',
   });
-  await bumpConversation(String(row._id), body, true);
+  await bumpConversation(String(row._id), body, true, imageUrl || undefined);
   const refreshed = await M().Conversation.findById(oid(row._id)).lean();
   return ok(await threadFor(refreshed || row));
 }
@@ -607,12 +662,17 @@ export async function getAdminThread(conversationId: string): Promise<ActionResu
 
 export async function sendAdminMessage(
   conversationId: string,
-  bodyRaw: unknown,
+  payload: unknown,
 ): Promise<ActionResult<ChatThreadDto>> {
   const access = await requirePlatformAdmin('messages');
   if ('error' in access) return access.error as ActionResult<ChatThreadDto>;
-  const body = clipBody(bodyRaw);
-  if (!body) return failDto('متن پیام خالی است');
+  const raw = typeof payload === 'string' || typeof payload === 'number' ? { body: payload } : (payload || {}) as {
+    body?: unknown;
+    imageUrl?: unknown;
+  };
+  const imageUrl = normalizeImageUrl(raw.imageUrl);
+  const body = messageBody(raw.body, imageUrl);
+  if (!body) return failDto('متن یا تصویر پیام را وارد کنید');
   if (!(await allowSend(`admin:${access.session._id}`))) {
     return failDto('لطفاً کمی صبر کنید و دوباره بفرستید', 429);
   }
@@ -627,13 +687,43 @@ export async function sendAdminMessage(
   await insertMessage({
     conversationId,
     body,
+    imageUrl: imageUrl || undefined,
     sender: 'admin',
     senderUserId: access.session._id,
   });
-  await bumpConversation(conversationId, body, false);
+  await bumpConversation(conversationId, body, false, imageUrl || undefined);
   await M().Conversation.updateOne({ _id: oid(conversationId) }, { unreadForAdmin: 0 });
 
   return getAdminThread(conversationId);
+}
+
+/** Upload a chat image for the current participant (accounting / shop / admin). */
+export async function uploadChatImage(formData: FormData): Promise<ActionResult<{ url: string }>> {
+  const file = formData.get('file');
+  if (!(typeof File !== 'undefined' && file instanceof File && file.size > 0)) {
+    return failDto('فایل تصویری انتخاب نشده است');
+  }
+
+  const workspace = await withWorkspace();
+  if (!('error' in workspace)) {
+    const stored = await storeChatImageFile(file);
+    if ('error' in stored) return failDto(stored.error);
+    return ok({ url: stored.url });
+  }
+
+  const admin = await requirePlatformAdmin('messages');
+  if (!('error' in admin)) {
+    const stored = await storeChatImageFile(file);
+    if ('error' in stored) return failDto(stored.error);
+    return ok({ url: stored.url });
+  }
+
+  await db();
+  const shop = await findShopConversation();
+  if (!shop) return failDto('برای ارسال تصویر ابتدا گفتگو را شروع کنید', 403);
+  const stored = await storeChatImageFile(file);
+  if ('error' in stored) return failDto(stored.error);
+  return ok({ url: stored.url });
 }
 
 export async function closeAdminConversation(conversationId: string): Promise<ActionResult<ChatThreadDto>> {

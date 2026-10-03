@@ -37,6 +37,8 @@ export function ChatBubble({
   showTime?: boolean;
 }) {
   const mine = isMine(viewer, message.sender);
+  const caption = message.body && message.body !== 'تصویر' ? message.body : '';
+  const imageUrl = message.imageUrl?.trim() || '';
 
   return (
     <div
@@ -45,7 +47,8 @@ export function ChatBubble({
     >
       <div
         className={cn(
-          'max-w-[78%] px-2.5 py-1.5 text-[13px] leading-5',
+          'max-w-[78%] overflow-hidden text-[13px] leading-5',
+          imageUrl ? 'p-1' : 'px-2.5 py-1.5',
           mine
             ? cn(
                 'rounded-2xl rounded-bl-md text-white',
@@ -54,11 +57,23 @@ export function ChatBubble({
             : 'rounded-2xl rounded-br-md bg-white text-zinc-800 ring-1 ring-zinc-200/90',
         )}
       >
-        <p className="whitespace-pre-wrap break-words">{message.body}</p>
+        {imageUrl ? (
+          <a href={imageUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imageUrl} alt="" className="max-h-56 w-full object-cover" />
+          </a>
+        ) : null}
+        {caption ? (
+          <p className={cn('whitespace-pre-wrap break-words', imageUrl ? 'px-1.5 pt-1.5' : undefined)}>
+            {caption}
+          </p>
+        ) : null}
+        {!imageUrl && !caption ? <p className="whitespace-pre-wrap break-words">{message.body}</p> : null}
         {showTime ? (
           <p
             className={cn(
               'mt-0.5 text-end text-[10px] leading-none tabular-nums',
+              imageUrl ? 'px-1.5 pb-1' : undefined,
               mine ? 'text-white/65' : 'text-zinc-400',
             )}
             dir="ltr"

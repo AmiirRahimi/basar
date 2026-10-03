@@ -659,7 +659,8 @@ const ConversationSchema = defineSchema(
 const ChatMessageSchema = defineSchema(
   {
     conversationId: { type: Schema.Types.ObjectId, ref: 'Conversation', required: true, index: true },
-    body: { type: String, required: true },
+    body: { type: String, required: true, default: '' },
+    imageUrl: { type: String, default: '' },
     sender: { type: String, required: true, enum: ['admin', 'user', 'visitor'] },
     senderUserId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     createdAt: { type: Date, required: true, default: Date.now, index: true },
