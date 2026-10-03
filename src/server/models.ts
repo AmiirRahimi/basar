@@ -356,6 +356,8 @@ const ClothSchema = defineSchema(
         message: `حداکثر ${MAX_CLOTH_IMAGES} تصویر برای هر لباس مجاز است`,
       },
     },
+    /** Original uploads + AI variants; `images` is the shown product subset. */
+    imageLibrary: { type: Schema.Types.Mixed, default: [] },
     onSale: { type: Boolean, default: false },
     discountPercent: { type: Number, default: 0 },
     saleEndsAt: { type: Date, default: null },

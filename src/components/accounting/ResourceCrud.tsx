@@ -37,6 +37,12 @@ import {
   parseFabricExtras,
   sanitizeFabricExtras,
 } from '@/lib/fabric-extras';
+import {
+  encodeClothImageLibrary,
+  normalizeClothImageLibrary,
+  parseClothImageLibrary,
+  shownUrlsFromLibrary,
+} from '@/lib/cloth-images';
 import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import type { FieldOption } from '@/lib/types';
 
@@ -187,6 +193,10 @@ export function ResourceCrud({
         if (next._storeIds == null) next._storeIds = f.defaultStoreId || '';
         if (next._partner == null) next._partner = '';
       }
+      if (f.type === 'images') {
+        if (next[f.name] == null) next[f.name] = '';
+        next.imageLibrary = '[]';
+      }
     });
     next.modelGroup = '';
     next.modelJoin = '';
@@ -241,6 +251,15 @@ export function ResourceCrud({
                       if (f.type === 'extras') {
                         const helpers = extrasHelpers(f.extrasVariant);
                         next[f.name] = helpers.encode(helpers.parse(value) as never);
+                        return;
+                      }
+                      if (f.type === 'images') {
+                        next[f.name] = Array.isArray(value)
+                          ? value.filter(Boolean).join('\n')
+                          : String(value ?? '');
+                        next.imageLibrary = encodeClothImageLibrary(
+                          normalizeClothImageLibrary(row.original.imageLibrary, value),
+                        );
                         return;
                       }
                       if (f.type === 'person-role') {
@@ -389,7 +408,11 @@ export function ResourceCrud({
       return Boolean(field.required) && Boolean(validatePacksEditor(parsePacksEditorValue(form[field.name])));
     }
     if (field.type === 'images') {
-      return Boolean(clothImageLimitMessage(parseImageList(form[field.name]).length));
+      const library = normalizeClothImageLibrary(
+        parseClothImageLibrary(form.imageLibrary),
+        form[field.name],
+      );
+      return Boolean(clothImageLimitMessage(shownUrlsFromLibrary(library).length));
     }
     if (field.type === 'person-role') {
       return Boolean(field.required) && normalizePersonRoles(form[field.name]).length === 0;
@@ -521,7 +544,12 @@ export function ResourceCrud({
           return;
         }
         if (f.type === 'images') {
-          payload[f.name] = parseImageList(form[f.name]);
+          const library = normalizeClothImageLibrary(
+            parseClothImageLibrary(form.imageLibrary),
+            form[f.name],
+          );
+          payload.imageLibrary = library;
+          payload[f.name] = shownUrlsFromLibrary(library);
           return;
         }
         payload[f.name] =
@@ -667,12 +695,25 @@ export function ResourceCrud({
     }
 
     if (field.type === 'images') {
-      const imagesError = showErrors ? clothImageLimitMessage(parseImageList(form[field.name]).length) : undefined;
+      const library = normalizeClothImageLibrary(
+        parseClothImageLibrary(form.imageLibrary),
+        form[field.name],
+      );
+      const imagesError = showErrors
+        ? clothImageLimitMessage(shownUrlsFromLibrary(library).length)
+        : undefined;
       return (
         <ClothImagesEditor
           label={label}
           value={form[field.name] || ''}
-          onChange={(next) => setValue(field, next)}
+          libraryValue={form.imageLibrary || encodeClothImageLibrary(library)}
+          onChange={(nextImages, nextLibrary) =>
+            setForm((current) => ({
+              ...current,
+              [field.name]: nextImages,
+              imageLibrary: nextLibrary,
+            }))
+          }
           clothId={editing?._id ? String(editing._id) : undefined}
           error={imagesError || undefined}
           locked={!allowClothImages}

@@ -8,8 +8,13 @@ import {
   normalizeImageTokenAmount,
   type ImageEditStyleId,
 } from '@/lib/image-tokens';
-import { MAX_VIRTUAL_MODEL_IMAGES, replaceSelectedImages } from '@/lib/photoroom';
-import { MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
+import {
+  addGeneratedToLibrary,
+  libraryHasUrl,
+  normalizeClothImageLibrary,
+  shownUrlsFromLibrary,
+} from '@/lib/cloth-images';
+import { MAX_VIRTUAL_MODEL_IMAGES } from '@/lib/photoroom';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
@@ -207,9 +212,9 @@ export async function editProductImage(payload: {
     const storeId = String(cloth._storeId?._id || cloth._storeId || '');
     if (!allowed.has(storeId)) return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
   }
-  const images = parseImageList(cloth.images);
+  const library = normalizeClothImageLibrary(cloth.imageLibrary, cloth.images);
   const sourceUrl = String(payload.imageUrl || '').trim();
-  if (!images.includes(sourceUrl)) return fail('این تصویر برای این لباس ثبت نشده');
+  if (!libraryHasUrl(library, sourceUrl)) return fail('این تصویر برای این لباس ثبت نشده');
   const ownerId = await tokenOwnerId(access.session, cloth);
   const owner = await M().User.findById(ownerId).lean();
   if (!owner) return fail('حساب توکن پیدا نشد', 404);
@@ -222,11 +227,12 @@ export async function editProductImage(payload: {
     const source = await readSourceImage(sourceUrl);
     const rendered = await renderProductEdit(source, style.id as ImageEditStyleId);
     const resultUrl = await saveProductImage(rendered, 'jpg');
-    const nextImages = images
-      .map((item) => (item === sourceUrl ? resultUrl : item))
-      .filter((item, index, list) => item && list.indexOf(item) === index)
-      .slice(0, MAX_CLOTH_IMAGES);
-    await M().Cloth.findByIdAndUpdate(payload.clothId, { images: nextImages });
+    const nextLibrary = addGeneratedToLibrary(library, sourceUrl, resultUrl, style.id);
+    const nextImages = shownUrlsFromLibrary(nextLibrary);
+    await M().Cloth.findByIdAndUpdate(payload.clothId, {
+      images: nextImages,
+      imageLibrary: nextLibrary,
+    });
     if (!access.session.isPlatformAdmin) {
       await M().User.findByIdAndUpdate(ownerId, { imageTokens: Math.max(0, balance - spent) });
     }
@@ -242,10 +248,11 @@ export async function editProductImage(payload: {
       serialize({
         resultUrl,
         images: nextImages,
+        imageLibrary: nextLibrary,
         imageTokens: access.session.isPlatformAdmin ? balance : Math.max(0, balance - spent),
         spent,
       }),
-      'تصویر محصول آماده شد',
+      'نسخه هوش مصنوعی ساخته شد',
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
@@ -294,8 +301,10 @@ export async function generateClothOnModel(payload: {
     const storeId = String(cloth._storeId?._id || cloth._storeId || '');
     if (!allowed.has(storeId)) return fail('اجازه ویرایش تصویر این لباس را ندارید', 403);
   }
-  const images = parseImageList(cloth.images);
-  if (urls.some((url) => !images.includes(url))) return fail('یکی از تصاویر انتخاب‌شده برای این لباس ثبت نشده');
+  const library = normalizeClothImageLibrary(cloth.imageLibrary, cloth.images);
+  if (urls.some((url) => !libraryHasUrl(library, url))) {
+    return fail('یکی از تصاویر انتخاب‌شده برای این لباس ثبت نشده');
+  }
 
   const ownerId = await tokenOwnerId(access.session, cloth);
   const owner = await M().User.findById(ownerId).lean();
@@ -315,9 +324,13 @@ export async function generateClothOnModel(payload: {
       prompt: payload.prompt,
     });
     const resultUrl = await saveProductImage(rendered.buffer, rendered.ext);
-    const nextImages = replaceSelectedImages(images, urls, resultUrl).slice(0, MAX_CLOTH_IMAGES);
+    const nextLibrary = addGeneratedToLibrary(library, urls[0], resultUrl, 'virtual-model');
+    const nextImages = shownUrlsFromLibrary(nextLibrary);
     if (clothId) {
-      await M().Cloth.findByIdAndUpdate(clothId, { images: nextImages });
+      await M().Cloth.findByIdAndUpdate(clothId, {
+        images: nextImages,
+        imageLibrary: nextLibrary,
+      });
     }
     if (!access.session.isPlatformAdmin) {
       await M().User.findByIdAndUpdate(ownerId, { imageTokens: Math.max(0, balance - spent) });
@@ -334,10 +347,11 @@ export async function generateClothOnModel(payload: {
       serialize({
         resultUrl,
         images: nextImages,
+        imageLibrary: nextLibrary,
         imageTokens: access.session.isPlatformAdmin ? balance : Math.max(0, balance - spent),
         spent,
       }),
-      'عکس مدل ساخته شد و جایگزین تصاویر انتخاب‌شده شد',
+      'عکس مدل ساخته شد و به نسخه‌های هوش مصنوعی اضافه شد',
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : '';

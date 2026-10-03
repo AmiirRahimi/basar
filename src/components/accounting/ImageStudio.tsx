@@ -270,12 +270,14 @@ export function ImageEditModal({
   initialImageUrl,
   onClose,
   onSuccess,
+  onLibraryChange,
 }: {
   clothId?: string;
   images: string[];
   initialImageUrl?: string;
   onClose: () => void;
   onSuccess?: (images: string[]) => void;
+  onLibraryChange?: (library: unknown) => void;
 }) {
   const router = useRouter();
   const workspace = useWorkspace();
@@ -310,10 +312,10 @@ export function ImageEditModal({
       const res = await editProductImage({ clothId, imageUrl, styleId });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
-        const nextImages = Array.isArray((res.data as { images?: string[] } | null)?.images)
-          ? (res.data as { images: string[] }).images
-          : [];
+        const data = (res.data || {}) as { images?: string[]; imageLibrary?: unknown };
+        const nextImages = Array.isArray(data.images) ? data.images : [];
         toast.success(res.message || 'تصویر آماده شد');
+        if (data.imageLibrary != null) onLibraryChange?.(data.imageLibrary);
         onSuccess?.(nextImages);
         onClose();
         router.refresh();
@@ -338,10 +340,10 @@ export function ImageEditModal({
       });
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
-        const nextImages = Array.isArray((res.data as { images?: string[] } | null)?.images)
-          ? (res.data as { images: string[] }).images
-          : [];
+        const data = (res.data || {}) as { images?: string[]; imageLibrary?: unknown };
+        const nextImages = Array.isArray(data.images) ? data.images : [];
         toast.success(res.message || 'عکس مدل آماده شد');
+        if (data.imageLibrary != null) onLibraryChange?.(data.imageLibrary);
         onSuccess?.(nextImages);
         onClose();
         router.refresh();
@@ -468,6 +470,7 @@ export function ClothImageStudio({
   className,
   compact,
   onSuccess,
+  onLibraryChange,
 }: {
   clothId?: string;
   images: string[];
@@ -476,6 +479,7 @@ export function ClothImageStudio({
   className?: string;
   compact?: boolean;
   onSuccess?: (images: string[]) => void;
+  onLibraryChange?: (library: unknown) => void;
 }) {
   const [open, setOpen] = useState(false);
   const list = useMemo(() => parseImageList(images), [images]);
@@ -500,6 +504,7 @@ export function ClothImageStudio({
           initialImageUrl={imageUrl}
           onClose={() => setOpen(false)}
           onSuccess={onSuccess}
+          onLibraryChange={onLibraryChange}
         />
       ) : null}
     </>

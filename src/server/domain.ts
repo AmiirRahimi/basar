@@ -38,6 +38,10 @@ import { normalizeHex, swatchFor } from '@/lib/cloth-colors';
 import { db, dbEngine, serialize } from './db';
 import { fileModels } from './file-db';
 import * as mongo from './models';
+import {
+  normalizeClothImageLibrary,
+  shownUrlsFromLibrary,
+} from '@/lib/cloth-images';
 import { clothImageLimitMessage, parseImageList } from '@/lib/shop-cart';
 import { clampDiscountPercent, isTruthyFlag, saleState } from '@/lib/product-sale';
 import { fail, failDb, ok, type ActionResult } from './result';
@@ -595,7 +599,14 @@ function applyClothInventoryUpdate(
 }
 
 function applyClothShopFields(body: Record<string, unknown>): ActionResult<Record<string, unknown> | null> {
-  if (body.images != null) {
+  if (body.imageLibrary != null) {
+    const library = normalizeClothImageLibrary(body.imageLibrary, body.images);
+    const images = shownUrlsFromLibrary(library);
+    const limitError = clothImageLimitMessage(images.length);
+    if (limitError) return fail(limitError);
+    body.imageLibrary = library;
+    body.images = images;
+  } else if (body.images != null) {
     const images = parseImageList(body.images);
     const limitError = clothImageLimitMessage(images.length);
     if (limitError) return fail(limitError);

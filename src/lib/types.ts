@@ -253,6 +253,7 @@ export type Cloth = {
   publishRequested?: boolean;
   description?: string;
   images?: string[];
+  imageLibrary?: unknown;
   onSale?: boolean;
   discountPercent?: number;
   saleEndsAt?: string;

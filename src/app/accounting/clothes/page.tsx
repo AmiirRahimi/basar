@@ -379,7 +379,7 @@ export default async function ClothesPage() {
           },
           { name: 'description', label: 'توضیح فروشگاه', type: 'textarea' },
           ...(allowClothImages
-            ? [{ name: 'images', label: 'تصاویر فروشگاه', type: 'images' as const }]
+            ? [{ name: 'images', label: 'تصاویر اصلی و هوش مصنوعی', type: 'images' as const }]
             : []),
         ]}
       />
