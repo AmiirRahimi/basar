@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import { getPersonAccount } from '@/actions/crud';
 import { FormCard, Select } from '@/ui';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
@@ -127,7 +127,18 @@ export function AccountClient({
             load(id);
           }}
         />
-        {account ? (
+        {pending ? (
+          <div
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            className="mt-4 flex min-h-[7.5rem] flex-col items-center justify-center gap-3 rounded-xl bg-gray-50 px-4 py-6 text-sm text-gray-600"
+          >
+            <Loader2 className="h-6 w-6 animate-spin text-teal-700" />
+            <p className="font-medium text-gray-800">در حال محاسبه مانده…</p>
+            <p className="text-xs text-gray-500">جمع فاکتورها و پرداخت‌ها دارد می‌آید.</p>
+          </div>
+        ) : account ? (
           <div className="mt-4 grid gap-2 rounded-xl bg-gray-50 p-3 text-sm">
             {payable ? (
               <>
@@ -165,7 +176,7 @@ export function AccountClient({
             )}
           </div>
         ) : null}
-        {person && !payable ? (
+        {person && !payable && !pending ? (
           <div className="mt-4">
             <Select
               label="فاکتور (اختیاری)"
@@ -179,7 +190,7 @@ export function AccountClient({
             <p className="mt-1 text-xs text-gray-500">پیش‌فرض مانده کل است. اگر بخواهید، یک فاکتور را برای همین پرداخت انتخاب کنید.</p>
           </div>
         ) : null}
-        {writable ? (
+        {writable && !pending ? (
           <div className="mt-4">
             <PaymentForm
               personId={person}
@@ -197,87 +208,97 @@ export function AccountClient({
         ) : null}
       </FormCard>
       <FormCard>
-        {person ? (
-          <Link
-            href={personPaymentsHref(person)}
-            className="mb-6 block rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-teal-300 hover:bg-teal-50/50"
+        {pending ? (
+          <div
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-10 text-sm text-gray-600"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-medium text-gray-900">گردش پرداخت</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {faNumber(paymentCounts.paymentCount)} پرداخت ثبت شده
-                  {paymentCounts.cashCount ? ` · ${faNumber(paymentCounts.cashCount)} نقد` : ''}
-                  {paymentCounts.checkCount ? ` · ${faNumber(paymentCounts.checkCount)} چک` : ''}
-                </p>
+            <Loader2 className="h-7 w-7 animate-spin text-teal-700" />
+            <p className="font-medium text-gray-800">در حال بارگذاری حساب…</p>
+            <p className="text-xs text-gray-500">مبالغ و فاکتورها کمی بعد نشان داده می‌شوند.</p>
+          </div>
+        ) : person ? (
+          <>
+            <Link
+              href={personPaymentsHref(person)}
+              className="mb-6 block rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-teal-300 hover:bg-teal-50/50"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-medium text-gray-900">گردش پرداخت</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {faNumber(paymentCounts.paymentCount)} پرداخت ثبت شده
+                    {paymentCounts.cashCount ? ` · ${faNumber(paymentCounts.cashCount)} نقد` : ''}
+                    {paymentCounts.checkCount ? ` · ${faNumber(paymentCounts.checkCount)} چک` : ''}
+                  </p>
+                </div>
+                <ChevronLeft className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
               </div>
-              <ChevronLeft className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
-            </div>
-            <dl className="mt-4 grid grid-cols-2 gap-2">
-              <div className="rounded-xl bg-gray-50 px-3 py-2">
-                <dt className="text-[11px] text-gray-500">پرداخت‌شده</dt>
-                <dd className="text-sm font-semibold">{toman(account?.paidTotal ?? paymentCounts.paidTotal)}</dd>
-              </div>
-              <div className="rounded-xl bg-gray-50 px-3 py-2">
-                <dt className="text-[11px] text-gray-500">
-                  {payable ? 'باید بپردازید' : Number(account?.creditToCustomer || 0) > 0 ? 'بستانکار مشتری' : 'باید بپردازد'}
-                </dt>
-                <dd className="text-sm font-semibold">
-                  {toman(Number(account?.creditToCustomer || 0) > 0 ? account?.creditToCustomer : account?.remaining)}
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-xs text-teal-800">مشاهده پرداخت‌ها روی فاکتورها</p>
-          </Link>
+              <dl className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-gray-50 px-3 py-2">
+                  <dt className="text-[11px] text-gray-500">پرداخت‌شده</dt>
+                  <dd className="text-sm font-semibold">{toman(account?.paidTotal ?? paymentCounts.paidTotal)}</dd>
+                </div>
+                <div className="rounded-xl bg-gray-50 px-3 py-2">
+                  <dt className="text-[11px] text-gray-500">
+                    {payable ? 'باید بپردازید' : Number(account?.creditToCustomer || 0) > 0 ? 'بستانکار مشتری' : 'باید بپردازد'}
+                  </dt>
+                  <dd className="text-sm font-semibold">
+                    {toman(Number(account?.creditToCustomer || 0) > 0 ? account?.creditToCustomer : account?.remaining)}
+                  </dd>
+                </div>
+              </dl>
+              <p className="mt-3 text-xs text-teal-800">مشاهده پرداخت‌ها روی فاکتورها</p>
+            </Link>
+            <h3 className="mb-1 font-medium">{payable ? 'اقلام بدهی' : 'فاکتورها'}</h3>
+            {!payable ? (
+              <p className="mb-3 text-xs text-gray-500">فاکتور را برای پرداخت انتخاب کنید. مانده همان مبلغی است که باید بپردازد.</p>
+            ) : (
+              <div className="mb-3" />
+            )}
+            {payable ? (
+              <ul className="space-y-2 text-sm">
+                {items.map((row) => (
+                  <li key={row._id} className="flex justify-between gap-2 border-b py-2">
+                    <span>
+                      {row.label}
+                      <span className="mt-0.5 block text-xs text-gray-500">{faDate(row.timeStamp)}</span>
+                    </span>
+                    <span className="shrink-0 font-medium">{toman(row.total)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="space-y-3">
+                {invoices.map((row) => (
+                  <li key={row._id}>
+                    <InvoiceSettleCard
+                      row={row}
+                      selected={String(row._id) === invoiceId}
+                      href={personPaymentsHref(person, String(row._id))}
+                      onSelect={() => setInvoiceId(String(row._id))}
+                    />
+                  </li>
+                ))}
+                {!invoices.length ? (
+                  <li className="rounded-2xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
+                    فاکتوری برای این شخص نیست.
+                  </li>
+                ) : null}
+              </ul>
+            )}
+            {!invoices.length && !items.length && !payments.length ? (
+              <p className="mt-4 text-sm text-gray-500">گردشی برای {displayName(account?.person)} نیست</p>
+            ) : null}
+          </>
         ) : (
-          <div className="mb-6">
+          <div>
             <h3 className="mb-1 font-medium">گردش پرداخت</h3>
             <p className="text-sm text-gray-500">ابتدا یک شخص را انتخاب کنید.</p>
           </div>
         )}
-        <h3 className="mb-1 font-medium">{payable ? 'اقلام بدهی' : 'فاکتورها'}</h3>
-        {!payable && person ? (
-          <p className="mb-3 text-xs text-gray-500">فاکتور را برای پرداخت انتخاب کنید. مانده همان مبلغی است که باید بپردازد.</p>
-        ) : (
-          <div className="mb-3" />
-        )}
-        {pending ? <p className="text-sm text-gray-500">در حال بارگذاری...</p> : null}
-        {payable ? (
-          <ul className="space-y-2 text-sm">
-            {items.map((row) => (
-              <li key={row._id} className="flex justify-between gap-2 border-b py-2">
-                <span>
-                  {row.label}
-                  <span className="mt-0.5 block text-xs text-gray-500">{faDate(row.timeStamp)}</span>
-                </span>
-                <span className="shrink-0 font-medium">{toman(row.total)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : person ? (
-          <ul className="space-y-3">
-            {invoices.map((row) => (
-              <li key={row._id}>
-                <InvoiceSettleCard
-                  row={row}
-                  selected={String(row._id) === invoiceId}
-                  href={personPaymentsHref(person, String(row._id))}
-                  onSelect={() => setInvoiceId(String(row._id))}
-                />
-              </li>
-            ))}
-            {!invoices.length && !pending ? (
-              <li className="rounded-2xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
-                فاکتوری برای این شخص نیست.
-              </li>
-            ) : null}
-          </ul>
-        ) : (
-          <p className="text-sm text-gray-500">ابتدا یک شخص را انتخاب کنید.</p>
-        )}
-        {person && !invoices.length && !items.length && !payments.length ? (
-          <p className="mt-4 text-sm text-gray-500">گردشی برای {displayName(account?.person)} نیست</p>
-        ) : null}
       </FormCard>
     </div>
   );
