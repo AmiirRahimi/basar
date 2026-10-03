@@ -5,7 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { getPersonAccount } from '@/actions/crud';
-import { ApiWait, FormCard, Select, type SelectOption, type SelectOptionFilter } from '@/ui';
+import {
+  ApiWait,
+  FormCard,
+  Select,
+  type SelectGroupTone,
+  type SelectOption,
+  type SelectOptionFilter,
+} from '@/ui';
 import { displayName, faDate, faNumber, toman } from '@/lib/format';
 import {
   PERSON_ROLES,
@@ -25,6 +32,16 @@ import type { AccountInvoice, AccountPayment } from '@/lib/payment-display';
 const ALL_INVOICES = 'all';
 const ROLE_ORDER = Object.keys(PERSON_ROLES);
 
+const ROLE_TONES: Record<string, SelectGroupTone> = {
+  '1': 'sky',
+  '2': 'violet',
+  '3': 'amber',
+  '4': 'emerald',
+  '5': 'cyan',
+  '6': 'rose',
+  '7': 'indigo',
+};
+
 const selectLabels = {
   search: 'جستجو نام',
   remove: 'حذف انتخاب',
@@ -37,6 +54,10 @@ function primaryRole(roles: string[]) {
     if (roles.includes(role)) return role;
   }
   return roles[0] || '';
+}
+
+function roleTone(role: string): SelectGroupTone {
+  return ROLE_TONES[role] || 'gray';
 }
 
 type AccountItem = {
@@ -72,6 +93,7 @@ export function AccountClient({
           value: String(p._id),
           label: String(p.fullName || 'بدون نام'),
           group,
+          groupTone: roleTone(role),
           tags: roles.length ? roles : role ? [role] : [],
           sort: sort < 0 ? 99 : sort,
         };
@@ -92,6 +114,7 @@ export function AccountClient({
       value: role,
       label: PERSON_ROLES[role],
       count: counts[role],
+      tone: roleTone(role),
     }));
   }, [people]);
 

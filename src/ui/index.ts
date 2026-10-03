@@ -36,6 +36,7 @@ export {
   type SelectLabels,
   type SelectOption,
   type SelectOptionFilter,
+  type SelectGroupTone,
 } from './components/Select';
 export {
   TransferList,

@@ -29,11 +29,23 @@ const DEFAULT_SELECT_LABELS: Required<SelectLabels> = {
   filterAll: 'All',
 };
 
+export type SelectGroupTone =
+  | 'sky'
+  | 'violet'
+  | 'amber'
+  | 'emerald'
+  | 'cyan'
+  | 'rose'
+  | 'indigo'
+  | 'gray';
+
 export type SelectOption = {
   label: string;
   value: SelectValue;
   /** When set, options are rendered under this group header. */
   group?: string;
+  /** Color accent for the group section / matching filter chip. */
+  groupTone?: SelectGroupTone;
   /** Tag ids used by `optionFilters` (e.g. person role ids). */
   tags?: string[];
 };
@@ -42,10 +54,100 @@ export type SelectOptionFilter = {
   value: string;
   label: string;
   count?: number;
+  tone?: SelectGroupTone;
+};
+
+type SelectGroup = {
+  key: string;
+  label: string;
+  tone?: SelectGroupTone;
+  options: SelectOption[];
 };
 
 function toSelectOptionKey(value: SelectValue): string {
   return String(value);
+}
+
+const GROUP_TONE_STYLES: Record<
+  SelectGroupTone,
+  { panel: string; header: string; dot: string; count: string; chip: string; chipActive: string }
+> = {
+  sky: {
+    panel: 'border-sky-200/70 bg-sky-50/40 dark:border-sky-900/40 dark:bg-sky-950/20',
+    header: 'text-sky-800 dark:text-sky-200',
+    dot: 'bg-sky-500',
+    count: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200',
+    chip: 'border-sky-200/80 bg-sky-50/70 text-sky-800 hover:border-sky-300 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-200',
+    chipActive:
+      'border-sky-400 bg-sky-100 font-medium text-sky-900 ring-2 ring-sky-400/25 dark:border-sky-500 dark:bg-sky-900/50 dark:text-sky-50',
+  },
+  violet: {
+    panel: 'border-violet-200/70 bg-violet-50/40 dark:border-violet-900/40 dark:bg-violet-950/20',
+    header: 'text-violet-800 dark:text-violet-200',
+    dot: 'bg-violet-500',
+    count: 'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-200',
+    chip: 'border-violet-200/80 bg-violet-50/70 text-violet-800 hover:border-violet-300 dark:border-violet-900/50 dark:bg-violet-950/30 dark:text-violet-200',
+    chipActive:
+      'border-violet-400 bg-violet-100 font-medium text-violet-900 ring-2 ring-violet-400/25 dark:border-violet-500 dark:bg-violet-900/50 dark:text-violet-50',
+  },
+  amber: {
+    panel: 'border-amber-200/70 bg-amber-50/40 dark:border-amber-900/40 dark:bg-amber-950/20',
+    header: 'text-amber-900 dark:text-amber-200',
+    dot: 'bg-amber-500',
+    count: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200',
+    chip: 'border-amber-200/80 bg-amber-50/70 text-amber-800 hover:border-amber-300 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200',
+    chipActive:
+      'border-amber-400 bg-amber-100 font-medium text-amber-900 ring-2 ring-amber-400/25 dark:border-amber-500 dark:bg-amber-900/50 dark:text-amber-50',
+  },
+  emerald: {
+    panel: 'border-emerald-200/70 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20',
+    header: 'text-emerald-800 dark:text-emerald-200',
+    dot: 'bg-emerald-500',
+    count: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200',
+    chip: 'border-emerald-200/80 bg-emerald-50/70 text-emerald-800 hover:border-emerald-300 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200',
+    chipActive:
+      'border-emerald-400 bg-emerald-100 font-medium text-emerald-900 ring-2 ring-emerald-400/25 dark:border-emerald-500 dark:bg-emerald-900/50 dark:text-emerald-50',
+  },
+  cyan: {
+    panel: 'border-cyan-200/70 bg-cyan-50/40 dark:border-cyan-900/40 dark:bg-cyan-950/20',
+    header: 'text-cyan-800 dark:text-cyan-200',
+    dot: 'bg-cyan-500',
+    count: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/60 dark:text-cyan-200',
+    chip: 'border-cyan-200/80 bg-cyan-50/70 text-cyan-800 hover:border-cyan-300 dark:border-cyan-900/50 dark:bg-cyan-950/30 dark:text-cyan-200',
+    chipActive:
+      'border-cyan-400 bg-cyan-100 font-medium text-cyan-900 ring-2 ring-cyan-400/25 dark:border-cyan-500 dark:bg-cyan-900/50 dark:text-cyan-50',
+  },
+  rose: {
+    panel: 'border-rose-200/70 bg-rose-50/40 dark:border-rose-900/40 dark:bg-rose-950/20',
+    header: 'text-rose-800 dark:text-rose-200',
+    dot: 'bg-rose-500',
+    count: 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200',
+    chip: 'border-rose-200/80 bg-rose-50/70 text-rose-800 hover:border-rose-300 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200',
+    chipActive:
+      'border-rose-400 bg-rose-100 font-medium text-rose-900 ring-2 ring-rose-400/25 dark:border-rose-500 dark:bg-rose-900/50 dark:text-rose-50',
+  },
+  indigo: {
+    panel: 'border-indigo-200/70 bg-indigo-50/40 dark:border-indigo-900/40 dark:bg-indigo-950/20',
+    header: 'text-indigo-800 dark:text-indigo-200',
+    dot: 'bg-indigo-500',
+    count: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-200',
+    chip: 'border-indigo-200/80 bg-indigo-50/70 text-indigo-800 hover:border-indigo-300 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-200',
+    chipActive:
+      'border-indigo-400 bg-indigo-100 font-medium text-indigo-900 ring-2 ring-indigo-400/25 dark:border-indigo-500 dark:bg-indigo-900/50 dark:text-indigo-50',
+  },
+  gray: {
+    panel: 'border-gray-200/80 bg-gray-50/50 dark:border-gray-700/50 dark:bg-gray-900/30',
+    header: 'text-gray-700 dark:text-gray-300',
+    dot: 'bg-gray-400',
+    count: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+    chip: 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
+    chipActive:
+      'border-primary bg-primary/10 font-medium text-primary ring-2 ring-primary/20 dark:border-primary dark:bg-primary/20',
+  },
+};
+
+function toneStyles(tone?: SelectGroupTone) {
+  return GROUP_TONE_STYLES[tone || 'gray'];
 }
 
 type DropdownPosition = {
@@ -59,10 +161,10 @@ type DropdownPosition = {
 const DROPDOWN_GAP = 4;
 const DROPDOWN_VIEWPORT_PAD = 8;
 const DROPDOWN_DEFAULT_MAX_HEIGHT = 240; // max-h-60
-const DROPDOWN_FILTERED_MAX_HEIGHT = 320;
+const DROPDOWN_FILTERED_MAX_HEIGHT = 360;
 const DROPDOWN_MIN_HEIGHT = 120;
 
-function groupSelectOptions(options: SelectOption[]): { key: string; label: string; options: SelectOption[] }[] {
+function groupSelectOptions(options: SelectOption[]): SelectGroup[] {
   const hasGroups = options.some((opt) => opt.group);
   if (!hasGroups) {
     return [{ key: '__all__', label: '', options }];
@@ -70,15 +172,22 @@ function groupSelectOptions(options: SelectOption[]): { key: string; label: stri
 
   const order: string[] = [];
   const map = new Map<string, SelectOption[]>();
+  const tones = new Map<string, SelectGroupTone | undefined>();
   for (const opt of options) {
     const label = opt.group?.trim() || '—';
     if (!map.has(label)) {
       map.set(label, []);
       order.push(label);
+      tones.set(label, opt.groupTone);
     }
     map.get(label)!.push(opt);
   }
-  return order.map((label) => ({ key: label, label, options: map.get(label)! }));
+  return order.map((label) => ({
+    key: label,
+    label,
+    tone: tones.get(label),
+    options: map.get(label)!,
+  }));
 }
 
 function useDropdownPosition(
@@ -238,9 +347,17 @@ export function Select({
       String(opt.group || '').toLowerCase().includes(q)
     );
   });
-  // When a role/tag filter is on, skip group headers — the chip already defines the set.
-  const groupedOptions = activeFilter
-    ? [{ key: '__filtered__', label: '', options: filteredOptions }]
+  const activeFilterMeta = optionFilters?.find((item) => item.value === activeFilter);
+  // When a role/tag filter is on, keep one tinted section titled by that filter.
+  const groupedOptions: SelectGroup[] = activeFilter
+    ? [
+        {
+          key: `__filtered__:${activeFilter}`,
+          label: activeFilterMeta?.label || '',
+          tone: activeFilterMeta?.tone,
+          options: filteredOptions,
+        },
+      ]
     : groupSelectOptions(filteredOptions);
 
   const closeMenu = () => {
@@ -386,8 +503,8 @@ export function Select({
                         className={cn(
                           'shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition',
                           !activeFilter
-                            ? 'border-primary bg-primary/10 font-medium text-primary'
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
+                            ? toneStyles('gray').chipActive
+                            : toneStyles('gray').chip,
                         )}
                       >
                         {copy.filterAll}
@@ -397,6 +514,7 @@ export function Select({
                       </button>
                       {optionFilters!.map((item) => {
                         const selected = activeFilter === item.value;
+                        const styles = toneStyles(item.tone);
                         return (
                           <button
                             key={item.value}
@@ -409,15 +527,14 @@ export function Select({
                             }}
                             onClick={() => setActiveFilter(item.value)}
                             className={cn(
-                              'shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition',
-                              selected
-                                ? 'border-primary bg-primary/10 font-medium text-primary'
-                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
+                              'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition',
+                              selected ? styles.chipActive : styles.chip,
                             )}
                           >
+                            <span className={cn('h-1.5 w-1.5 rounded-full', styles.dot)} />
                             {item.label}
                             {item.count != null ? (
-                              <span className="mr-1 opacity-70">({item.count})</span>
+                              <span className="opacity-70">({item.count})</span>
                             ) : null}
                           </button>
                         );
@@ -439,7 +556,7 @@ export function Select({
                   ) : null}
                 </div>
               )}
-              <div className="min-h-0 flex-1 overflow-y-auto p-1 custom-scrollbar">
+              <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-1.5 custom-scrollbar">
                 {value != null && value !== '' && (
                   <button
                     type="button"
@@ -460,33 +577,63 @@ export function Select({
                     {copy.noOptionsFound}
                   </div>
                 ) : (
-                  groupedOptions.map((group) => (
-                    <div key={group.key} className="mb-0.5 last:mb-0">
-                      {group.label ? (
-                        <div className="sticky top-0 z-[1] bg-white/95 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 backdrop-blur-sm dark:bg-gray-900/95 dark:text-gray-400">
-                          {group.label}
+                  groupedOptions.map((group) => {
+                    const styles = toneStyles(group.tone);
+                    const showSection = Boolean(group.label);
+                    return (
+                      <div
+                        key={group.key}
+                        className={cn(
+                          showSection && 'overflow-hidden rounded-xl border',
+                          showSection && styles.panel,
+                        )}
+                      >
+                        {showSection ? (
+                          <div
+                            className={cn(
+                              'sticky top-0 z-[1] flex items-center justify-between gap-2 border-b border-black/5 px-2.5 py-1.5 backdrop-blur-sm dark:border-white/5',
+                              styles.header,
+                            )}
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className={cn('h-2 w-2 shrink-0 rounded-full', styles.dot)} />
+                              <span className="truncate text-[11px] font-semibold tracking-wide">
+                                {group.label}
+                              </span>
+                            </div>
+                            <span
+                              className={cn(
+                                'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular-nums',
+                                styles.count,
+                              )}
+                            >
+                              {group.options.length}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div className={cn(showSection ? 'p-1' : undefined)}>
+                          {group.options.map((option) => (
+                            <button
+                              key={toSelectOptionKey(option.value)}
+                              type="button"
+                              onMouseDown={(event) => handleOptionSelect(event, option.value)}
+                              className={cn(
+                                'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
+                                String(option.value) === String(value ?? '')
+                                  ? 'bg-white/90 text-gray-900 shadow-sm ring-1 ring-black/5 dark:bg-white/10 dark:text-gray-50 dark:ring-white/10'
+                                  : 'text-gray-700 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-white/[0.06]',
+                              )}
+                            >
+                              <span className="truncate">{option.label}</span>
+                              {String(option.value) === String(value ?? '') && (
+                                <Check className="h-4 w-4 shrink-0 text-primary" />
+                              )}
+                            </button>
+                          ))}
                         </div>
-                      ) : null}
-                      {group.options.map((option) => (
-                        <button
-                          key={toSelectOptionKey(option.value)}
-                          type="button"
-                          onMouseDown={(event) => handleOptionSelect(event, option.value)}
-                          className={cn(
-                            'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
-                            String(option.value) === String(value ?? '')
-                              ? 'bg-primary/10 text-primary'
-                              : 'text-gray-700 hover:bg-gray-100/80 dark:text-gray-300 dark:hover:bg-white/[0.04]',
-                          )}
-                        >
-                          <span className="truncate">{option.label}</span>
-                          {String(option.value) === String(value ?? '') && (
-                            <Check className="h-4 w-4 shrink-0 text-primary" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ))
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>,
