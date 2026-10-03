@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Check, Eye, EyeOff, Sparkles, Trash2 } from 'lucide-react';
 import {
   buyImageTokens,
   editProductImage,
@@ -20,6 +20,8 @@ import {
   aiStyleLabel,
   countShownInLibrary,
   normalizeClothImageLibrary,
+  removeGeneratedFromLibrary,
+  removeGroupFromLibrary,
   shownUrlsFromLibrary,
   toggleShownInLibrary,
   type ClothImageGroup,
@@ -36,7 +38,7 @@ import { faDate, faNumber, toman } from '@/lib/format';
 import { MAX_CLOTH_IMAGES, parseImageList } from '@/lib/shop-cart';
 import { MAX_VIRTUAL_MODEL_IMAGES, PHOTOROOM_MODELS, PHOTOROOM_POSES, PHOTOROOM_SCENES } from '@/lib/photoroom';
 import { redirectIfUnauthorized } from '@/lib/session-client';
-import { ApiWait, Button, FormCard, Input, Modal, Select, Tabs, cn, toast } from '@/ui';
+import { ApiWait, Button, FormCard, IconButton, Input, Modal, Select, Tabs, cn, toast } from '@/ui';
 import { useWorkspace } from './WorkspaceProvider';
 import { PlanLocked } from './PlanLocked';
 import { Price, PriceSection } from './Price';
@@ -307,10 +309,13 @@ export function ImageEditModal({
 }) {
   const router = useRouter();
   const workspace = useWorkspace();
-  const [pending, start] = useTransition();
   const [mode, setMode] = useState<'model' | 'studio'>('model');
   const [imageUrl, setImageUrl] = useState(initialImageUrl && images.includes(initialImageUrl) ? initialImageUrl : images[0] || '');
-  const [selected, setSelected] = useState<string[]>(() => images.slice(0, MAX_VIRTUAL_MODEL_IMAGES));
+  const [selected, setSelected] = useState<string[]>(() =>
+    initialImageUrl && images.includes(initialImageUrl)
+      ? [initialImageUrl, ...images.filter((src) => src !== initialImageUrl)].slice(0, MAX_VIRTUAL_MODEL_IMAGES)
+      : images.slice(0, MAX_VIRTUAL_MODEL_IMAGES),
+  );
   const [styleId, setStyleId] = useState(IMAGE_EDIT_STYLES[0].id);
   const [model, setModel] = useState('avery');
   const [scene, setScene] = useState('studio');
@@ -346,7 +351,6 @@ export function ImageEditModal({
       imageLibrary: data.imageLibrary,
       resultUrl: data.resultUrl,
     });
-    onClose();
     router.refresh();
   }
 
@@ -355,8 +359,14 @@ export function ImageEditModal({
       toast.error('برای جلوه استودیو ابتدا لباس را ذخیره کنید');
       return;
     }
-    start(async () => {
-      const res = await editProductImage({ clothId, imageUrl, styleId });
+    const loadingId = toast.loading('در حال ساخت تصویر…');
+    const source = imageUrl;
+    const style = styleId;
+    const id = clothId;
+    onClose();
+    void (async () => {
+      const res = await editProductImage({ clothId: id, imageUrl: source, styleId: style });
+      toast.dismiss(loadingId);
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
         const data = (res.data || {}) as { images?: string[]; imageLibrary?: unknown; resultUrl?: string };
@@ -364,7 +374,7 @@ export function ImageEditModal({
       } else {
         toast.error(res.message || 'ویرایش انجام نشد');
       }
-    });
+    })();
   }
 
   function runModel() {
@@ -372,14 +382,22 @@ export function ImageEditModal({
       toast.error('حداقل یک تصویر از لباس انتخاب کنید');
       return;
     }
-    start(async () => {
+    const loadingId = toast.loading('در حال ساخت تصویر…');
+    const urls = [...selected];
+    const id = clothId;
+    const modelValue = model;
+    const sceneValue = scene;
+    const poseValue = pose;
+    onClose();
+    void (async () => {
       const res = await generateClothOnModel({
-        clothId,
-        imageUrls: selected,
-        model,
-        scene,
-        pose,
+        clothId: id,
+        imageUrls: urls,
+        model: modelValue,
+        scene: sceneValue,
+        pose: poseValue,
       });
+      toast.dismiss(loadingId);
       if (redirectIfUnauthorized(res)) return;
       if (res.ok) {
         const data = (res.data || {}) as { images?: string[]; imageLibrary?: unknown; resultUrl?: string };
@@ -387,7 +405,7 @@ export function ImageEditModal({
       } else {
         toast.error(res.message || 'ساخت مدل انجام نشد');
       }
-    });
+    })();
   }
 
   return (
@@ -400,10 +418,7 @@ export function ImageEditModal({
           </p>
         ) : null}
 
-        {pending ? (
-          <ApiWait title="در حال ساخت تصویر…" hint="این کار کمی طول می‌کشد؛ صفحه را نبندید." />
-        ) : (
-          <Tabs
+        <Tabs
             value={mode}
             onChange={(next) => setMode(next as 'model' | 'studio')}
             tabs={[
@@ -637,7 +652,6 @@ export function ImageEditModal({
               },
             ]}
           />
-        )}
       </FormCard>
     </Modal>
   );
@@ -709,32 +723,26 @@ function ProductImageDesk({
 }) {
   const [library, setLibrary] = useState(() => normalizeClothImageLibrary(imageLibrary, images));
   const [previewUrl, setPreviewUrl] = useState('');
-  const [generateOpen, setGenerateOpen] = useState(false);
+  const [generateForUrl, setGenerateForUrl] = useState('');
   const [saving, startSave] = useTransition();
   const originals = useMemo(() => library.map((group) => group.originalUrl), [library]);
   const shownCount = countShownInLibrary(library);
   const aiCount = library.reduce((sum, group) => sum + group.generated.length, 0);
-  const preview =
-    previewUrl ||
-    library.flatMap((group) => group.generated.map((gen) => gen.url)).find(Boolean) ||
-    originals[0] ||
-    '';
 
   useEffect(() => {
     setLibrary(normalizeClothImageLibrary(imageLibrary, images));
     setPreviewUrl('');
-    setGenerateOpen(false);
+    setGenerateForUrl('');
   }, [clothId]); // eslint-disable-line react-hooks/exhaustive-deps -- reopen desk for another product only
 
-  function applyLocal(next: ClothImageGroup[], highlightUrl?: string) {
+  function applyLocal(next: ClothImageGroup[]) {
     setLibrary(next);
-    if (highlightUrl) setPreviewUrl(highlightUrl);
     onUpdated({ images: shownUrlsFromLibrary(next), imageLibrary: next });
   }
 
-  function persistLibrary(next: ClothImageGroup[], highlightUrl?: string) {
+  function persistLibrary(next: ClothImageGroup[]) {
     const previous = library;
-    applyLocal(next, highlightUrl);
+    applyLocal(next);
     startSave(async () => {
       const res = await updateClothImageLibrary({ clothId, imageLibrary: next });
       if (redirectIfUnauthorized(res)) return;
@@ -754,6 +762,22 @@ function ProductImageDesk({
     persistLibrary(result.library);
   }
 
+  function deleteOriginal(groupId: string, url: string) {
+    if (library.length <= 1) {
+      toast.error('حداقل یک تصویر باید باقی بماند');
+      return;
+    }
+    if (previewUrl === url) setPreviewUrl('');
+    if (generateForUrl === url) setGenerateForUrl('');
+    persistLibrary(removeGroupFromLibrary(library, groupId));
+  }
+
+  function deleteGenerated(groupId: string, generatedId: string, url: string) {
+    if (previewUrl === url) setPreviewUrl('');
+    if (generateForUrl === url) setGenerateForUrl('');
+    persistLibrary(removeGeneratedFromLibrary(library, groupId, generatedId));
+  }
+
   return (
     <>
       <Modal
@@ -767,50 +791,23 @@ function ProductImageDesk({
           {saving ? (
             <ApiWait compact title="در حال ذخیره نمایش تصاویر…" hint="انتخاب نمایش در محصول دارد ذخیره می‌شود." />
           ) : null}
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-gray-600">
-                نسخه‌های اصلی و هوش مصنوعی این لباس. بعد از ساخت، تصویر جدید همین‌جا دیده می‌شود.
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {faNumber(aiCount)} نسخه AI · {faNumber(shownCount)} / {faNumber(MAX_CLOTH_IMAGES)} نمایش در محصول
-              </p>
-            </div>
-            <Button type="button" onClick={() => setGenerateOpen(true)} disabled={!originals.length}>
-              <Sparkles className="size-4" />
-              ساخت تصویر AI
-            </Button>
+          <div>
+            <p className="text-sm text-gray-600">
+              روی تصویر بزنید تا بزرگ شود. برای هر اصل، جداگانه ساخت AI بزنید؛ نسخهٔ جدید زیر همان ردیف می‌آید.
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {faNumber(aiCount)} نسخه AI · {faNumber(shownCount)} / {faNumber(MAX_CLOTH_IMAGES)} نمایش در محصول
+            </p>
           </div>
-
-          {preview ? (
-            <div className="overflow-hidden rounded-2xl border border-violet-200 bg-violet-50/40">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={preview}
-                alt=""
-                className="mx-auto max-h-80 w-full object-contain bg-white"
-                onError={(event) => {
-                  const img = event.currentTarget;
-                  img.style.display = 'none';
-                }}
-              />
-              <p className="px-3 py-2 text-center text-xs text-violet-950">
-                {previewUrl ? 'آخرین تصویر ساخته‌شده / انتخاب‌شده' : 'پیش‌نمایش — روی یک نسخه بزنید'}
-              </p>
-            </div>
-          ) : null}
 
           <div className="space-y-3">
             {library.map((group, index) => (
               <article key={group.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                <div className="grid gap-3 p-3 sm:grid-cols-[6.5rem_1fr] sm:items-center">
+                <div className="grid gap-3 p-3 sm:grid-cols-[6.5rem_1fr_auto] sm:items-center">
                   <button
                     type="button"
                     onClick={() => setPreviewUrl(group.originalUrl)}
-                    className={cn(
-                      'relative overflow-hidden rounded-xl border',
-                      preview === group.originalUrl ? 'border-teal-400 ring-1 ring-teal-100' : 'border-gray-100',
-                    )}
+                    className="relative overflow-hidden rounded-xl border border-gray-100"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={group.originalUrl} alt="" className="h-24 w-full object-cover" />
@@ -827,20 +824,41 @@ function ProductImageDesk({
                         </span>
                       ) : null}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => toggleShown(group.id, 'original')}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition',
-                        group.originalShown
-                          ? 'border-teal-300 bg-teal-50 text-teal-900'
-                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
-                      )}
-                    >
-                      {group.originalShown ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                      {group.originalShown ? 'نمایش در محصول' : 'مخفی از محصول'}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleShown(group.id, 'original')}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition',
+                          group.originalShown
+                            ? 'border-teal-300 bg-teal-50 text-teal-900'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
+                        )}
+                      >
+                        {group.originalShown ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        {group.originalShown ? 'نمایش در محصول' : 'مخفی از محصول'}
+                      </button>
+                      <IconButton
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        aria-label="حذف تصویر اصلی"
+                        onClick={() => deleteOriginal(group.id, group.originalUrl)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </IconButton>
+                    </div>
                   </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-violet-200 bg-violet-50 text-violet-900 hover:border-violet-300"
+                    onClick={() => setGenerateForUrl(group.originalUrl)}
+                  >
+                    <Sparkles className="size-3.5" />
+                    ساخت با AI
+                  </Button>
                 </div>
 
                 {group.generated.length ? (
@@ -851,51 +869,73 @@ function ProductImageDesk({
                           key={gen.id}
                           className={cn(
                             'overflow-hidden rounded-xl border bg-white transition',
-                            gen.url === preview
-                              ? 'border-violet-400 ring-1 ring-violet-100'
-                              : gen.shown
-                                ? 'border-violet-300'
-                                : 'border-gray-200',
+                            gen.shown ? 'border-violet-300' : 'border-gray-200',
                           )}
                         >
-                          <button type="button" className="relative block w-full" onClick={() => setPreviewUrl(gen.url)}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={gen.url} alt="" className="h-36 w-full object-cover" />
-                            <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">
-                              <Sparkles className="h-3 w-3" />
-                              AI
-                            </span>
-                            {gen.shown ? (
-                              <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-teal-600 px-1.5 py-0.5 text-[10px] text-white">
-                                <Check className="h-3 w-3" />
-                                در محصول
-                              </span>
-                            ) : null}
-                          </button>
-                          <div className="space-y-2 p-2.5">
-                            <p className="text-xs font-medium text-gray-800">{aiStyleLabel(gen.styleId)}</p>
+                          <div className="relative">
                             <button
                               type="button"
-                              onClick={() => toggleShown(group.id, 'generated', gen.id)}
-                              className={cn(
-                                'flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs transition',
-                                gen.shown
-                                  ? 'border-teal-300 bg-teal-50 text-teal-900'
-                                  : 'border-gray-200 text-gray-600 hover:border-gray-300',
-                              )}
+                              className="block w-full"
+                              onClick={() => setPreviewUrl(gen.url)}
                             >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={gen.url} alt="" className="h-36 w-full object-cover" />
+                              <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">
+                                <Sparkles className="h-3 w-3" />
+                                AI
+                              </span>
                               {gen.shown ? (
-                                <>
-                                  <Eye className="h-3.5 w-3.5" />
-                                  نمایش در محصول
-                                </>
-                              ) : (
-                                <>
-                                  <EyeOff className="h-3.5 w-3.5" />
-                                  افزودن به محصول
-                                </>
-                              )}
+                                <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-teal-600 px-1.5 py-0.5 text-[10px] text-white">
+                                  <Check className="h-3 w-3" />
+                                  در محصول
+                                </span>
+                              ) : null}
                             </button>
+                            <IconButton
+                              type="button"
+                              size="xs"
+                              variant="ghost"
+                              aria-label="حذف نسخه AI"
+                              className="absolute right-1.5 top-1.5 bg-white/90 shadow-sm hover:bg-white"
+                              onClick={() => deleteGenerated(group.id, gen.id, gen.url)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                            </IconButton>
+                          </div>
+                          <div className="space-y-2 p-2.5">
+                            <p className="text-xs font-medium text-gray-800">{aiStyleLabel(gen.styleId)}</p>
+                            <div className="flex flex-col gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => toggleShown(group.id, 'generated', gen.id)}
+                                className={cn(
+                                  'flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs transition',
+                                  gen.shown
+                                    ? 'border-teal-300 bg-teal-50 text-teal-900'
+                                    : 'border-gray-200 text-gray-600 hover:border-gray-300',
+                                )}
+                              >
+                                {gen.shown ? (
+                                  <>
+                                    <Eye className="h-3.5 w-3.5" />
+                                    نمایش در محصول
+                                  </>
+                                ) : (
+                                  <>
+                                    <EyeOff className="h-3.5 w-3.5" />
+                                    افزودن به محصول
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setGenerateForUrl(gen.url)}
+                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-xs text-violet-900 hover:border-violet-300"
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                                ساخت با AI
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -903,7 +943,7 @@ function ProductImageDesk({
                   </div>
                 ) : (
                   <div className="border-t border-dashed border-violet-100 bg-violet-50/30 px-3 py-4 text-center text-xs text-violet-900/80">
-                    هنوز نسخه AI برای این اصل ساخته نشده — «ساخت تصویر AI» را بزنید.
+                    هنوز نسخه AI برای این اصل ساخته نشده — «ساخت با AI» را بزنید.
                   </div>
                 )}
               </article>
@@ -918,15 +958,29 @@ function ProductImageDesk({
         </FormCard>
       </Modal>
 
-      {generateOpen ? (
+      {previewUrl ? (
+        <Modal isOpen onClose={() => setPreviewUrl('')} size="lg" rounded="lg" title="پیش‌نمایش تصویر">
+          <div className="overflow-hidden rounded-2xl bg-gray-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewUrl} alt="" className="mx-auto max-h-[70vh] w-full object-contain" />
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button type="button" variant="outline" onClick={() => setPreviewUrl('')}>
+              بستن
+            </Button>
+          </div>
+        </Modal>
+      ) : null}
+
+      {generateForUrl ? (
         <ImageEditModal
           clothId={clothId}
-          images={originals}
-          initialImageUrl={originals[0]}
-          onClose={() => setGenerateOpen(false)}
+          images={originals.includes(generateForUrl) ? originals : [generateForUrl, ...originals]}
+          initialImageUrl={generateForUrl}
+          onClose={() => setGenerateForUrl('')}
           onSuccess={(payload) => {
             const next = normalizeClothImageLibrary(payload.imageLibrary, payload.images);
-            applyLocal(next, payload.resultUrl || next.flatMap((g) => g.generated.map((gen) => gen.url))[0]);
+            applyLocal(next);
           }}
         />
       ) : null}

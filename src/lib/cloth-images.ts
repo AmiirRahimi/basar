@@ -146,6 +146,20 @@ export function removeGroupFromLibrary(library: ClothImageGroup[], groupId: stri
   return library.filter((group) => group.id !== groupId);
 }
 
+export function removeGeneratedFromLibrary(
+  library: ClothImageGroup[],
+  groupId: string,
+  generatedId: string,
+) {
+  return library.map((group) => {
+    if (group.id !== groupId) return group;
+    return {
+      ...group,
+      generated: group.generated.filter((gen) => gen.id !== generatedId),
+    };
+  });
+}
+
 export function replaceOriginalInLibrary(library: ClothImageGroup[], groupId: string, url: string) {
   const nextUrl = String(url || '').trim();
   if (!nextUrl) return library;
